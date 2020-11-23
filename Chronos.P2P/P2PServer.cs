@@ -11,7 +11,7 @@ namespace Chronos.P2P.Server
 {
     public class P2PServer
     {
-        private const int listenPort = 11000;
+        private const int listenPort = 5000;
         ConcurrentDictionary<Guid, PeerInfo> peers;
         Dictionary<ServerMethods, Action<object>> requestHandlers;
         Type attribute = typeof(HandlerAttribute);

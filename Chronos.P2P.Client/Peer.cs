@@ -21,7 +21,7 @@ namespace Chronos.P2P.Client
         ConcurrentDictionary<Guid, PeerInfo> peers;
         PeerInfo peer;
         CancellationTokenSource source = new CancellationTokenSource();
-        public Peer(int port,IPEndPoint serverEP)
+        public Peer(int port,IPEndPoint serverEP, int delay = 1000)
         {
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
@@ -57,11 +57,12 @@ namespace Chronos.P2P.Client
                         var data = Encoding.Default.GetString(re.Buffer);
                         if (data.Length>10)
                         {
+                            source.Cancel();
                             continue;
                         }
                         Console.WriteLine($"Client {ID}: Received peer message: {data}");
                         Console.WriteLine("Connected!");
-                        source.Cancel();
+                        
                     }
                 }
             }, source.Token);
@@ -90,7 +91,7 @@ namespace Chronos.P2P.Client
                     {
                         var data = Encoding.Default.GetBytes("Hello");
                         await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
-                        await Task.Delay(1000);
+                        await Task.Delay(delay);
                         continue;
                     }
                     await Task.Delay(1000);
