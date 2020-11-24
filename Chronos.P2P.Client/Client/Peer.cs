@@ -25,7 +25,7 @@ namespace Chronos.P2P.Client
         bool peerConnected = false;
         IPEndPoint serverEP;
         P2PServer server;
-        public Peer(int port,IPEndPoint serverEP, int delay = 1000)
+        public Peer(int port,IPEndPoint serverEP)
         {
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
