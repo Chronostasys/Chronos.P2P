@@ -12,11 +12,13 @@ namespace Chronos.P2P.Client
         public Guid Id { get; set; }
         public PeerEP InnerEP { get; set; }
         public PeerEP OuterEP { get; set; }
+        public bool NeedData { get; set; }
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
         public void Dispose()
         {
             tokenSource.Cancel();
+            tokenSource.Dispose();
         }
 
         public void SetTimeOut(ConcurrentDictionary<Guid, PeerInfo> dic)

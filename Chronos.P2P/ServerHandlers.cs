@@ -16,9 +16,15 @@ namespace Chronos.P2P.Server
             var remote = context.RemoteEndPoint;
             var peers = context.Peers;
             peer.OuterEP = PeerEP.ParsePeerEPFromIPEP(remote);
-            var sendbytes = JsonSerializer.SerializeToUtf8Bytes(peers);
+            
             Console.WriteLine($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
-            context.UdpClient.SendAsync(sendbytes, sendbytes.Length, remote);
+
+            if (peer.NeedData)
+            {
+                var sendbytes = JsonSerializer.SerializeToUtf8Bytes(peers);
+                context.UdpClient.SendAsync(sendbytes, sendbytes.Length, remote);
+            }
+            
             peer.SetTimeOut(peers);
             if (peers.TryGetValue(peer.Id, out var prev))
             {

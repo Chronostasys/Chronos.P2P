@@ -20,7 +20,8 @@ namespace Chronos.P2P.Client
         int port;
         ConcurrentDictionary<Guid, PeerInfo> peers;
         PeerInfo peer;
-        CancellationTokenSource source = new CancellationTokenSource();
+        CancellationTokenSource tokenSource = new CancellationTokenSource();
+        bool peerConnected = false;
         public Peer(int port,IPEndPoint serverEP, int delay = 1000)
         {
             ID = Guid.NewGuid();
@@ -44,8 +45,7 @@ namespace Chronos.P2P.Client
                                     peers.Remove(ID, out var val);
                                 }
                             }
-                            peer = peers.Values.First();
-                            Console.WriteLine($"Client {ID}: found peer!");
+                            Console.WriteLine($"Client {ID}: found peers!");
                         }
                         catch (Exception)
                         {
@@ -55,49 +55,76 @@ namespace Chronos.P2P.Client
                     else
                     {
                         var data = Encoding.Default.GetString(re.Buffer);
-                        if (data.Length>10)
+                        if (data=="Connected")
                         {
-                            source.Cancel();
-                            continue;
+                            Console.WriteLine("Peer connected");
+                            peerConnected = true;
                         }
-                        Console.WriteLine($"Client {ID}: Received peer message: {data}");
-                        Console.WriteLine("Connected!");
+                        else if (data=="Hello")
+                        {
+                            tokenSource.Cancel();
+                            Console.WriteLine($"Client {ID}: Received peer message: {data}");
+                            Console.WriteLine("Connected!");
+                        }
                         
                     }
                 }
-            }, source.Token);
+            }, tokenSource.Token);
             Task.Run(async () =>
             {
                 var peerInfo = new PeerInfo { Id = ID, InnerEP = localEP };
                 while (true)
                 {
-                    source.Token.ThrowIfCancellationRequested();
+                    tokenSource.Token.ThrowIfCancellationRequested();
+                    if (peer is null)
+                    {
+                        peerInfo.NeedData = true;
+                    }
+                    else
+                    {
+                        peerInfo.NeedData = false;
+                    }
                     var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
                     {
                         Method = ServerMethods.Connect,
-                        Data = peerInfo
+                        Data = peerInfo,
                     });
                     var st = udpClient.SendAsync(bytes, bytes.Length, serverEP);
                     Console.WriteLine($"Client {ID}: Sent connection data!");
-                    await Task.Delay(1000, source.Token);
+                    await Task.Delay(1000, tokenSource.Token);
                 }
-            }, source.Token);
+            }, tokenSource.Token);
             Task.Run(async () =>
             {
                 while (true)
                 {
-                    //source.Token.ThrowIfCancellationRequested();
                     if (peer is not null)
                     {
-                        var data = Encoding.Default.GetBytes("Hello");
-                        await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
+                        if (tokenSource.IsCancellationRequested)
+                        {
+                            var data = Encoding.Default.GetBytes("Connected");
+                            await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
+                            if (peerConnected)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            var data = Encoding.Default.GetBytes("Hello");
+                            await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
+                        }
                         await Task.Delay(delay);
                         continue;
                     }
                     await Task.Delay(1000);
                 }
-            }, source.Token);
+            }, tokenSource.Token);
 
+        }
+        public void SetPeer(Guid id)
+        {
+            peer = peers[id];
         }
         public static IPAddress GetLocalIPAddress()
         {
