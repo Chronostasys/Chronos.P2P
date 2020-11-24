@@ -2,6 +2,8 @@
 {
     public enum CallMethods
     {
-        Connect
+        Connect,
+        P2PPing,
+        P2PDataTransfer
     }
 }

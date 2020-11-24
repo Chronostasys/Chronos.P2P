@@ -5,7 +5,7 @@ namespace Chronos.P2P.Client
 {
     public class CallServerDto<TData>
     {
-        public CallMethods Method { get; set; }
+        public int Method { get; set; }
         public TData Data { get; set; }
         public TCast GetData<TCast>() where TCast : class
             => JsonSerializer.Deserialize<TCast>(Data.ToString());

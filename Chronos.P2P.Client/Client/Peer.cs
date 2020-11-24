@@ -42,6 +42,8 @@ namespace Chronos.P2P.Client
             StartBroadCast();
             StartHolePunching();
         }
+        public void AddHandlers<T>() where T : new()
+            => server.AddHandler<T>();
         Task StartReceiveData()
             => Task.Run(async () =>
             {
@@ -132,7 +134,7 @@ namespace Chronos.P2P.Client
                     }
                     var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
                     {
-                        Method = CallMethods.Connect,
+                        Method = (int)CallMethods.Connect,
                         Data = peerInfo,
                     });
                     var st = udpClient.SendAsync(bytes, bytes.Length, serverEP);

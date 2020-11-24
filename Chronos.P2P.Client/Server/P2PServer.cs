@@ -13,7 +13,7 @@ namespace Chronos.P2P.Server
     {
         private const int listenPort = 5000;
         ConcurrentDictionary<Guid, PeerInfo> peers;
-        Dictionary<CallMethods, Action<object>> requestHandlers;
+        Dictionary<int, Action<object>> requestHandlers;
         Type attribute = typeof(HandlerAttribute);
         UdpClient listener;
         public P2PServer() : this(new UdpClient()) { }
@@ -21,7 +21,7 @@ namespace Chronos.P2P.Server
         {
             listener = client;
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
-            requestHandlers = new Dictionary<CallMethods, Action<object>>();
+            requestHandlers = new Dictionary<int, Action<object>>();
         }
         public void AddDefaultServerHandler()
         {
@@ -30,6 +30,7 @@ namespace Chronos.P2P.Server
         public void AddHandler<T>() where T:new()
         {
             var handler = new T();
+            
             var methods = handler.GetType().GetMethods();
             foreach (var item in methods)
             {

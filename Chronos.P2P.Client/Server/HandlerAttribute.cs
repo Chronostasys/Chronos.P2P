@@ -6,8 +6,8 @@ namespace Chronos.P2P.Server
 {
     public class HandlerAttribute:Attribute
     {
-        public CallMethods Method { get; }
-        public HandlerAttribute(CallMethods method)
+        public int Method { get; }
+        public HandlerAttribute(int method)
             => Method = method;
     }
 }
