@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -16,7 +17,7 @@ namespace Chronos.P2P.Server
         Dictionary<int, Action<object>> requestHandlers;
         Type attribute = typeof(HandlerAttribute);
         UdpClient listener;
-        public P2PServer() : this(new UdpClient()) { }
+        public P2PServer() : this(new UdpClient(new IPEndPoint(IPAddress.Any, listenPort))) { }
         public P2PServer(UdpClient client)
         {
             listener = client;
