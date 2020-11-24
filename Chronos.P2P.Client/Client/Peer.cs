@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
             StartBroadCast();
             StartHolePunching();
         }
-        public void AddHandlers<T>() where T : new()
+        public void AddHandlers<T>() where T : class
             => server.AddHandler<T>();
         Task StartReceiveData()
             => Task.Run(async () =>
