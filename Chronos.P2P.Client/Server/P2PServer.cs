@@ -38,7 +38,6 @@ namespace Chronos.P2P.Server
         public void ConfigureServices(Action<ServiceCollection> configureAction)
         {
             configureAction(services);
-            serviceProvider = services.BuildServiceProvider();
         }
         public void AddDefaultServerHandler()
         {
@@ -47,7 +46,8 @@ namespace Chronos.P2P.Server
         public void AddHandler<T>() where T:class
         {
             var type = typeof(T);
-            var cstParams = type.GetConstructors()[0].GetParameters();
+            var ctor = type.GetConstructors()[0];
+            var cstParams = ctor.GetParameters();
             var td = new TypeData { GenericType = type, Parameters = cstParams };
 
             
@@ -69,13 +69,14 @@ namespace Chronos.P2P.Server
             {
                 args.Add(serviceProvider.GetRequiredService(item.ParameterType));
             }
-            var handler = Activator.CreateInstance(data.GenericType, args);
+            var handler = Activator.CreateInstance(data.GenericType, args.ToArray());
             data.Method.Invoke(handler, new[] { param });
         }
         public async Task StartServerAsync()
         {
-            
-            
+            services.AddSingleton(this);
+            serviceProvider = services.BuildServiceProvider();
+
             try
             {
                 while (true)

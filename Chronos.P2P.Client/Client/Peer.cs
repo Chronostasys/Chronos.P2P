@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Threading;
 using Chronos.P2P.Server;
+using Chronos.P2P.Client;
 
 namespace Chronos.P2P.Client
 {
@@ -32,8 +33,10 @@ namespace Chronos.P2P.Client
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
             this.port = port;
             server = new P2PServer(udpClient);
-            
-            
+            server.ConfigureServices(services =>
+            {
+
+            });
 
         }
         public void StartPeer()
