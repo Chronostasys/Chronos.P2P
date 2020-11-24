@@ -9,7 +9,7 @@ namespace Chronos.P2P.Server
 {
     public class ServerHandlers
     {
-        [Handler(ServerMethods.Connect)]
+        [Handler(CallMethods.Connect)]
         public void HandleConnect(UdpContext context)
         {
             var peer = context.Dto.GetData<PeerInfo>();

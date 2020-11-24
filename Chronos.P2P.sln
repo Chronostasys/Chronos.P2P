@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30709.64
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.P2P.Server", "Chronos.P2P\Chronos.P2P.Server.csproj", "{F796702C-ABA1-474F-944A-85ADE0D406E9}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.P2P.Client", "Chronos.P2P.Client\Chronos.P2P.Client.csproj", "{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.P2P.Server.Sample", "Chronos.P2P.Server.Sample\Chronos.P2P.Server.Sample.csproj", "{F1D09A26-757D-4C73-9665-C518AFFC0F1A}"
@@ -15,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F796702C-ABA1-474F-944A-85ADE0D406E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F796702C-ABA1-474F-944A-85ADE0D406E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F796702C-ABA1-474F-944A-85ADE0D406E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F796702C-ABA1-474F-944A-85ADE0D406E9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Release|Any CPU.ActiveCfg = Release|Any CPU

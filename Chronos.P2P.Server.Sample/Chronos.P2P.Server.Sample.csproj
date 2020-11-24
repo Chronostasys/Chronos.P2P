@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Chronos.P2P\Chronos.P2P.Server.csproj" />
+    <ProjectReference Include="..\Chronos.P2P.Client\Chronos.P2P.Client.csproj" />
   </ItemGroup>
 
 </Project>

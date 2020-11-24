@@ -86,7 +86,7 @@ namespace Chronos.P2P.Client
                     }
                     var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
                     {
-                        Method = ServerMethods.Connect,
+                        Method = CallMethods.Connect,
                         Data = peerInfo,
                     });
                     var st = udpClient.SendAsync(bytes, bytes.Length, serverEP);

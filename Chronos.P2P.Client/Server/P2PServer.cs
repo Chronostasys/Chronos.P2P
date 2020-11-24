@@ -13,12 +13,18 @@ namespace Chronos.P2P.Server
     {
         private const int listenPort = 5000;
         ConcurrentDictionary<Guid, PeerInfo> peers;
-        Dictionary<ServerMethods, Action<object>> requestHandlers;
+        Dictionary<CallMethods, Action<object>> requestHandlers;
         Type attribute = typeof(HandlerAttribute);
-        public P2PServer()
+        UdpClient listener;
+        public P2PServer() : this(new UdpClient()) { }
+        public P2PServer(UdpClient client)
         {
+            listener = client;
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
-            requestHandlers = new Dictionary<ServerMethods, Action<object>>();
+            requestHandlers = new Dictionary<CallMethods, Action<object>>();
+        }
+        public void AddDefaultServerHandler()
+        {
             AddHandler<ServerHandlers>();
         }
         public void AddHandler<T>() where T:new()
@@ -42,7 +48,6 @@ namespace Chronos.P2P.Server
 
         public async Task StartServerAsync()
         {
-            UdpClient listener = new UdpClient(listenPort);
             
             
             try
