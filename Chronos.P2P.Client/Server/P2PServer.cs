@@ -5,19 +5,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Chronos.P2P.Server
 {
-    public record TypeData
-    {
-        public Type GenericType { get; init; }
-        public ParameterInfo[] Parameters { get; init; }
-        public MethodInfo Method { get; init; }
-    }
     public class P2PServer
     {
         private const int listenPort = 5000;
