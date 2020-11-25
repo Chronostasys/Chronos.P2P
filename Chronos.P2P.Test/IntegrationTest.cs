@@ -44,7 +44,7 @@ namespace Chronos.P2P.Test
             await Task.WhenAny(
                 t1,
                 t2,
-                t3, Task.Delay(10000));
+                t3, Task.Delay(5000));
             Assert.True(connected);
             Assert.Null(data);
             var greetingString = "Hi";

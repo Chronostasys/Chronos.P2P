@@ -83,6 +83,11 @@ namespace Chronos.P2P.Client
                         if (data == "Connected")
                         {
                             Console.WriteLine("Peer connected");
+                            var datab = Encoding.Default.GetBytes("Connected");
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
                             peerConnected = true;
                             PeerConnected?.Invoke(this, new EventArgs());
                             break;
