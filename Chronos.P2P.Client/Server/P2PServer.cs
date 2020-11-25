@@ -15,14 +15,13 @@ namespace Chronos.P2P.Server
 {
     public class P2PServer:IDisposable
     {
-        private const int listenPort = 5000;
         ConcurrentDictionary<Guid, PeerInfo> peers;
         internal Dictionary<int, TypeData> requestHandlers;
         Type attribute = typeof(HandlerAttribute);
         UdpClient listener;
         ServiceCollection services;
         ServiceProvider serviceProvider;
-        public P2PServer() : this(new UdpClient(new IPEndPoint(IPAddress.Any, listenPort))) { }
+        public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port))) { }
         public P2PServer(UdpClient client)
         {
             services = new ServiceCollection();
@@ -80,16 +79,16 @@ namespace Chronos.P2P.Server
             {
                 ConfigureServices(s => { });
             }
-            try
+            while (true)
             {
-                while (true)
+                try
                 {
                     Console.WriteLine("Waiting for broadcast");
 
                     var re = await listener.ReceiveAsync();
                     var dto = JsonSerializer.Deserialize<CallServerDto<object>>(re.Buffer);
                     var td = requestHandlers[dto.Method];
-                    
+
                     CallHandler(td, new UdpContext
                     {
                         Dto = dto,
@@ -97,16 +96,12 @@ namespace Chronos.P2P.Server
                         RemoteEndPoint = re.RemoteEndPoint,
                         UdpClient = listener
                     });
-                    
                 }
-            }
-            catch (SocketException e)
-            {
-                Console.WriteLine(e);
-            }
-            finally
-            {
-                listener.Close();
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+
             }
         }
 

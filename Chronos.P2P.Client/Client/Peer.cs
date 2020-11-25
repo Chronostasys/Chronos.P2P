@@ -20,12 +20,14 @@ namespace Chronos.P2P.Client
         PeerEP localEP
             => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
         int port;
-        ConcurrentDictionary<Guid, PeerInfo> peers;
+        public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
         PeerInfo peer;
         CancellationTokenSource tokenSource = new CancellationTokenSource();
         bool peerConnected = false;
         IPEndPoint serverEP;
         P2PServer server;
+        public event EventHandler PeersDataReceiveed;
+        public event EventHandler PeerConnected;
         public Peer(int port,IPEndPoint serverEP)
         {
             this.serverEP = serverEP;
@@ -39,11 +41,12 @@ namespace Chronos.P2P.Client
             });
 
         }
-        public void StartPeer()
+        public Task StartPeer()
         {
-            StartReceiveData();
+            var t = StartReceiveData();
             StartBroadCast();
             StartHolePunching();
+            return t;
         }
         public void AddHandlers<T>() where T : class
             => server.AddHandler<T>();
@@ -66,6 +69,7 @@ namespace Chronos.P2P.Client
                                     peers.Remove(ID, out var val);
                                 }
                             }
+                            PeersDataReceiveed?.Invoke(this, new EventArgs());
                             Console.WriteLine($"Client {ID}: found peers!");
                         }
                         catch (Exception)
@@ -80,6 +84,7 @@ namespace Chronos.P2P.Client
                         {
                             Console.WriteLine("Peer connected");
                             peerConnected = true;
+                            PeerConnected?.Invoke(this, new EventArgs());
                             break;
                         }
                         else if (data == "Hello")
@@ -92,7 +97,7 @@ namespace Chronos.P2P.Client
                     }
                 }
                 await server.StartServerAsync();
-            }, tokenSource.Token);
+            });
         Task StartHolePunching()
             => Task.Run(async () =>
             {
