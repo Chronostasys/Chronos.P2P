@@ -5,17 +5,19 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-
+[assembly: InternalsVisibleTo("Chronos.P2P.Test")]
 namespace Chronos.P2P.Server
 {
-    public class P2PServer
+    public class P2PServer:IDisposable
     {
         private const int listenPort = 5000;
         ConcurrentDictionary<Guid, PeerInfo> peers;
-        Dictionary<int, TypeData> requestHandlers;
+        internal Dictionary<int, TypeData> requestHandlers;
         Type attribute = typeof(HandlerAttribute);
         UdpClient listener;
         ServiceCollection services;
@@ -31,6 +33,8 @@ namespace Chronos.P2P.Server
         public void ConfigureServices(Action<ServiceCollection> configureAction)
         {
             configureAction(services);
+            services.AddSingleton(this);
+            serviceProvider = services.BuildServiceProvider();
         }
         public void AddDefaultServerHandler()
         {
@@ -55,21 +59,27 @@ namespace Chronos.P2P.Server
             }
 
         }
-        void CallHandler(TypeData data, object param)
+        
+        internal void CallHandler(TypeData data, UdpContext param)
+        {
+            var handler = GetInstance(data);
+            data.Method.Invoke(handler, new[] { param });
+        }
+        internal object GetInstance(TypeData data)
         {
             List<object> args = new List<object>();
             foreach (var item in data.Parameters)
             {
                 args.Add(serviceProvider.GetRequiredService(item.ParameterType));
             }
-            var handler = Activator.CreateInstance(data.GenericType, args.ToArray());
-            data.Method.Invoke(handler, new[] { param });
+            return Activator.CreateInstance(data.GenericType, args.ToArray());
         }
         public async Task StartServerAsync()
         {
-            services.AddSingleton(this);
-            serviceProvider = services.BuildServiceProvider();
-
+            if (serviceProvider is null)
+            {
+                ConfigureServices(s => { });
+            }
             try
             {
                 while (true)
@@ -100,5 +110,9 @@ namespace Chronos.P2P.Server
             }
         }
 
+        public void Dispose()
+        {
+            listener.Dispose();
+        }
     }
 }
