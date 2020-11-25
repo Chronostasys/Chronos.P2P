@@ -18,9 +18,6 @@ jobs:
       with:
         dotnet-version: 5.0.100
         
-        
-    - name: cd to dir
-      run: cd Chronos.P2P.Server.Sample
     - name: Install dependencies
       run: dotnet restore
     - name: Build
