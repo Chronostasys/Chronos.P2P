@@ -13,19 +13,21 @@ using Chronos.P2P.Client;
 
 namespace Chronos.P2P.Client
 {
-    public class Peer
+    public class Peer:IDisposable
     {
         public Guid ID { get; }
         UdpClient udpClient;
         PeerEP localEP
             => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
         int port;
-        ConcurrentDictionary<Guid, PeerInfo> peers;
+        public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
         PeerInfo peer;
         CancellationTokenSource tokenSource = new CancellationTokenSource();
         bool peerConnected = false;
         IPEndPoint serverEP;
         P2PServer server;
+        public event EventHandler PeersDataReceiveed;
+        public event EventHandler PeerConnected;
         public Peer(int port,IPEndPoint serverEP)
         {
             this.serverEP = serverEP;
@@ -39,11 +41,12 @@ namespace Chronos.P2P.Client
             });
 
         }
-        public void StartPeer()
+        public Task StartPeer()
         {
-            StartReceiveData();
+            var t = StartReceiveData();
             StartBroadCast();
             StartHolePunching();
+            return t;
         }
         public void AddHandlers<T>() where T : class
             => server.AddHandler<T>();
@@ -66,6 +69,7 @@ namespace Chronos.P2P.Client
                                     peers.Remove(ID, out var val);
                                 }
                             }
+                            PeersDataReceiveed?.Invoke(this, new EventArgs());
                             Console.WriteLine($"Client {ID}: found peers!");
                         }
                         catch (Exception)
@@ -79,7 +83,13 @@ namespace Chronos.P2P.Client
                         if (data == "Connected")
                         {
                             Console.WriteLine("Peer connected");
+                            var datab = Encoding.Default.GetBytes("Connected");
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
                             peerConnected = true;
+                            PeerConnected?.Invoke(this, new EventArgs());
                             break;
                         }
                         else if (data == "Hello")
@@ -92,7 +102,7 @@ namespace Chronos.P2P.Client
                     }
                 }
                 await server.StartServerAsync();
-            }, tokenSource.Token);
+            });
         Task StartHolePunching()
             => Task.Run(async () =>
             {
@@ -119,7 +129,7 @@ namespace Chronos.P2P.Client
                     }
                     await Task.Delay(1000);
                 }
-            }, tokenSource.Token);
+            });
         Task StartBroadCast()
             => Task.Run(async () =>
             {
@@ -144,10 +154,19 @@ namespace Chronos.P2P.Client
                     Console.WriteLine($"Client {ID}: Sent connection data!");
                     await Task.Delay(1000, tokenSource.Token);
                 }
-            }, tokenSource.Token);
+            });
         public void SetPeer(Guid id)
         {
             peer = peers[id];
+        }
+        public async Task SendDataToPeerAsync<T>(T data) where T:class
+        {
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
+            {
+                Method = (int)CallMethods.P2PDataTransfer,
+                Data = data,
+            });
+            await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
         }
         public static IPAddress GetLocalIPAddress()
         {
@@ -160,6 +179,11 @@ namespace Chronos.P2P.Client
                 }
             }
             throw new Exception("No network adapters with an IPv4 address in the system!");
+        }
+
+        public void Dispose()
+        {
+            udpClient.Dispose();
         }
     }
 }
