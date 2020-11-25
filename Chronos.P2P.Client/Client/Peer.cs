@@ -109,7 +109,6 @@ namespace Chronos.P2P.Client
                         {
                             var data = Encoding.Default.GetBytes("Connected");
                             await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
-                            await Task.Delay(100);
                             if (peerConnected)
                             {
                                 break;
@@ -125,7 +124,7 @@ namespace Chronos.P2P.Client
                     }
                     await Task.Delay(1000);
                 }
-            }, tokenSource.Token);
+            });
         Task StartBroadCast()
             => Task.Run(async () =>
             {
@@ -150,7 +149,7 @@ namespace Chronos.P2P.Client
                     Console.WriteLine($"Client {ID}: Sent connection data!");
                     await Task.Delay(1000, tokenSource.Token);
                 }
-            }, tokenSource.Token);
+            });
         public void SetPeer(Guid id)
         {
             peer = peers[id];
