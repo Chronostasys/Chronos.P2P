@@ -10,8 +10,17 @@ using Xunit;
 
 namespace Chronos.P2P.Test
 {
+    public class ClientHandler
+    {
+        [Handler((int)CallMethods.P2PDataTransfer)]
+        public void OnReceiveData(UdpContext udpContext)
+        {
+            IntegrationTest.data = udpContext.Dto.GetData<string>();
+        }
+    }
     public class IntegrationTest
     {
+        internal static string data;
         bool connected = false;
         [Fact]
         public async Task TestIntegration()
@@ -24,8 +33,12 @@ namespace Chronos.P2P.Test
             peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer1.PeerConnected += Peer1_PeerConnected;
-            var t1 = peer1.StartPeer();
 
+            peer1.AddHandlers<ClientHandler>();
+            peer2.AddHandlers<ClientHandler>();
+
+
+            var t1 = peer1.StartPeer();
             var t2 = peer2.StartPeer();
             var t3 = server.StartServerAsync();
             await Task.WhenAny(
@@ -33,6 +46,15 @@ namespace Chronos.P2P.Test
                 t2,
                 t3, Task.Delay(10000));
             Assert.True(connected);
+            Assert.Null(data);
+            var greetingString = "Hi";
+            var hello = new Hello { HelloString = greetingString };
+            await peer1.SendDataToPeerAsync(greetingString);
+            await Task.Delay(1000);
+            Assert.Equal(hello.HelloString, data);
+            peer1.Dispose();
+            peer2.Dispose();
+            server.Dispose();
             
         }
 

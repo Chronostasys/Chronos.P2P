@@ -13,7 +13,7 @@ using Chronos.P2P.Client;
 
 namespace Chronos.P2P.Client
 {
-    public class Peer
+    public class Peer:IDisposable
     {
         public Guid ID { get; }
         UdpClient udpClient;
@@ -154,6 +154,15 @@ namespace Chronos.P2P.Client
         {
             peer = peers[id];
         }
+        public async Task SendDataToPeerAsync<T>(T data) where T:class
+        {
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
+            {
+                Method = (int)CallMethods.P2PDataTransfer,
+                Data = data,
+            });
+            await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+        }
         public static IPAddress GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -165,6 +174,11 @@ namespace Chronos.P2P.Client
                 }
             }
             throw new Exception("No network adapters with an IPv4 address in the system!");
+        }
+
+        public void Dispose()
+        {
+            udpClient.Dispose();
         }
     }
 }

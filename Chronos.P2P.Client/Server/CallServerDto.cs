@@ -9,11 +9,16 @@ namespace Chronos.P2P.Client
         public TData Data { get; set; }
         public TCast GetData<TCast>() where TCast : class
         {
-            if (Data is TCast)
+            //if (Data is TCast)
+            //{
+            //    return Data as TCast;
+            //}
+            var s = Data.ToString();
+            if (s is TCast)
             {
-                return Data as TCast;
+                return s as TCast;
             }
-            return JsonSerializer.Deserialize<TCast>(Data.ToString());
+            return JsonSerializer.Deserialize<TCast>(s);
         }
     }
 }
