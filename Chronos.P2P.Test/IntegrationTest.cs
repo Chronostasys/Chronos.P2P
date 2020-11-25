@@ -50,6 +50,8 @@ namespace Chronos.P2P.Test
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };
             await peer1.SendDataToPeerAsync(greetingString);
+            await peer1.SendDataToPeerAsync(greetingString);
+            await peer1.SendDataToPeerAsync(greetingString);
             await Task.Delay(1000);
             Assert.Equal(hello.HelloString, data);
             peer1.Dispose();
