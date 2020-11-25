@@ -13,6 +13,10 @@ using System.Threading.Tasks;
 [assembly: InternalsVisibleTo("Chronos.P2P.Test")]
 namespace Chronos.P2P.Server
 {
+    public class UdpRequest
+    {
+        public int Method { get; set; }
+    }
     public class P2PServer:IDisposable
     {
         ConcurrentDictionary<Guid, PeerInfo> peers;
@@ -86,12 +90,11 @@ namespace Chronos.P2P.Server
                     Console.WriteLine("Waiting for broadcast");
 
                     var re = await listener.ReceiveAsync();
-                    var dto = JsonSerializer.Deserialize<CallServerDto<object>>(re.Buffer);
+                    var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
                     var td = requestHandlers[dto.Method];
 
-                    CallHandler(td, new UdpContext
+                    CallHandler(td, new UdpContext(re.Buffer)
                     {
-                        Dto = dto,
                         Peers = peers,
                         RemoteEndPoint = re.RemoteEndPoint,
                         UdpClient = listener

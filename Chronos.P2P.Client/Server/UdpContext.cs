@@ -3,15 +3,34 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Text.Json;
 
 namespace Chronos.P2P.Server
 {
     public class UdpContext
     {
+        public byte[] data { get; }
+        public UdpContext(byte[] buffer)
+        {
+            data = buffer;
+        }
         public UdpClient UdpClient { get; init; }
         public ConcurrentDictionary <Guid, PeerInfo> Peers { get; init; }
         public IPEndPoint RemoteEndPoint { get; init; }
-        public CallServerDto<object> Dto { get; init; }
+        public CallServerDto<T> GetData<T>() where T : class
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<CallServerDto<T>>(data);
+            }
+            catch (Exception)
+            {
+                var t = Encoding.Default.GetString(data);
+                throw;
+            }
+            
+        } 
 
 
     }

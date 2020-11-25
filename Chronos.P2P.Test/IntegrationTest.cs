@@ -15,7 +15,7 @@ namespace Chronos.P2P.Test
         [Handler((int)CallMethods.P2PDataTransfer)]
         public void OnReceiveData(UdpContext udpContext)
         {
-            IntegrationTest.data = udpContext.Dto.GetData<string>();
+            IntegrationTest.data = udpContext.GetData<string>().Data;
         }
     }
     public class IntegrationTest
@@ -25,9 +25,9 @@ namespace Chronos.P2P.Test
         [Fact]
         public async Task TestIntegration()
         {
-            var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000));
-            var peer2 = new Peer(8800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000));
-            var server = new P2PServer();
+            var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            var peer2 = new Peer(8800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            var server = new P2PServer(5001);
             server.AddDefaultServerHandler();
 
             peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;

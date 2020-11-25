@@ -1,5 +1,7 @@
+using Chronos.P2P.Client;
 using Chronos.P2P.Server;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 using Xunit;
 
 namespace Chronos.P2P.Test
@@ -36,15 +38,11 @@ namespace Chronos.P2P.Test
         {
             SetUp();
             var hello = new Hello { HelloString = "hello" };
-            server.CallHandler(server.requestHandlers[1], new UdpContext
+            server.CallHandler(server.requestHandlers[1], new UdpContext(JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Hello>
             {
-                
-                Dto = new Client.CallServerDto<object>
-                {
-                    Method = 1,
-                    Data = hello
-                }
-            });
+                Method = 1,
+                Data = hello
+            })));
             server.Dispose();
         }
     }

@@ -12,7 +12,7 @@ namespace Chronos.P2P.Server
         [Handler((int)CallMethods.Connect)]
         public void HandleConnect(UdpContext context)
         {
-            var peer = context.Dto.GetData<PeerInfo>();
+            var peer = context.GetData<PeerInfo>().Data;
             var remote = context.RemoteEndPoint;
             var peers = context.Peers;
             peer.OuterEP = PeerEP.ParsePeerEPFromIPEP(remote);
