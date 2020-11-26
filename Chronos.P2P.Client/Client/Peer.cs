@@ -110,6 +110,10 @@ namespace Chronos.P2P.Client
                 {
                     if (peer is not null)
                     {
+                        if (peerConnected)
+                        {
+                            break;
+                        }
                         if (tokenSource.IsCancellationRequested)
                         {
                             var data = Encoding.Default.GetBytes("Connected");
@@ -124,7 +128,7 @@ namespace Chronos.P2P.Client
                             var data = Encoding.Default.GetBytes("Hello");
                             await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
                         }
-                        await Task.Delay(1000);
+                        //await Task.Delay(100);
                         continue;
                     }
                     await Task.Delay(1000);
@@ -144,6 +148,7 @@ namespace Chronos.P2P.Client
                     else
                     {
                         peerInfo.NeedData = false;
+                        break;
                     }
                     var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
                     {

@@ -102,7 +102,7 @@ namespace Chronos.P2P.Server
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e);
+                    //Console.WriteLine(e);
                 }
 
             }

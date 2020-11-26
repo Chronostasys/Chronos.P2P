@@ -12,6 +12,7 @@ namespace Chronos.P2P.Server.Sample
         public void OnReceiveData(UdpContext udpContext)
         {
             var d = udpContext.GetData<string>().Data;
+            Console.WriteLine(d);
         }
     }
     class Program
@@ -23,11 +24,15 @@ namespace Chronos.P2P.Server.Sample
             //var t1 = peer.StartPeer();
             //var t2 = peer1.StartPeer();
             var peer = new Peer(8899, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            //var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            //peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            //peer1.PeerConnected += Peer1_PeerConnected;
             peer.PeerConnected += Peer1_PeerConnected;
             peer.AddHandlers<ClientHandler>();
-            await peer.StartPeer();
-            //var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            //peer1.AddHandlers<ClientHandler>();
+            peer.StartPeer();
+            //peer1.StartPeer();
             //var server = new P2PServer();
             //server.AddDefaultServerHandler();
             //await server.StartServerAsync();
