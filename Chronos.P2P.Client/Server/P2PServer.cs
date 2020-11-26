@@ -25,6 +25,7 @@ namespace Chronos.P2P.Server
         UdpClient listener;
         ServiceCollection services;
         ServiceProvider serviceProvider;
+        public event EventHandler<byte[]> OnError;
         public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port))) { }
         public P2PServer(UdpClient client)
         {
@@ -85,11 +86,12 @@ namespace Chronos.P2P.Server
             }
             while (true)
             {
+                var re = await listener.ReceiveAsync();
                 try
                 {
                     Console.WriteLine("Waiting for broadcast");
 
-                    var re = await listener.ReceiveAsync();
+                    
                     var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
                     var td = requestHandlers[dto.Method];
 
@@ -102,6 +104,7 @@ namespace Chronos.P2P.Server
                 }
                 catch (Exception e)
                 {
+                    OnError?.Invoke(this, re.Buffer);
                     //Console.WriteLine(e);
                 }
 

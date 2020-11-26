@@ -39,8 +39,19 @@ namespace Chronos.P2P.Client
             {
 
             });
+            server.OnError += Server_OnError;
 
         }
+
+        private void Server_OnError(object sender, byte[] e)
+        {
+            var str = Encoding.Default.GetString(e);
+            if (str== "Connected\n")
+            {
+                udpClient.SendAsync(e, e.Length, peer.OuterEP.ToIPEP());
+            }
+        }
+
         public Task StartPeer()
         {
             var t = StartReceiveData();
@@ -80,19 +91,14 @@ namespace Chronos.P2P.Client
                     else
                     {
                         var data = Encoding.Default.GetString(re.Buffer);
-                        if (data == "Connected")
+                        if (data == "Connected\n")
                         {
                             Console.WriteLine("Peer connected");
-                            var datab = Encoding.Default.GetBytes("Connected");
-                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
-                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
-                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
-                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
                             peerConnected = true;
                             PeerConnected?.Invoke(this, new EventArgs());
                             break;
                         }
-                        else if (data == "Hello")
+                        else if (data == "Hello\n")
                         {
                             tokenSource.Cancel();
                             Console.WriteLine($"Client {ID}: Received peer message: {data}");
@@ -116,7 +122,7 @@ namespace Chronos.P2P.Client
                         }
                         if (tokenSource.IsCancellationRequested)
                         {
-                            var data = Encoding.Default.GetBytes("Connected");
+                            var data = Encoding.Default.GetBytes("Connected\n");
                             await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
                             if (peerConnected)
                             {
@@ -125,10 +131,10 @@ namespace Chronos.P2P.Client
                         }
                         else
                         {
-                            var data = Encoding.Default.GetBytes("Hello");
+                            var data = Encoding.Default.GetBytes("Hello\n");
                             await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
                         }
-                        //await Task.Delay(100);
+                        await Task.Delay(100);
                         continue;
                     }
                     await Task.Delay(1000);
