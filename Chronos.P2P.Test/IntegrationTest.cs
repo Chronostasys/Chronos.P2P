@@ -25,6 +25,7 @@ namespace Chronos.P2P.Test
         [Fact]
         public async Task TestIntegration()
         {
+            data = null;
             var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             var peer2 = new Peer(8800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             var server = new P2PServer(5001);
@@ -58,6 +59,38 @@ namespace Chronos.P2P.Test
             peer2.Dispose();
             server.Dispose();
             
+        }
+        [Fact]
+        public async Task TestRemoteIntegration()
+        {
+            data = null;
+            var peer1 = new Peer(8889, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer2 = new Peer(8801, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+
+            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer1.PeerConnected += Peer1_PeerConnected;
+
+            peer1.AddHandlers<ClientHandler>();
+            peer2.AddHandlers<ClientHandler>();
+
+
+            var t1 = peer1.StartPeer();
+            var t2 = peer2.StartPeer();
+            await Task.WhenAny(
+                t1,
+                t2, Task.Delay(5000));
+            Assert.True(connected);
+            Assert.Null(data);
+            var greetingString = "Hi";
+            var hello = new Hello { HelloString = greetingString };
+            await peer1.SendDataToPeerAsync(greetingString);
+            await peer1.SendDataToPeerAsync(greetingString);
+            await peer1.SendDataToPeerAsync(greetingString);
+            await Task.Delay(1000);
+            Assert.Equal(hello.HelloString, data);
+            peer1.Dispose();
+            peer2.Dispose();
         }
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
