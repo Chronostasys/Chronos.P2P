@@ -5,5 +5,5 @@ Peer:
   - Chronos.P2P.Client/Client/**/*
 
 
-Peer:
+Server:
   - Chronos.P2P.Client/Server/**/*
