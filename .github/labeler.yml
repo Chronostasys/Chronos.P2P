@@ -1,0 +1,9 @@
+Test:
+  - Chronos.P2P.Test/**/*
+
+Peer:
+  - Chronos.P2P.Client/Client/**/*
+
+
+Peer:
+  - Chronos.P2P.Client/Server/**/*
