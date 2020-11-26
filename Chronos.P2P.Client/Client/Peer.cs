@@ -105,6 +105,7 @@ namespace Chronos.P2P.Client
                             Console.WriteLine("Connected!");
                             var datab = Encoding.Default.GetBytes("Hello\n");
                             await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
+                            Console.WriteLine($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
                         }
 
                     }
