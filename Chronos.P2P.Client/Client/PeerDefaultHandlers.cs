@@ -12,9 +12,11 @@ namespace Chronos.P2P.Client
     {
         Timer timer = new Timer(10000);
         bool connectionLoss = false;
-        public PeerDefaultHandlers()
+        Peer peer;
+        public PeerDefaultHandlers(Peer peer)
         {
             timer.Elapsed += Timer_Elapsed;
+            this.peer = peer;
         }
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
@@ -24,6 +26,16 @@ namespace Chronos.P2P.Client
 
             }
             connectionLoss = true;
+        }
+        [Handler((int)CallMethods.PunchHole)]
+        public void PunchingDataHandler(UdpContext context)
+        {
+            peer.PunchDataReceived();
+        }
+        [Handler((int)CallMethods.Connected)]
+        public void ConnectedDataHandler(UdpContext context)
+        {
+            peer.PeerConnectedReceived();
         }
 
         [Handler((int)CallMethods.P2PPing)]
