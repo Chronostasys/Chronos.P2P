@@ -1,19 +1,17 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public class PeerInfo:IDisposable
+    public class PeerInfo : IDisposable
     {
+        private CancellationTokenSource tokenSource = new CancellationTokenSource();
         public Guid Id { get; set; }
         public PeerEP InnerEP { get; set; }
         public PeerEP OuterEP { get; set; }
-        public bool NeedData { get; set; }
-        CancellationTokenSource tokenSource = new CancellationTokenSource();
 
         public void Dispose()
         {
@@ -27,7 +25,7 @@ namespace Chronos.P2P.Client
                 .ContinueWith((t) =>
                     {
                         tokenSource.Token.ThrowIfCancellationRequested();
-                        while (!dic.Remove(Id, out var value));
+                        while (!dic.Remove(Id, out var value)) ;
                     }, TaskContinuationOptions.OnlyOnRanToCompletion);
         }
     }

@@ -6,6 +6,7 @@ namespace Chronos.P2P.Client
     {
         public string IP { get; set; }
         public int Port { get; set; }
+
         public static PeerEP ParsePeerEPFromIPEP(IPEndPoint ep)
         {
             return new PeerEP
@@ -14,6 +15,7 @@ namespace Chronos.P2P.Client
                 Port = ep.Port
             };
         }
+
         public IPEndPoint ToIPEP()
         {
             return new IPEndPoint(IPAddress.Parse(IP), Port);

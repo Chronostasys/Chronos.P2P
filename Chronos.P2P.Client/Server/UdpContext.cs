@@ -11,13 +11,17 @@ namespace Chronos.P2P.Server
     public class UdpContext
     {
         public byte[] data { get; }
+        public ConcurrentDictionary<Guid, PeerInfo> Peers { get; init; }
+
+        public IPEndPoint RemoteEndPoint { get; init; }
+
+        public UdpClient UdpClient { get; init; }
+
         public UdpContext(byte[] buffer)
         {
             data = buffer;
         }
-        public UdpClient UdpClient { get; init; }
-        public ConcurrentDictionary <Guid, PeerInfo> Peers { get; init; }
-        public IPEndPoint RemoteEndPoint { get; init; }
+
         public CallServerDto<T> GetData<T>() where T : class
         {
             try
@@ -29,9 +33,6 @@ namespace Chronos.P2P.Server
                 var t = Encoding.Default.GetString(data);
                 throw;
             }
-            
-        } 
-
-
+        }
     }
 }
