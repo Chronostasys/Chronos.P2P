@@ -3,6 +3,8 @@
     public enum CallMethods
     {
         Connect,
+        PunchHole,
+        Connected,
         P2PPing,
         P2PDataTransfer
     }

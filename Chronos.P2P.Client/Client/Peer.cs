@@ -54,7 +54,7 @@ namespace Chronos.P2P.Client
 
         public Task StartPeer()
         {
-            var t = StartReceiveData();
+            var t = server.StartServerAsync(); /*StartReceiveData();*/
             StartBroadCast();
             StartHolePunching();
             return t;
@@ -174,11 +174,15 @@ namespace Chronos.P2P.Client
         {
             peer = peers[id];
         }
-        public async Task SendDataToPeerAsync<T>(T data) where T:class
+        public Task SendDataToPeerAsync<T>(T data) where T:class
+        {
+            return SendDataToPeerAsync((int)CallMethods.P2PDataTransfer, data);
+        }
+        public async Task SendDataToPeerAsync<T>(int method, T data) where T : class
         {
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
             {
-                Method = (int)CallMethods.P2PDataTransfer,
+                Method = method,
                 Data = data,
             });
             await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
