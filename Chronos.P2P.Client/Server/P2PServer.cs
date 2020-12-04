@@ -22,6 +22,10 @@ namespace Chronos.P2P.Server
         private ServiceCollection services;
         internal Dictionary<int, TypeData> requestHandlers;
 
+        public event EventHandler AfterDataHandled;
+
+        public event EventHandler<byte[]> OnError;
+
         public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port)))
         {
         }
@@ -33,10 +37,6 @@ namespace Chronos.P2P.Server
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
         }
-
-        public event EventHandler AfterDataHandled;
-
-        public event EventHandler<byte[]> OnError;
 
         internal void CallHandler(TypeData data, UdpContext param)
         {

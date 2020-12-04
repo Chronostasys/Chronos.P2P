@@ -26,8 +26,14 @@ namespace Chronos.P2P.Client
         private CancellationTokenSource tokenSource = new CancellationTokenSource();
         private UdpClient udpClient;
 
+        public event EventHandler PeerConnected;
+
+        public event EventHandler PeerConnectionLost;
+
+        public event EventHandler PeersDataReceiveed;
+
         private PeerEP localEP
-                    => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
+                                            => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
 
         public Guid ID { get; }
 
@@ -48,12 +54,6 @@ namespace Chronos.P2P.Client
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
         }
-
-        public event EventHandler PeerConnected;
-
-        public event EventHandler PeerConnectionLost;
-
-        public event EventHandler PeersDataReceiveed;
 
         private void Server_OnError(object sender, byte[] e)
         {
