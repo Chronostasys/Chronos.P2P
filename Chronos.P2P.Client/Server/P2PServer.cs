@@ -113,7 +113,7 @@ namespace Chronos.P2P.Server
 
         public void Dispose()
         {
-            listener.Dispose();
+            listener?.Dispose();
         }
     }
 }
