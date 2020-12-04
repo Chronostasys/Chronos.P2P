@@ -26,6 +26,7 @@ namespace Chronos.P2P.Server
         ServiceCollection services;
         ServiceProvider serviceProvider;
         public event EventHandler<byte[]> OnError;
+        public event EventHandler AfterDataHandled;
         public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port))) { }
         public P2PServer(UdpClient client)
         {
@@ -101,6 +102,7 @@ namespace Chronos.P2P.Server
                         RemoteEndPoint = re.RemoteEndPoint,
                         UdpClient = listener
                     });
+                    AfterDataHandled?.Invoke(this, new());
                 }
                 catch (Exception e)
                 {

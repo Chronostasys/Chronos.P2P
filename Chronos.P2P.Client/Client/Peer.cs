@@ -46,8 +46,8 @@ namespace Chronos.P2P.Client
             {
                 services.AddSingleton(this);
             });
+            server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
-
         }
         internal async void PunchDataReceived()
         {
