@@ -73,7 +73,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact]
+        [Fact(Skip = "只在锥形nat环境下会成功")]
         public async Task TestRemoteIntegration()
         {
             data = null;
