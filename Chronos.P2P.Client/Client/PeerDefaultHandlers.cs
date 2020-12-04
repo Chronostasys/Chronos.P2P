@@ -10,23 +10,12 @@ namespace Chronos.P2P.Client
 {
     public class PeerDefaultHandlers
     {
-        Timer timer = new Timer(10000);
-        bool connectionLoss = false;
         Peer peer;
         public PeerDefaultHandlers(Peer peer)
         {
-            timer.Elapsed += Timer_Elapsed;
             this.peer = peer;
         }
 
-        private void Timer_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            if (connectionLoss)
-            {
-
-            }
-            connectionLoss = true;
-        }
         [Handler((int)CallMethods.PunchHole)]
         public void PunchingDataHandler(UdpContext context)
         {
@@ -41,7 +30,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.P2PPing)]
         public void PingHandeler(UdpContext context)
         {
-            connectionLoss = false;
+            peer.ResetPingCount();
         }
     }
 }

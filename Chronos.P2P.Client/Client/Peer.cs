@@ -24,13 +24,16 @@ namespace Chronos.P2P.Client
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
         PeerInfo peer;
         CancellationTokenSource tokenSource = new CancellationTokenSource();
+        CancellationTokenSource lifeTokenSource = new CancellationTokenSource();
         bool peerConnected = false;
         IPEndPoint serverEP;
         P2PServer server;
         public event EventHandler PeersDataReceiveed;
         public event EventHandler PeerConnected;
+        public event EventHandler PeerConnectionLost;
         DateTime lastPunchTime = DateTime.UtcNow;
         DateTime lastConnectTime = DateTime.UtcNow;
+        int pingCount = 10;
         public Peer(int port,IPEndPoint serverEP)
         {
             this.serverEP = serverEP;
@@ -75,6 +78,10 @@ namespace Chronos.P2P.Client
             peerConnected = true;
             PeerConnected?.Invoke(this, new EventArgs());
         }
+        internal void ResetPingCount()
+        {
+            pingCount = 10;
+        }
         private void Server_OnError(object sender, byte[] e)
         {
             var str = Encoding.Default.GetString(e);
@@ -90,6 +97,10 @@ namespace Chronos.P2P.Client
             StartBroadCast();
             StartHolePunching();
             return t;
+        }
+        public void Cancel()
+        {
+            lifeTokenSource.Cancel();
         }
         public void AddHandlers<T>() where T : class
             => server.AddHandler<T>();
@@ -123,11 +134,35 @@ namespace Chronos.P2P.Client
                     else
                     {
                         break;
-                        
-
                     }
                 }
-                await server.StartServerAsync();
+                await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
+            });
+        Task StartPingWaiting()
+            => Task.Run(async () =>
+            {
+                pingCount = 10;
+                while (true)
+                {
+                    await Task.Delay(1000);
+                    pingCount--;
+                    if (pingCount==0)
+                    {
+                        Console.WriteLine("connection lost!");
+                        PeerConnectionLost?.Invoke(this, new());
+                        peer = null;
+                    }
+                }
+            });
+        Task StartPing()
+            => Task.Run(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(8000, lifeTokenSource.Token);
+                    lifeTokenSource.Token.ThrowIfCancellationRequested();
+                    await SendDataToPeerAsync((int)CallMethods.P2PPing, "");
+                }
             });
         Task StartHolePunching()
             => Task.Run(async () =>

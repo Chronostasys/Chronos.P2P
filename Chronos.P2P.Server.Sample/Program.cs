@@ -33,6 +33,12 @@ namespace Chronos.P2P.Server.Sample
             peer1.AddHandlers<ClientHandler>();
             peer.StartPeer();
             peer1.StartPeer();
+            peer.PeerConnectionLost += Peer_PeerConnectionLost;
+            Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                peer1.Cancel();
+            });
             //var server = new P2PServer();
             //server.AddDefaultServerHandler();
             //await server.StartServerAsync();
@@ -42,6 +48,12 @@ namespace Chronos.P2P.Server.Sample
             }
             
         }
+
+        private static void Peer_PeerConnectionLost(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
         private static void Peer1_PeerConnected(object sender, EventArgs e)
         {
             var p = sender as Peer;
