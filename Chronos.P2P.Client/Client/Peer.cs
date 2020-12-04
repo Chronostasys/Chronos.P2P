@@ -1,47 +1,59 @@
-﻿using System;
+﻿using Chronos.P2P.Server;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Linq;
 using System.Threading;
-using Chronos.P2P.Server;
-using Chronos.P2P.Client;
+using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public class Peer:IDisposable
+    public class Peer : IDisposable
     {
+        private DateTime lastConnectTime = DateTime.UtcNow;
+        private DateTime lastPunchTime = DateTime.UtcNow;
+        private CancellationTokenSource lifeTokenSource = new CancellationTokenSource();
+        private PeerInfo peer;
+        private bool peerConnected = false;
+        private int pingCount = 10;
+        private int port;
+        private P2PServer server;
+        private IPEndPoint serverEP;
+        private CancellationTokenSource tokenSource = new CancellationTokenSource();
+        private UdpClient udpClient;
+
+        private PeerEP localEP
+                    => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
+
         public Guid ID { get; }
-        UdpClient udpClient;
-        PeerEP localEP
-            => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
-        int port;
+
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
-        PeerInfo peer;
-        CancellationTokenSource tokenSource = new CancellationTokenSource();
-        bool peerConnected = false;
-        IPEndPoint serverEP;
-        P2PServer server;
-        public event EventHandler PeersDataReceiveed;
-        public event EventHandler PeerConnected;
-        public Peer(int port,IPEndPoint serverEP)
+
+        public Peer(int port, IPEndPoint serverEP)
         {
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
             this.port = port;
             server = new P2PServer(udpClient);
+            server.AddHandler<PeerDefaultHandlers>();
             server.ConfigureServices(services =>
             {
-
+                services.AddSingleton(this);
             });
+            server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
-
         }
+
+        public event EventHandler PeerConnected;
+
+        public event EventHandler PeerConnectionLost;
+
+        public event EventHandler PeersDataReceiveed;
 
         private void Server_OnError(object sender, byte[] e)
         {
@@ -52,17 +64,91 @@ namespace Chronos.P2P.Client
             }
         }
 
-        public Task StartPeer()
-        {
-            var t = StartReceiveData();
-            StartBroadCast();
-            StartHolePunching();
-            return t;
-        }
-        public void AddHandlers<T>() where T : class
-            => server.AddHandler<T>();
-        Task StartReceiveData()
+        private Task StartBroadCast()
             => Task.Run(async () =>
+            {
+                var peerInfo = new PeerInfo { Id = ID, InnerEP = localEP };
+                while (true)
+                {
+                    tokenSource.Token.ThrowIfCancellationRequested();
+                    if (peer is not null)
+                    {
+                        break;
+                    }
+                    var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
+                    {
+                        Method = (int)CallMethods.Connect,
+                        Data = peerInfo,
+                    });
+                    var st = udpClient.SendAsync(bytes, bytes.Length, serverEP);
+                    Console.WriteLine($"Client: Sent connection data!");
+                    await Task.Delay(1000, tokenSource.Token);
+                }
+            });
+
+        private Task StartHolePunching()
+            => Task.Run(async () =>
+            {
+                while (true)
+                {
+                    if (peer is not null)
+                    {
+                        if (peerConnected)
+                        {
+                            break;
+                        }
+                        if (tokenSource.IsCancellationRequested)
+                        {
+                            await SendDataToPeerAsync((int)CallMethods.Connected, "");
+                            if (peerConnected)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
+                            await SendDataToPeerAsync((int)CallMethods.PunchHole, "");
+                        }
+                        await Task.Delay(500);
+                    }
+                    else
+                    {
+                        await Task.Delay(1000);
+                    }
+                }
+            });
+
+        private Task StartPing()
+            => Task.Run(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(8000, lifeTokenSource.Token);
+                    lifeTokenSource.Token.ThrowIfCancellationRequested();
+                    await SendDataToPeerAsync((int)CallMethods.P2PPing, "");
+                }
+            });
+
+        private Task StartPingWaiting()
+            => Task.Run(async () =>
+            {
+                pingCount = 10;
+                while (true)
+                {
+                    await Task.Delay(1000);
+                    pingCount--;
+                    if (pingCount == 0)
+                    {
+                        Console.WriteLine("connection lost!");
+                        PeerConnectionLost?.Invoke(this, new());
+                        peer = null;
+                    }
+                }
+            });
+
+        private Task StartReceiveData()
+                                            => Task.Run(async () =>
             {
                 while (true)
                 {
@@ -90,99 +176,48 @@ namespace Chronos.P2P.Client
                     }
                     else
                     {
-                        var data = Encoding.Default.GetString(re.Buffer);
-                        if (data == "Connected\n")
-                        {
-                            Console.WriteLine("Peer connected");
-                            peerConnected = true;
-                            PeerConnected?.Invoke(this, new EventArgs());
-                            break;
-                        }
-                        else if (data == "Hello\n")
-                        {
-                            tokenSource.Cancel();
-                            Console.WriteLine($"Client: Received peer {re.RemoteEndPoint} message: {data}");
-                            Console.WriteLine("Connected!");
-                            var datab = Encoding.Default.GetBytes("Hello\n");
-                            await udpClient.SendAsync(datab, datab.Length, peer.OuterEP.ToIPEP());
-                            Console.WriteLine($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
-                        }
-
-                    }
-                }
-                await server.StartServerAsync();
-            });
-        Task StartHolePunching()
-            => Task.Run(async () =>
-            {
-                while (true)
-                {
-                    if (peer is not null)
-                    {
-                        if (peerConnected)
-                        {
-                            break;
-                        }
-                        if (tokenSource.IsCancellationRequested)
-                        {
-                            var data = Encoding.Default.GetBytes("Connected\n");
-                            await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
-                            if (peerConnected)
-                            {
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
-                            var data = Encoding.Default.GetBytes("Hello\n");
-                            await udpClient.SendAsync(data, data.Length, peer.OuterEP.ToIPEP());
-                        }
-                        await Task.Delay(100);
-                        continue;
-                    }
-                    await Task.Delay(1000);
-                }
-            });
-        Task StartBroadCast()
-            => Task.Run(async () =>
-            {
-                var peerInfo = new PeerInfo { Id = ID, InnerEP = localEP };
-                while (true)
-                {
-                    tokenSource.Token.ThrowIfCancellationRequested();
-                    if (peer is null)
-                    {
-                        peerInfo.NeedData = true;
-                    }
-                    else
-                    {
-                        peerInfo.NeedData = false;
                         break;
                     }
-                    var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
-                    {
-                        Method = (int)CallMethods.Connect,
-                        Data = peerInfo,
-                    });
-                    var st = udpClient.SendAsync(bytes, bytes.Length, serverEP);
-                    Console.WriteLine($"Client: Sent connection data!");
-                    await Task.Delay(1000, tokenSource.Token);
                 }
+                await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
             });
-        public void SetPeer(Guid id)
+
+        internal async void PeerConnectedReceived()
         {
-            peer = peers[id];
-        }
-        public async Task SendDataToPeerAsync<T>(T data) where T:class
-        {
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
+            if ((DateTime.UtcNow - lastConnectTime).TotalMilliseconds < 500)
             {
-                Method = (int)CallMethods.P2PDataTransfer,
-                Data = data,
-            });
-            await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+                return;
+            }
+            if (peerConnected)
+            {
+                await SendDataToPeerAsync((int)CallMethods.Connected, "");
+                return;
+            }
+            Console.WriteLine("Peer connected");
+            peerConnected = true;
+            PeerConnected?.Invoke(this, new EventArgs());
         }
+
+        internal async void PunchDataReceived()
+        {
+            if ((DateTime.UtcNow - lastPunchTime).TotalMilliseconds < 500)
+            {
+                return;
+            }
+            if (tokenSource.IsCancellationRequested)
+            {
+                await SendDataToPeerAsync((int)CallMethods.PunchHole, "");
+                return;
+            }
+            tokenSource.Cancel();
+            Console.WriteLine("Connected!");
+        }
+
+        internal void ResetPingCount()
+        {
+            pingCount = 10;
+        }
+
         public static IPAddress GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -196,9 +231,45 @@ namespace Chronos.P2P.Client
             throw new Exception("No network adapters with an IPv4 address in the system!");
         }
 
+        public void AddHandlers<T>() where T : class
+            => server.AddHandler<T>();
+
+        public void Cancel()
+        {
+            lifeTokenSource.Cancel();
+        }
+
         public void Dispose()
         {
             udpClient.Dispose();
+        }
+
+        public Task SendDataToPeerAsync<T>(T data) where T : class
+        {
+            return SendDataToPeerAsync((int)CallMethods.P2PDataTransfer, data);
+        }
+
+        public async Task SendDataToPeerAsync<T>(int method, T data) where T : class
+        {
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
+            {
+                Method = method,
+                Data = data,
+            });
+            await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+        }
+
+        public void SetPeer(Guid id)
+        {
+            peer = peers[id];
+        }
+
+        public Task StartPeer()
+        {
+            var t = StartReceiveData();
+            StartBroadCast();
+            StartHolePunching();
+            return t;
         }
     }
 }

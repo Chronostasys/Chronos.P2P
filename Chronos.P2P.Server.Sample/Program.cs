@@ -24,15 +24,21 @@ namespace Chronos.P2P.Server.Sample
             //var t1 = peer.StartPeer();
             //var t2 = peer1.StartPeer();
             var peer = new Peer(26900, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            //var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            //peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            //peer1.PeerConnected += Peer1_PeerConnected;
+            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer1.PeerConnected += Peer1_PeerConnected;
             peer.PeerConnected += Peer1_PeerConnected;
             peer.AddHandlers<ClientHandler>();
-            //peer1.AddHandlers<ClientHandler>();
+            peer1.AddHandlers<ClientHandler>();
             peer.StartPeer();
-            //peer1.StartPeer();
+            peer1.StartPeer();
+            peer.PeerConnectionLost += Peer_PeerConnectionLost;
+            Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                peer1.Cancel();
+            });
             //var server = new P2PServer();
             //server.AddDefaultServerHandler();
             //await server.StartServerAsync();
@@ -42,6 +48,12 @@ namespace Chronos.P2P.Server.Sample
             }
             
         }
+
+        private static void Peer_PeerConnectionLost(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
         private static void Peer1_PeerConnected(object sender, EventArgs e)
         {
             var p = sender as Peer;

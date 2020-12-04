@@ -1,10 +1,8 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Server;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -18,10 +16,26 @@ namespace Chronos.P2P.Test
             IntegrationTest.data = udpContext.GetData<string>().Data;
         }
     }
+
     public class IntegrationTest
     {
+        private bool connected = false;
         internal static string data;
-        bool connected = false;
+
+        private void Peer1_PeerConnected(object sender, EventArgs e)
+        {
+            connected = true;
+        }
+
+        private void Peer1_PeersDataReceiveed(object sender, EventArgs e)
+        {
+            var p = sender as Peer;
+            if (p.peers.Count != 0)
+            {
+                p.SetPeer(p.peers.Keys.First());
+            }
+        }
+
         [Fact]
         public async Task TestIntegration()
         {
@@ -37,7 +51,6 @@ namespace Chronos.P2P.Test
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
-
 
             var t1 = peer1.StartPeer();
             var t2 = peer2.StartPeer();
@@ -58,9 +71,9 @@ namespace Chronos.P2P.Test
             peer1.Dispose();
             peer2.Dispose();
             server.Dispose();
-            
         }
-        [Fact]
+
+        [Fact(Skip = "只在锥形nat环境下会成功")]
         public async Task TestRemoteIntegration()
         {
             data = null;
@@ -73,7 +86,6 @@ namespace Chronos.P2P.Test
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
-
 
             var t1 = peer1.StartPeer();
             var t2 = peer2.StartPeer();
@@ -91,21 +103,6 @@ namespace Chronos.P2P.Test
             Assert.Equal(hello.HelloString, data);
             peer1.Dispose();
             peer2.Dispose();
-        }
-
-        private void Peer1_PeerConnected(object sender, EventArgs e)
-        {
-            connected = true;
-        }
-
-        private void Peer1_PeersDataReceiveed(object sender, EventArgs e)
-        {
-            var p = sender as Peer;
-            if (p.peers.Count!=0)
-            {
-                p.SetPeer(p.peers.Keys.First());
-            }
-
         }
     }
 }

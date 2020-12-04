@@ -8,11 +8,13 @@ namespace Chronos.P2P.Test
 {
     public class UdpServerTest
     {
-        P2PServer server;
-        string s = "test string";
+        private string s = "test string";
+        private P2PServer server;
+
         public UdpServerTest()
         {
         }
+
         private void SetUp()
         {
             server = new P2PServer();
@@ -23,6 +25,7 @@ namespace Chronos.P2P.Test
                 services.AddSingleton(s);
             });
         }
+
         [Fact]
         public void TestCtorDI()
         {
@@ -33,6 +36,7 @@ namespace Chronos.P2P.Test
             Assert.Equal(s, handler.diString);
             server.Dispose();
         }
+
         [Fact]
         public void TestHandlerAttribute()
         {
