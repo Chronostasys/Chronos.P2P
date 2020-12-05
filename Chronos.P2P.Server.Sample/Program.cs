@@ -12,19 +12,27 @@ namespace Chronos.P2P.Server.Sample
         public void OnReceiveData(UdpContext udpContext)
         {
             var d = udpContext.GetData<string>().Data;
-            Console.WriteLine(d);
+            if (d=="test")
+            {
+                Program.nums++;
+            }
+            //Console.WriteLine(d);
         }
     }
     class Program
     {
+        public static int nums;
         static async Task Main(string[] args)
         {
-            //var peer = new Peer(8899, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000));
-            //var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000));
+            var peer = new Peer(8899, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000),"peer");
+            var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000), "peer1");
+            var server = new P2PServer();
+            server.AddDefaultServerHandler();
+            server.StartServerAsync();
             //var t1 = peer.StartPeer();
             //var t2 = peer1.StartPeer();
-            var peer = new Peer(26900, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            //var peer = new Peer(26900, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            //var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer1.PeerConnected += Peer1_PeerConnected;
@@ -33,18 +41,33 @@ namespace Chronos.P2P.Server.Sample
             peer1.AddHandlers<ClientHandler>();
             peer.StartPeer();
             peer1.StartPeer();
-            peer.PeerConnectionLost += Peer_PeerConnectionLost;
-            Task.Run(async () =>
-            {
-                await Task.Delay(10000);
-                peer1.Cancel();
-            });
-            //var server = new P2PServer();
-            //server.AddDefaultServerHandler();
-            //await server.StartServerAsync();
+            Console.WriteLine($"peer: {peer.ID}\npeer1:{peer1.ID}");
+            //peer.PeerConnectionLost += Peer_PeerConnectionLost;
+            //Task.Run(async () =>
+            //{
+            //    await Task.Delay(10000);
+            //    peer1.Cancel();
+            //});
             while (true)
             {
-                await peer.SendDataToPeerAsync(Console.ReadLine());
+                Console.ReadLine();
+                nums = 0;
+                var s = "test";
+                for (int i = 0; i < 1000; i++)
+                {
+                    await peer.SendDataToPeerAsync(s);
+                }
+                
+                Console.ReadLine();
+                Console.WriteLine(nums);
+                Console.ReadLine();
+                nums = 0;
+                for (int i = 0; i < 1000; i++)
+                {
+                    await peer.SendDataToPeerReliableAsync(s);
+                }
+                Console.WriteLine(nums);
+                Console.ReadLine();
             }
             
         }

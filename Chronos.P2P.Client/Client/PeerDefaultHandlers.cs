@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Server;
+using System;
 
 namespace Chronos.P2P.Client
 {
@@ -9,6 +10,13 @@ namespace Chronos.P2P.Client
         public PeerDefaultHandlers(Peer peer)
         {
             this.peer = peer;
+        }
+
+        [Handler((int)CallMethods.Ack)]
+        public void AckHandler(UdpContext context)
+        {
+            var id = context.GetData<Guid>();
+            peer.AckReturned(id.Data);
         }
 
         [Handler((int)CallMethods.Connected)]

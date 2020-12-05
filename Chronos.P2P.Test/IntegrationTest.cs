@@ -14,6 +14,10 @@ namespace Chronos.P2P.Test
         public void OnReceiveData(UdpContext udpContext)
         {
             IntegrationTest.data = udpContext.GetData<string>().Data;
+            if (IntegrationTest.data is "test")
+            {
+                IntegrationTest.nums++;
+            }
         }
     }
 
@@ -21,6 +25,7 @@ namespace Chronos.P2P.Test
     {
         private bool connected = false;
         internal static string data;
+        internal static int nums;
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
         {
@@ -39,6 +44,7 @@ namespace Chronos.P2P.Test
         [Fact]
         public async Task TestIntegration()
         {
+            nums = 0;
             data = null;
             var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             var peer2 = new Peer(8800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
@@ -68,6 +74,11 @@ namespace Chronos.P2P.Test
             await peer1.SendDataToPeerAsync(greetingString);
             await Task.Delay(1000);
             Assert.Equal(hello.HelloString, data);
+            for (int i = 0; i < 1000; i++)
+            {
+                await peer1.SendDataToPeerReliableAsync("test");
+            }
+            Assert.Equal(1000, nums);
             peer1.Dispose();
             peer2.Dispose();
             server.Dispose();

@@ -14,6 +14,9 @@ namespace Chronos.P2P.Client
 {
     public class Peer : IDisposable
     {
+        private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks
+            = new ConcurrentDictionary<Guid, TaskCompletionSource<bool>>();
+
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new CancellationTokenSource();
@@ -33,14 +36,15 @@ namespace Chronos.P2P.Client
         public event EventHandler PeersDataReceiveed;
 
         private PeerEP localEP
-                                            => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
+            => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
 
         public Guid ID { get; }
-
+        public string Name { get; }
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
 
-        public Peer(int port, IPEndPoint serverEP)
+        public Peer(int port, IPEndPoint serverEP, string name = null)
         {
+            Name = name;
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
@@ -53,6 +57,12 @@ namespace Chronos.P2P.Client
             });
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
+        }
+
+        private async Task<bool> Delay()
+        {
+            await Task.Delay(1000);
+            return false;
         }
 
         private void Server_OnError(object sender, byte[] e)
@@ -124,9 +134,9 @@ namespace Chronos.P2P.Client
             {
                 while (true)
                 {
-                    await Task.Delay(8000, lifeTokenSource.Token);
+                    await Task.Delay(7000, lifeTokenSource.Token);
                     lifeTokenSource.Token.ThrowIfCancellationRequested();
-                    await SendDataToPeerAsync((int)CallMethods.P2PPing, "");
+                    await SendDataToPeerReliableAsync((int)CallMethods.P2PPing, "");
                 }
             });
 
@@ -138,9 +148,11 @@ namespace Chronos.P2P.Client
                 {
                     await Task.Delay(1000);
                     pingCount--;
+
                     if (pingCount == 0)
                     {
                         Console.WriteLine("connection lost!");
+                        Console.WriteLine($"{ID}");
                         PeerConnectionLost?.Invoke(this, new());
                         peer = null;
                     }
@@ -148,7 +160,7 @@ namespace Chronos.P2P.Client
             });
 
         private Task StartReceiveData()
-                                            => Task.Run(async () =>
+            => Task.Run(async () =>
             {
                 while (true)
                 {
@@ -181,6 +193,11 @@ namespace Chronos.P2P.Client
                 }
                 await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
             });
+
+        internal void AckReturned(Guid reqId)
+        {
+            AckTasks[reqId].TrySetResult(true);
+        }
 
         internal async void PeerConnectedReceived()
         {
@@ -257,6 +274,36 @@ namespace Chronos.P2P.Client
                 Data = data,
             });
             await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+        }
+
+        public async Task<bool> SendDataToPeerReliableAsync<T>(T data) where T : class
+        {
+            return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data);
+        }
+
+        public async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data) where T : class
+        {
+            var reqId = Guid.NewGuid();
+            AckTasks[reqId] = new TaskCompletionSource<bool>();
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
+            {
+                Method = method,
+                Data = data,
+                ReqId = reqId
+            });
+            for (int i = 0; i < 3; i++)
+            {
+                await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+                var t = await await Task.WhenAny(AckTasks[reqId].Task, Delay());
+                if (t)
+                {
+                    AckTasks.TryRemove(reqId, out var completionSource);
+                    return true;
+                }
+            }
+
+            AckTasks.TryRemove(reqId, out var taskCompletionSource);
+            return false;
         }
 
         public void SetPeer(Guid id)

@@ -22,7 +22,7 @@ namespace Chronos.P2P.Server
             data = buffer;
         }
 
-        public CallServerDto<T> GetData<T>() where T : class
+        public CallServerDto<T> GetData<T>()
         {
             try
             {
