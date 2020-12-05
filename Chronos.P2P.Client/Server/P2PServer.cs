@@ -16,6 +16,7 @@ namespace Chronos.P2P.Server
     public class P2PServer : IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
+        private HashSet<Guid> guids = new HashSet<Guid>();
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider serviceProvider;
@@ -41,7 +42,10 @@ namespace Chronos.P2P.Server
         internal void CallHandler(TypeData data, UdpContext param)
         {
             var handler = GetInstance(data);
-            data.Method.Invoke(handler, new[] { param });
+            Task.Run(() =>
+            {
+                data.Method.Invoke(handler, new[] { param });
+            });
         }
 
         internal object GetInstance(TypeData data)
@@ -98,13 +102,27 @@ namespace Chronos.P2P.Server
             while (true)
             {
                 var re = await listener.ReceiveAsync();
+
                 try
                 {
-                    Console.WriteLine("Waiting for broadcast");
+                    //Console.WriteLine("Waiting for broadcast");
 
                     var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
                     var td = requestHandlers[dto.Method];
-
+                    if (dto.ReqId != Guid.Empty)
+                    {
+                        var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Guid>
+                        {
+                            Method = (int)CallMethods.Ack,
+                            Data = dto.ReqId
+                        });
+                        await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
+                        if (guids.Contains(dto.ReqId))
+                        {
+                            continue;
+                        }
+                        guids.Add(dto.ReqId);
+                    }
                     CallHandler(td, new UdpContext(re.Buffer)
                     {
                         Peers = peers,
@@ -125,5 +143,6 @@ namespace Chronos.P2P.Server
     public class UdpRequest
     {
         public int Method { get; set; }
+        public Guid ReqId { get; set; }
     }
 }

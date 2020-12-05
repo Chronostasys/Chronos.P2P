@@ -6,6 +6,7 @@
         PunchHole,
         Connected,
         P2PPing,
-        P2PDataTransfer
+        P2PDataTransfer,
+        Ack
     }
 }
