@@ -5,10 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
-
 
 namespace Chronos.P2P.Server
 {
@@ -18,10 +16,12 @@ namespace Chronos.P2P.Server
     public class P2PServer : IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
+
         /// <summary>
         /// 这个hashset里的datetime只是个附带信息，所以需要使用一个自定义的比较器
         /// </summary>
         private HashSet<ReqIdSet> guids = new HashSet<ReqIdSet>(new ReqIdSetComparer());
+
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider serviceProvider;
@@ -43,6 +43,7 @@ namespace Chronos.P2P.Server
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
         }
+
         /// <summary>
         /// 调用请求对应的处理函数
         /// </summary>
@@ -56,6 +57,7 @@ namespace Chronos.P2P.Server
                 data.Method.Invoke(handler, new[] { param });
             });
         }
+
         /// <summary>
         /// 使用反射来运行时获取对应的Handler类
         /// </summary>
@@ -70,6 +72,7 @@ namespace Chronos.P2P.Server
             }
             return Activator.CreateInstance(data.GenericType, args.ToArray());
         }
+
         /// <summary>
         /// 注册p2p服务器所需的默认服务
         /// </summary>
@@ -77,6 +80,7 @@ namespace Chronos.P2P.Server
         {
             AddHandler<ServerHandlers>();
         }
+
         /// <summary>
         /// 注册处理类，保存类里处理方法的反射信息
         /// </summary>
@@ -98,6 +102,7 @@ namespace Chronos.P2P.Server
                 }
             }
         }
+
         /// <summary>
         /// 类似asp.net core的设计，用于依赖注入
         /// 默认会注入自身为单例服务
@@ -114,6 +119,7 @@ namespace Chronos.P2P.Server
         {
             listener?.Dispose();
         }
+
         /// <summary>
         /// 启动消息接收的循环
         /// </summary>
@@ -139,7 +145,6 @@ namespace Chronos.P2P.Server
 
                 try
                 {
-                    
                     var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
                     var td = requestHandlers[dto.Method];
                     // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息

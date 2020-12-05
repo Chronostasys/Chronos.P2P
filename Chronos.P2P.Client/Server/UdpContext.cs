@@ -3,7 +3,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
 
 namespace Chronos.P2P.Server
@@ -24,6 +23,7 @@ namespace Chronos.P2P.Server
         {
             data = buffer;
         }
+
         /// <summary>
         /// 获取上下文里的数据
         /// </summary>
