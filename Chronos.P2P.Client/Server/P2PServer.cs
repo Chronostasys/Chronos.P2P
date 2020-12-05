@@ -3,33 +3,24 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-[assembly: InternalsVisibleTo("Chronos.P2P.Test")]
 
 namespace Chronos.P2P.Server
 {
-    internal record ReqIdSet(Guid ReqId, DateTime time);
-    internal class ReqIdSetComparer : EqualityComparer<ReqIdSet>
-    {
-        public override bool Equals(ReqIdSet x, ReqIdSet y)
-        {
-            return x == y;
-        }
-
-        public override int GetHashCode([DisallowNull] ReqIdSet obj)
-        {
-            return obj.ReqId.GetHashCode();
-        }
-    }
+    /// <summary>
+    /// 一个简单udp服务器
+    /// </summary>
     public class P2PServer : IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
+        /// <summary>
+        /// 这个hashset里的datetime只是个附带信息，所以需要使用一个自定义的比较器
+        /// </summary>
         private HashSet<ReqIdSet> guids = new HashSet<ReqIdSet>(new ReqIdSetComparer());
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
@@ -52,7 +43,11 @@ namespace Chronos.P2P.Server
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
         }
-
+        /// <summary>
+        /// 调用请求对应的处理函数
+        /// </summary>
+        /// <param name="data">预存的类型信息</param>
+        /// <param name="param">udp上下文</param>
         internal void CallHandler(TypeData data, UdpContext param)
         {
             var handler = GetInstance(data);
@@ -61,7 +56,11 @@ namespace Chronos.P2P.Server
                 data.Method.Invoke(handler, new[] { param });
             });
         }
-
+        /// <summary>
+        /// 使用反射来运行时获取对应的Handler类
+        /// </summary>
+        /// <param name="data">注册handler时（<see cref="AddHandler{T}"/>）用反射获取的类型信息</param>
+        /// <returns></returns>
         internal object GetInstance(TypeData data)
         {
             List<object> args = new List<object>();
@@ -71,12 +70,17 @@ namespace Chronos.P2P.Server
             }
             return Activator.CreateInstance(data.GenericType, args.ToArray());
         }
-
+        /// <summary>
+        /// 注册p2p服务器所需的默认服务
+        /// </summary>
         public void AddDefaultServerHandler()
         {
             AddHandler<ServerHandlers>();
         }
-
+        /// <summary>
+        /// 注册处理类，保存类里处理方法的反射信息
+        /// </summary>
+        /// <typeparam name="T">Handler类</typeparam>
         public void AddHandler<T>() where T : class
         {
             var type = typeof(T);
@@ -94,7 +98,11 @@ namespace Chronos.P2P.Server
                 }
             }
         }
-
+        /// <summary>
+        /// 类似asp.net core的设计，用于依赖注入
+        /// 默认会注入自身为单例服务
+        /// </summary>
+        /// <param name="configureAction">用于依赖注入的方法</param>
         public void ConfigureServices(Action<ServiceCollection> configureAction)
         {
             configureAction(services);
@@ -106,31 +114,35 @@ namespace Chronos.P2P.Server
         {
             listener?.Dispose();
         }
-
+        /// <summary>
+        /// 启动消息接收的循环
+        /// </summary>
+        /// <returns></returns>
         public async Task StartServerAsync()
         {
             if (serviceProvider is null)
             {
                 ConfigureServices(s => { });
             }
-            var t = Task.Run(async () =>
+            var t = Task.Run((Func<Task>)(async () =>
             {
+                // 启动一个线程，每10秒自动清除掉已经结束超过10秒的reliable请求id
                 while (true)
                 {
                     await Task.Delay(10000);
-                    guids.RemoveWhere(re => (DateTime.UtcNow - re.time).TotalSeconds > 10);
+                    guids.RemoveWhere((Predicate<ReqIdSet>)(re => (DateTime.UtcNow - re.Time).TotalSeconds > 10));
                 }
-            });
+            }));
             while (true)
             {
                 var re = await listener.ReceiveAsync();
 
                 try
                 {
-                    //Console.WriteLine("Waiting for broadcast");
                     
                     var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
                     var td = requestHandlers[dto.Method];
+                    // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
                     if (dto.ReqId != Guid.Empty)
                     {
                         var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Guid>
@@ -141,6 +153,8 @@ namespace Chronos.P2P.Server
                         await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
                         if (guids.Contains(new ReqIdSet(dto.ReqId, DateTime.UtcNow)))
                         {
+                            // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
+                            // 所以这里直接返回ack而不处理
                             continue;
                         }
                         guids.Add(new ReqIdSet(dto.ReqId, DateTime.UtcNow));
@@ -153,18 +167,11 @@ namespace Chronos.P2P.Server
                     });
                     AfterDataHandled?.Invoke(this, new());
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     OnError?.Invoke(this, re.Buffer);
-                    //Console.WriteLine(e);
                 }
             }
         }
-    }
-
-    public class UdpRequest
-    {
-        public int Method { get; set; }
-        public Guid ReqId { get; set; }
     }
 }

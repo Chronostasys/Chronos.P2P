@@ -4,6 +4,9 @@ using System.Text.Json;
 
 namespace Chronos.P2P.Server
 {
+    /// <summary>
+    /// 默认的p2pserver请求处理类
+    /// </summary>
     public class ServerHandlers
     {
         [Handler((int)CallMethods.Connect)]

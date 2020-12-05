@@ -8,6 +8,9 @@ using System.Text.Json;
 
 namespace Chronos.P2P.Server
 {
+    /// <summary>
+    /// udp请求上下文，是handler的参数。
+    /// </summary>
     public class UdpContext
     {
         public byte[] data { get; }
@@ -21,18 +24,14 @@ namespace Chronos.P2P.Server
         {
             data = buffer;
         }
-
+        /// <summary>
+        /// 获取上下文里的数据
+        /// </summary>
+        /// <typeparam name="T">数据类型</typeparam>
+        /// <returns></returns>
         public CallServerDto<T> GetData<T>()
         {
-            try
-            {
-                return JsonSerializer.Deserialize<CallServerDto<T>>(data);
-            }
-            catch (Exception)
-            {
-                var t = Encoding.Default.GetString(data);
-                throw;
-            }
+            return JsonSerializer.Deserialize<CallServerDto<T>>(data);
         }
     }
 }

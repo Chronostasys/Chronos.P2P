@@ -35,7 +35,7 @@ namespace Chronos.P2P.Client
 
         public event EventHandler PeersDataReceiveed;
 
-        private PeerEP localEP
+        public PeerEP localEP
             => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
 
         public Guid ID { get; }

@@ -28,7 +28,9 @@ namespace Chronos.P2P.Server.Sample
             var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000), "peer1");
             var server = new P2PServer();
             server.AddDefaultServerHandler();
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.
             server.StartServerAsync();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.
             //var t1 = peer.StartPeer();
             //var t2 = peer1.StartPeer();
             //var peer = new Peer(26900, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
@@ -39,8 +41,12 @@ namespace Chronos.P2P.Server.Sample
             peer.PeerConnected += Peer1_PeerConnected;
             peer.AddHandlers<ClientHandler>();
             peer1.AddHandlers<ClientHandler>();
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.
             peer.StartPeer();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.
             peer1.StartPeer();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call.
             Console.WriteLine($"peer: {peer.ID}\npeer1:{peer1.ID}");
             //peer.PeerConnectionLost += Peer_PeerConnectionLost;
             //Task.Run(async () =>
@@ -86,7 +92,7 @@ namespace Chronos.P2P.Server.Sample
         private static void Peer1_PeersDataReceiveed(object sender, EventArgs e)
         {
             var p = sender as Peer;
-            if (p.peers.Count != 0)
+            if (!p.peers.IsEmpty)
             {
                 p.SetPeer(p.peers.Keys.First());
             }

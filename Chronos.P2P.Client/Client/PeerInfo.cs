@@ -17,6 +17,7 @@ namespace Chronos.P2P.Client
         {
             tokenSource.Cancel();
             tokenSource.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public void SetTimeOut(ConcurrentDictionary<Guid, PeerInfo> dic)

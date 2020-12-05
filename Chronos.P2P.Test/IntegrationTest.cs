@@ -35,7 +35,7 @@ namespace Chronos.P2P.Test
         private void Peer1_PeersDataReceiveed(object sender, EventArgs e)
         {
             var p = sender as Peer;
-            if (p.peers.Count != 0)
+            if (!p.peers.IsEmpty)
             {
                 p.SetPeer(p.peers.Keys.First());
             }
