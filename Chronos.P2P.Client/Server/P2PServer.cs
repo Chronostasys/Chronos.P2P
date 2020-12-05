@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -13,10 +14,23 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Server
 {
+    internal record ReqIdSet(Guid ReqId, DateTime time);
+    internal class ReqIdSetComparer : EqualityComparer<ReqIdSet>
+    {
+        public override bool Equals(ReqIdSet x, ReqIdSet y)
+        {
+            return x == y;
+        }
+
+        public override int GetHashCode([DisallowNull] ReqIdSet obj)
+        {
+            return obj.ReqId.GetHashCode();
+        }
+    }
     public class P2PServer : IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
-        private HashSet<Guid> guids = new HashSet<Guid>();
+        private HashSet<ReqIdSet> guids = new HashSet<ReqIdSet>(new ReqIdSetComparer());
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider serviceProvider;
@@ -99,6 +113,14 @@ namespace Chronos.P2P.Server
             {
                 ConfigureServices(s => { });
             }
+            var t = Task.Run(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(10000);
+                    guids.RemoveWhere(re => (DateTime.UtcNow - re.time).TotalSeconds > 10);
+                }
+            });
             while (true)
             {
                 var re = await listener.ReceiveAsync();
@@ -106,7 +128,7 @@ namespace Chronos.P2P.Server
                 try
                 {
                     //Console.WriteLine("Waiting for broadcast");
-
+                    
                     var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
                     var td = requestHandlers[dto.Method];
                     if (dto.ReqId != Guid.Empty)
@@ -117,11 +139,11 @@ namespace Chronos.P2P.Server
                             Data = dto.ReqId
                         });
                         await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
-                        if (guids.Contains(dto.ReqId))
+                        if (guids.Contains(new ReqIdSet(dto.ReqId, DateTime.UtcNow)))
                         {
                             continue;
                         }
-                        guids.Add(dto.ReqId);
+                        guids.Add(new ReqIdSet(dto.ReqId, DateTime.UtcNow));
                     }
                     CallHandler(td, new UdpContext(re.Buffer)
                     {

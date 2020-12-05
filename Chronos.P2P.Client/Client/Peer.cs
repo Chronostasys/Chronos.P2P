@@ -197,7 +197,6 @@ namespace Chronos.P2P.Client
         internal void AckReturned(Guid reqId)
         {
             AckTasks[reqId].TrySetResult(true);
-            //AckTasks.Remove(reqId, out var taskCompletionSource);
         }
 
         internal async void PeerConnectedReceived()
@@ -298,10 +297,12 @@ namespace Chronos.P2P.Client
                 var t = await await Task.WhenAny(AckTasks[reqId].Task, Delay());
                 if (t)
                 {
+                    AckTasks.TryRemove(reqId, out var completionSource);
                     return true;
                 }
             }
-            //AckTasks.Remove(reqId, out var taskCompletionSource);
+
+            AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
         }
 
