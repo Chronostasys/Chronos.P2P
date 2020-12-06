@@ -304,6 +304,7 @@ namespace Chronos.P2P.Client
             {
                 slices.Clear();
                 await fs.DisposeAsync();
+                Console.WriteLine("transfer done!");
             }
         }
         Stream fs;
