@@ -20,5 +20,9 @@ namespace Chronos.P2P.Client
         {
             return new IPEndPoint(IPAddress.Parse(IP), Port);
         }
+        public override string ToString()
+        {
+            return $"{IP}:{Port}";
+        }
     }
 }
