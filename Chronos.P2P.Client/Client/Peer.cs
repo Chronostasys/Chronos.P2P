@@ -94,7 +94,6 @@ namespace Chronos.P2P.Client
                         Data = peerInfo,
                     });
                     var st = udpClient.SendAsync(bytes, bytes.Length, serverEP);
-                    Console.WriteLine($"Client: Sent connection data!");
                     await Task.Delay(1000, tokenSource.Token);
                 }
             });
