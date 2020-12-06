@@ -243,14 +243,17 @@ namespace Chronos.P2P.Client
         public static IPAddress GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
+            IPAddress ipAddress = null;
             foreach (var ip in host.AddressList)
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    return ip;
+                    ipAddress = ip;
                 }
             }
-            throw new Exception("No network adapters with an IPv4 address in the system!");
+            return ipAddress??
+                throw new Exception("No network adapters with an IPv4 address in the system!");
+
         }
 
         public void AddHandlers<T>() where T : class
