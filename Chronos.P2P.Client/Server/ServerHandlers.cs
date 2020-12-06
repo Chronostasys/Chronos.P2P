@@ -16,6 +16,13 @@ namespace Chronos.P2P.Server
             
             var remote = context.RemoteEndPoint;
             var peers = context.Peers;
+            foreach (var item in peers)
+            {
+                if ((DateTime.UtcNow-item.Value.CreateTime).TotalSeconds>10)
+                {
+                    peers.TryRemove(item);
+                }
+            }
             peers[peer.Id] = peer;
             peer.OuterEP = PeerEP.ParsePeerEPFromIPEP(remote);
 
@@ -23,12 +30,6 @@ namespace Chronos.P2P.Server
 
             var sendbytes = JsonSerializer.SerializeToUtf8Bytes(peers);
             context.UdpClient.SendAsync(sendbytes, sendbytes.Length, remote);
-
-            peer.SetTimeOut(peers);
-            if (peers.TryGetValue(peer.Id, out var prev))
-            {
-                prev.Dispose();
-            }
         }
     }
 }

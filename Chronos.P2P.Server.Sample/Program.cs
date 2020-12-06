@@ -36,7 +36,8 @@ namespace Chronos.P2P.Server.Sample
             //var t2 = peer1.StartPeer();
             Console.WriteLine("enter your port:");
 
-            var peer = new Peer(int.Parse(Console.ReadLine()), new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var p = int.Parse(Console.ReadLine());
+            var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             //var peer1 = new Peer(8890, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             //peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
@@ -50,12 +51,6 @@ namespace Chronos.P2P.Server.Sample
 
 
             Console.WriteLine($"your peer id: {peer.ID}");
-            //peer.PeerConnectionLost += Peer_PeerConnectionLost;
-            //Task.Run(async () =>
-            //{
-            //    await Task.Delay(10000);
-            //    peer1.Cancel();
-            //});
             Console.WriteLine("Waiting for handshake server...");
             await completionSource.Task;
             
@@ -65,7 +60,7 @@ namespace Chronos.P2P.Server.Sample
             {
                 foreach (var item in peer.peers)
                 {
-                    Console.WriteLine($"peer id: {item.Key}, outerip: {item.Value.InnerEP}, outerip: {item.Value.OuterEP}");
+                    Console.WriteLine($"peer id: {item.Key}, innerip: {item.Value.InnerEP}, outerip: {item.Value.OuterEP}");
                 }
                 Console.WriteLine("Enter the peer id you would like to communicate to (press enter to see available peer list):");
             }
@@ -78,23 +73,6 @@ namespace Chronos.P2P.Server.Sample
             {
                 if (!await peer.SendDataToPeerReliableAsync(Console.ReadLine()))
                     Console.WriteLine("msg send failed");
-                //nums = 0;
-                //var s = "test";
-                //for (int i = 0; i < 1000; i++)
-                //{
-                //    await peer.SendDataToPeerAsync(s);
-                //}
-                
-                //Console.ReadLine();
-                //Console.WriteLine(nums);
-                //Console.ReadLine();
-                //nums = 0;
-                //for (int i = 0; i < 1000; i++)
-                //{
-                //    await peer.SendDataToPeerReliableAsync(s);
-                //}
-                //Console.WriteLine(nums);
-                //Console.ReadLine();
             }
             
         }
