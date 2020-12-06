@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -12,6 +14,13 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
+    public class DataSlice
+    {
+        public int No { get; set; }
+        public byte[] Slice { get; set; }
+        public int Len { get; set; }
+        public bool Last { get; set; }
+    }
     public class Peer : IDisposable
     {
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks
@@ -180,6 +189,7 @@ namespace Chronos.P2P.Client
                                     OuterEp = val.OuterEP;
                                 }
                             }
+                            // just fire and forget
                             _ = Task.Run(() =>
                             {
                                 PeersDataReceiveed?.Invoke(this, new EventArgs());
@@ -267,6 +277,57 @@ namespace Chronos.P2P.Client
         public void Dispose()
         {
             udpClient.Dispose();
+        }
+        public async Task FileDataReceived(UdpContext context)
+        {
+            
+            var dataSlice = context.GetData<DataSlice>().Data;
+            if (dataSlice.No==0)
+            {
+                fs = File.Create($"{Guid.NewGuid()}");
+            }
+            if (fs.Position==dataSlice.No*bufferLen)
+            {
+                await fs.WriteAsync(dataSlice.Slice, (int)fs.Position, dataSlice.Len);
+                while (slices.TryGetValue(++dataSlice.No, out var slice))
+                {
+                    await fs.WriteAsync(slice.Slice, (int)fs.Position, slice.Len);
+                }
+            }
+            else
+            {
+                slices[dataSlice.No]= dataSlice;
+            }
+            
+            
+            if (dataSlice.Last)
+            {
+                slices.Clear();
+                await fs.DisposeAsync();
+            }
+        }
+        Stream fs;
+        ConcurrentDictionary<int, DataSlice> slices = new ConcurrentDictionary<int, DataSlice>();
+        const int bufferLen = 500;
+        public async Task SendFileAsync(string location)
+        {
+            
+            using var fs = File.OpenRead(location);
+            
+            var buffer = new byte[bufferLen];
+            
+            for (int i = 0, j = 0; i < fs.Length; i+=bufferLen, j++)
+            {
+                var len = await fs.ReadAsync(buffer, i, bufferLen);
+                _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, 
+                    new DataSlice 
+                    {
+                        No = j,
+                        Slice = buffer,
+                        Len = len,
+                        Last = i >= fs.Length - bufferLen
+                    });
+            }
         }
 
         public Task SendDataToPeerAsync<T>(T data) where T : class
