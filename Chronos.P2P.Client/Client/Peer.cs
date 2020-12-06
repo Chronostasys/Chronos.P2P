@@ -295,10 +295,10 @@ namespace Chronos.P2P.Client
             }
             if (fs.Position==dataSlice.No*bufferLen)
             {
-                await fs.WriteAsync(dataSlice.Slice, (int)fs.Position, dataSlice.Len);
+                await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
                 while (slices.TryGetValue(++dataSlice.No, out var slice))
                 {
-                    await fs.WriteAsync(slice.Slice, (int)fs.Position, slice.Len);
+                    await fs.WriteAsync(slice.Slice, 0, slice.Len);
                 }
             }
             else
