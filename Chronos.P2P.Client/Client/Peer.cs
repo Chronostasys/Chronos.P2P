@@ -285,28 +285,41 @@ namespace Chronos.P2P.Client
         {
             udpClient.Dispose();
         }
+        SemaphoreSlim semaphoreSlim = new SemaphoreSlim(1);
         public async Task FileDataReceived(UdpContext context)
         {
-            
+
             var dataSlice = context.GetData<DataSlice>().Data;
-            if (dataSlice.No==0)
+            await semaphoreSlim.WaitAsync();
+            if (dataSlice.No == 0)
             {
                 fs = File.Create($"{Guid.NewGuid()}");
+                currentHead = -1;
             }
-            if (fs.Position==dataSlice.No*bufferLen)
+            if (dataSlice.Last)
+            {
+                Console.WriteLine("last");
+            }
+
+
+            if (fs is not null && currentHead == dataSlice.No - 1)
             {
                 await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
+                currentHead = dataSlice.No;
                 if (dataSlice.Last)
                 {
                     slices.Clear();
+                    currentHead = -1;
                     await fs.DisposeAsync();
                     Console.WriteLine("transfer done!");
                 }
                 while (slices.TryGetValue(++dataSlice.No, out var slice))
                 {
                     await fs.WriteAsync(slice.Slice, 0, slice.Len);
+                    currentHead = dataSlice.No;
                     if (slice.Last)
                     {
+                        currentHead = -1;
                         slices.Clear();
                         await fs.DisposeAsync();
                         Console.WriteLine("transfer done!");
@@ -315,14 +328,15 @@ namespace Chronos.P2P.Client
             }
             else
             {
-                slices[dataSlice.No]= dataSlice;
+                slices[dataSlice.No] = dataSlice;
             }
-            
-            
+            semaphoreSlim.Release();
+
         }
+        int currentHead = -1;
         Stream fs;
         ConcurrentDictionary<int, DataSlice> slices = new ConcurrentDictionary<int, DataSlice>();
-        const int bufferLen = 1024;
+        const int bufferLen = 10240;
         public async Task SendFileAsync(string location)
         {
             
@@ -333,14 +347,29 @@ namespace Chronos.P2P.Client
             for (int i = 0, j = 0; i < fs.Length; i+=bufferLen, j++)
             {
                 var len = await fs.ReadAsync(buffer, 0, bufferLen);
-                await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, 
-                    new DataSlice 
+                if (i >= fs.Length - bufferLen)
+                {
+                    Console.WriteLine("last");
+                }
+                SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
+                    new DataSlice
                     {
                         No = j,
                         Slice = buffer,
                         Len = len,
                         Last = i >= fs.Length - bufferLen
                     });
+                //while (!await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
+                //    new DataSlice
+                //    {
+                //        No = j,
+                //        Slice = buffer,
+                //        Len = len,
+                //        Last = i >= fs.Length - bufferLen
+                //    }))
+                //{
+                //    Console.WriteLine("retry");
+                //}
             }
         }
 
