@@ -53,7 +53,6 @@ namespace Chronos.P2P.Server.Sample
             Console.WriteLine($"your peer id: {peer.ID}");
             Console.WriteLine("Waiting for handshake server...");
             await completionSource.Task;
-            
             Console.WriteLine("Enter the peer id you would like to communicate to (press enter to see available peer list):");
             Guid id;
             while (!Guid.TryParse(Console.ReadLine(), out id))
@@ -89,8 +88,10 @@ namespace Chronos.P2P.Server.Sample
 
         private static void Peer1_PeersDataReceiveed(object sender, EventArgs e)
         {
-            completionSource.TrySetResult();
 
+            var a = completionSource.TrySetResult();
+
+            return;
         }
     }
 }

@@ -172,7 +172,6 @@ namespace Chronos.P2P.Client
                         try
                         {
                             peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
-                            Console.WriteLine($"Client {ID}: Received data!");
                             foreach (var item in peers)
                             {
                                 if (item.Key == ID)
@@ -181,8 +180,11 @@ namespace Chronos.P2P.Client
                                     OuterEp = val.OuterEP;
                                 }
                             }
-                            PeersDataReceiveed?.Invoke(this, new EventArgs());
-                            Console.WriteLine($"Client {ID}: found peers!");
+                            _ = Task.Run(() =>
+                            {
+                                PeersDataReceiveed?.Invoke(this, new EventArgs());
+                            });
+                            
                         }
                         catch (Exception)
                         {
