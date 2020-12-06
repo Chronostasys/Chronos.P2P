@@ -37,8 +37,10 @@ namespace Chronos.P2P.Client
 
         public Guid ID { get; }
 
-        public PeerEP localEP
-                    => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
+        public PeerEP LocalEP
+            => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
+
+        public PeerEP OuterEp { get; private set; }
 
         public string Name { get; }
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
@@ -78,7 +80,7 @@ namespace Chronos.P2P.Client
         private Task StartBroadCast()
             => Task.Run(async () =>
             {
-                var peerInfo = new PeerInfo { Id = ID, InnerEP = localEP };
+                var peerInfo = new PeerInfo { Id = ID, InnerEP = LocalEP };
                 while (true)
                 {
                     tokenSource.Token.ThrowIfCancellationRequested();
@@ -177,6 +179,7 @@ namespace Chronos.P2P.Client
                                 if (item.Key == ID)
                                 {
                                     peers.Remove(ID, out var val);
+                                    OuterEp = val.OuterEP;
                                 }
                             }
                             PeersDataReceiveed?.Invoke(this, new EventArgs());
@@ -310,6 +313,11 @@ namespace Chronos.P2P.Client
         public void SetPeer(Guid id)
         {
             peer = peers[id];
+            // 自动切换至局域网内连接
+            if (peer.OuterEP.IP==OuterEp.IP)
+            {
+                peer.OuterEP = peer.InnerEP;
+            }
         }
 
         public Task StartPeer()

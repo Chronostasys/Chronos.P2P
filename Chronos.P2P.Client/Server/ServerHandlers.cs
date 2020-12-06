@@ -13,8 +13,10 @@ namespace Chronos.P2P.Server
         public void HandleConnect(UdpContext context)
         {
             var peer = context.GetData<PeerInfo>().Data;
+            
             var remote = context.RemoteEndPoint;
             var peers = context.Peers;
+            peers[peer.Id] = peer;
             peer.OuterEP = PeerEP.ParsePeerEPFromIPEP(remote);
 
             Console.WriteLine($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
@@ -27,7 +29,6 @@ namespace Chronos.P2P.Server
             {
                 prev.Dispose();
             }
-            peers[peer.Id] = peer;
         }
     }
 }
