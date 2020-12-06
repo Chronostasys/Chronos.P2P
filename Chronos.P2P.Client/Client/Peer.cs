@@ -211,7 +211,14 @@ namespace Chronos.P2P.Client
 
         internal void AckReturned(Guid reqId)
         {
-            AckTasks[reqId].TrySetResult(true);
+            try
+            {
+                AckTasks[reqId].TrySetResult(true);
+            }
+            catch (Exception)
+            {
+            }
+            
         }
 
         internal async void PeerConnectedReceived()
@@ -258,7 +265,7 @@ namespace Chronos.P2P.Client
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    ipAddress = ip;
+                    return ip;
                 }
             }
             return ipAddress??
@@ -309,17 +316,17 @@ namespace Chronos.P2P.Client
         }
         Stream fs;
         ConcurrentDictionary<int, DataSlice> slices = new ConcurrentDictionary<int, DataSlice>();
-        const int bufferLen = 500;
+        const int bufferLen = 10240;
         public async Task SendFileAsync(string location)
         {
             
             using var fs = File.OpenRead(location);
             
             var buffer = new byte[bufferLen];
-            
+            var last = fs.Length / bufferLen;
             for (int i = 0, j = 0; i < fs.Length; i+=bufferLen, j++)
             {
-                var len = await fs.ReadAsync(buffer, i, bufferLen);
+                var len = await fs.ReadAsync(buffer, 0, bufferLen);
                 _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, 
                     new DataSlice 
                     {
