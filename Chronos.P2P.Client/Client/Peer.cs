@@ -385,14 +385,20 @@ namespace Chronos.P2P.Client
         public static IEnumerable<IPAddress> GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
+            int i = 0;
             foreach (var ip in host.AddressList)
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
+                    i++;
                     yield return ip;
                 }
             }
-            throw new Exception("No network adapters with an IPv4 address in the system!");
+            if (i==0)
+            {
+                throw new Exception("No network adapters with an IPv4 address in the system!");
+            }
+            
         }
 
         public void AddHandlers<T>() where T : class
