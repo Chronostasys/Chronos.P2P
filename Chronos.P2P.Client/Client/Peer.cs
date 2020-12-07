@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -16,7 +17,7 @@ namespace Chronos.P2P.Client
 {
     public class Peer : IDisposable
     {
-        private const int bufferLen = 10240;
+        private const int bufferLen = 40000;
 
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
 
@@ -229,6 +230,7 @@ namespace Chronos.P2P.Client
             await semaphoreSlim.WaitAsync();
             if (dataSlice.No == 0)
             {
+                FileRecvDic[dataSlice.SessionId].Watch.Start();
                 fs = File.Create(FileRecvDic[dataSlice.SessionId].SavePath);
                 currentHead = -1;
             }
@@ -237,13 +239,17 @@ namespace Chronos.P2P.Client
             {
                 slices.Clear();
                 currentHead = -1;
-                Console.WriteLine("Waiting for io to complete...");
-                await FileSaveTasks[dataSlice.SessionId];
+                Console.WriteLine("\nWaiting for io to complete...");
+                //await FileSaveTasks[dataSlice.SessionId];
                 await fs.DisposeAsync();
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
                 val.Semaphore.Dispose();
                 semaphoreSlim = null;
                 Console.WriteLine("transfer done!");
+                val.Watch.Stop();
+                Console.WriteLine($"Time eplased: {val.Watch.Elapsed.TotalSeconds}s");
+                Console.WriteLine($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
+
             }
             void EnqueIOTask(DataSlice slice)
             {
@@ -268,7 +274,8 @@ namespace Chronos.P2P.Client
                 if (dataSlice.No % 100 == 0)
                 {
                     Console.SetCursorPosition(0, Console.CursorTop);
-                    Console.WriteLine($"data transferd:{(slice.No+1)*bufferLen/ (double)FileRecvDic[dataSlice.SessionId].Length*100,4}%");
+                    Console.Write($"data transfered:{((slice.No+1)*bufferLen/ (double)FileRecvDic[dataSlice.SessionId].Length*100).ToString().Substring(0,4), 5}%");
+                    
                 }
                 if (dataSlice.Last)
                 {
@@ -303,7 +310,8 @@ namespace Chronos.P2P.Client
                 {
                     SavePath = savepath,
                     Semaphore = new SemaphoreSlim(1),
-                    Length = data.Length
+                    Length = data.Length,
+                    Watch = new Stopwatch()
                 };
             }
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult

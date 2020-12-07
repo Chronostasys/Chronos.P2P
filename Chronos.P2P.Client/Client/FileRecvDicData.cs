@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Diagnostics;
+using System.Threading;
 
 namespace Chronos.P2P.Client
 {
@@ -7,5 +8,6 @@ namespace Chronos.P2P.Client
         public string SavePath { get; set; }
         public SemaphoreSlim Semaphore { get; set; }
         public long Length { get; set; }
+        public Stopwatch Watch { get; set; }
     }
 }

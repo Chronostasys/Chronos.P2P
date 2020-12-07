@@ -16,12 +16,7 @@ namespace Chronos.P2P.Server
     public class P2PServer : IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
-
-        /// <summary>
-        /// 这个hashset里的datetime只是个附带信息，所以需要使用一个自定义的比较器
-        /// </summary>
-        private HashSet<ReqIdSet> guids = new HashSet<ReqIdSet>(1000000, new ReqIdSetComparer());
-
+        ConcurrentDictionary<Guid, DateTime> guidDic = new();
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider serviceProvider;
@@ -135,10 +130,13 @@ namespace Chronos.P2P.Server
                 // 启动一个线程，每10秒自动清除掉已经结束超过10秒的reliable请求id
                 while (true)
                 {
-                    await Task.Delay(3000);
-                    lock (this)
+                    await Task.Delay(10000);
+                    foreach (var item in guidDic)
                     {
-                        guids.RemoveWhere((Predicate<ReqIdSet>)(re => (DateTime.UtcNow - re.Time).TotalSeconds > 3));
+                        if ((DateTime.UtcNow - item.Value).TotalSeconds > 10)
+                        {
+                            guidDic.TryRemove(item);
+                        }
                     }
                 }
             }));
@@ -159,16 +157,13 @@ namespace Chronos.P2P.Server
                             Data = dto.ReqId
                         });
                         await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
-                        if (guids.Contains(new ReqIdSet(dto.ReqId, DateTime.UtcNow)))
+                        if (guidDic.ContainsKey(dto.ReqId))
                         {
                             // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
                             // 所以这里直接返回ack而不处理
                             continue;
                         }
-                        lock (this)
-                        {
-                            guids.Add(new ReqIdSet(dto.ReqId, DateTime.UtcNow));
-                        }
+                        guidDic[dto.ReqId] = DateTime.UtcNow;
                     }
                     CallHandler(td, new UdpContext(re.Buffer)
                     {
