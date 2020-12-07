@@ -62,9 +62,9 @@ namespace Chronos.P2P.Test
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
 
-            var t3 = server.StartServerAsync();
-            var t1 = peer1.StartPeer();
-            var t2 = peer2.StartPeer();
+            _ = server.StartServerAsync();
+            _ = peer1.StartPeer();
+            _ = peer2.StartPeer();
             await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";
@@ -98,8 +98,8 @@ namespace Chronos.P2P.Test
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
 
-            var t1 = peer1.StartPeer();
-            var t2 = peer2.StartPeer();
+            _ = peer1.StartPeer();
+            _ = peer2.StartPeer();
             await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";
