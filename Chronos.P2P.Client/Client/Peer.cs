@@ -393,7 +393,7 @@ namespace Chronos.P2P.Client
         internal async void PunchDataReceived(UdpContext context)
         {
             var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
-            if (ep != peer.OuterEP && peer.InnerEP.Contains(ep))
+            if (ep != peer.OuterEP && peer.InnerEP.Contains(new PeerInnerEP(ep)))
             {
                 peer.OuterEP = ep;
             }
