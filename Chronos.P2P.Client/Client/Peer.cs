@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +16,33 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
+    public static class Utils
+    {
+        public static IPAddress GetNetworkAddress(this IPAddress address, IPAddress subnetMask)
+        {
+            byte[] ipAdressBytes = address.GetAddressBytes();
+            byte[] subnetMaskBytes = subnetMask.GetAddressBytes();
+
+            if (ipAdressBytes.Length != subnetMaskBytes.Length)
+                throw new ArgumentException("Lengths of IP address and subnet mask do not match.");
+
+            byte[] broadcastAddress = new byte[ipAdressBytes.Length];
+            for (int i = 0; i < broadcastAddress.Length; i++)
+            {
+                broadcastAddress[i] = (byte)(ipAdressBytes[i] & (subnetMaskBytes[i]));
+            }
+            return new IPAddress(broadcastAddress);
+        }
+        public static bool IsInSameSubnet(this IPAddress address2, IPAddress address, IPAddress subnetMask)
+        {
+
+            IPAddress network1 = address.GetNetworkAddress(subnetMask);
+            IPAddress network2 = address2.GetNetworkAddress(subnetMask);
+
+
+            return network1.Equals(network2);
+        }
+    }
     public class Peer : IDisposable
     {
         private const int bufferLen = 40000;
@@ -49,7 +77,7 @@ namespace Chronos.P2P.Client
 
         public Guid ID { get; }
 
-        public IEnumerable<PeerEP> LocalEP { get; }
+        public IEnumerable<PeerInnerEP> LocalEP { get; }
 
         public string Name { get; }
         public PeerEP OuterEp { get; private set; }
@@ -329,11 +357,11 @@ namespace Chronos.P2P.Client
             });
         }
 
-        internal IEnumerable<PeerEP> GetEps()
+        internal IEnumerable<PeerInnerEP> GetEps()
         {
             foreach (var item in GetLocalIPAddress())
             {
-                yield return PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port));
+                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port)));
             }
         }
 
@@ -386,10 +414,27 @@ namespace Chronos.P2P.Client
         {
             pingCount = 10;
         }
-
+        public static IPAddress GetSubnetMask(IPAddress address)
+        {
+            foreach (NetworkInterface adapter in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                foreach (UnicastIPAddressInformation unicastIPAddressInformation in adapter.GetIPProperties().UnicastAddresses)
+                {
+                    if (unicastIPAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        if (address.Equals(unicastIPAddressInformation.Address))
+                        {
+                            return unicastIPAddressInformation.IPv4Mask;
+                        }
+                    }
+                }
+            }
+            throw new ArgumentException(string.Format("Can't find subnetmask for IP address '{0}'", address));
+        }
         public static IEnumerable<IPAddress> GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
+            
             int i = 0;
             foreach (var ip in host.AddressList)
             {
@@ -508,13 +553,26 @@ namespace Chronos.P2P.Client
             }
         }
 
-        public void SetPeer(Guid id)
+        public void SetPeer(Guid id, bool inSubNet = false)
         {
             peer = peers[id];
             // 自动切换至局域网内连接
             if (peer.OuterEP.IP == OuterEp.IP)
             {
                 peer.OuterEP = peer.InnerEP[0];
+            }
+            if (inSubNet)
+            {
+                foreach (var item in LocalEP)
+                {
+                    foreach (var item1 in peer.InnerEP)
+                    {
+                        if (item.IsInSameSubNet(item1))
+                        {
+                            peer.OuterEP = item1;
+                        }
+                    }
+                }
             }
         }
 
