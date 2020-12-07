@@ -51,7 +51,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.PunchHole)]
         public void PunchingDataHandler(UdpContext context)
         {
-            peer.PunchDataReceived();
+            peer.PunchDataReceived(context);
         }
     }
 }

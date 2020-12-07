@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
@@ -58,20 +59,28 @@ namespace Chronos.P2P.Client
 
         public Guid ID { get; }
 
-        public PeerEP LocalEP
-            => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
+        public IEnumerable<PeerEP> LocalEP { get; }
 
         public string Name { get; }
         public PeerEP OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
 
+        internal IEnumerable<PeerEP> GetEps()
+        {
+            foreach (var item in GetLocalIPAddress())
+            {
+                yield return PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port));
+            }
+        }
         public Peer(int port, IPEndPoint serverEP, string name = null)
         {
+            
             Name = name;
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
             this.port = port;
+            LocalEP = GetEps();
             server = new P2PServer(udpClient);
             server.AddHandler<PeerDefaultHandlers>();
             server.ConfigureServices(services =>
@@ -100,7 +109,7 @@ namespace Chronos.P2P.Client
         private Task StartBroadCast()
             => Task.Run(async () =>
             {
-                var peerInfo = new PeerInfo { Id = ID, InnerEP = LocalEP };
+                var peerInfo = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() };
                 while (true)
                 {
                     tokenSource.Token.ThrowIfCancellationRequested();
@@ -351,8 +360,13 @@ namespace Chronos.P2P.Client
             PeerConnected?.Invoke(this, new EventArgs());
         }
 
-        internal async void PunchDataReceived()
+        internal async void PunchDataReceived(UdpContext context)
         {
+            var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
+            if (ep!=peer.OuterEP&&peer.InnerEP.Contains(ep))
+            {
+                peer.OuterEP = ep;
+            }
             if ((DateTime.UtcNow - lastPunchTime).TotalMilliseconds < 500)
             {
                 return;
@@ -371,19 +385,17 @@ namespace Chronos.P2P.Client
             pingCount = 10;
         }
 
-        public static IPAddress GetLocalIPAddress()
+        public static IEnumerable<IPAddress> GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
-            IPAddress ipAddress = null;
             foreach (var ip in host.AddressList)
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    return ip;
+                    yield return ip;
                 }
             }
-            return ipAddress ??
-                throw new Exception("No network adapters with an IPv4 address in the system!");
+            throw new Exception("No network adapters with an IPv4 address in the system!");
         }
 
         public void AddHandlers<T>() where T : class
@@ -503,7 +515,7 @@ namespace Chronos.P2P.Client
             // 自动切换至局域网内连接
             if (peer.OuterEP.IP == OuterEp.IP)
             {
-                peer.OuterEP = peer.InnerEP;
+                peer.OuterEP = peer.InnerEP[0];
             }
         }
 
