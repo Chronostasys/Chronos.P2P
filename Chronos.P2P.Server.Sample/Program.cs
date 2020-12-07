@@ -70,8 +70,10 @@ namespace Chronos.P2P.Server.Sample
             Console.WriteLine("Peer connectd!");
             while (true)
             {
-                if (!await peer.SendDataToPeerReliableAsync(Console.ReadLine()))
-                    Console.WriteLine("msg send failed");
+
+                await peer.SendFileAsync(Console.ReadLine());
+                //if (!await peer.SendDataToPeerReliableAsync(Console.ReadLine()))
+                //    Console.WriteLine("msg send failed");
             }
             
         }

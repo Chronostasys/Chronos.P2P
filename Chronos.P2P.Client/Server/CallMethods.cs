@@ -10,6 +10,8 @@
         Connected,
         P2PPing,
         P2PDataTransfer,
-        Ack
+        Ack,
+        DataSlice,
+        FileHandShake,
     }
 }
