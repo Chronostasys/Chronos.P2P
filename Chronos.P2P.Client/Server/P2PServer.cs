@@ -20,7 +20,7 @@ namespace Chronos.P2P.Server
         /// <summary>
         /// 这个hashset里的datetime只是个附带信息，所以需要使用一个自定义的比较器
         /// </summary>
-        private HashSet<ReqIdSet> guids = new HashSet<ReqIdSet>(new ReqIdSetComparer());
+        private HashSet<ReqIdSet> guids = new HashSet<ReqIdSet>(1000000, new ReqIdSetComparer());
 
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
@@ -135,8 +135,12 @@ namespace Chronos.P2P.Server
                 // 启动一个线程，每10秒自动清除掉已经结束超过10秒的reliable请求id
                 while (true)
                 {
-                    await Task.Delay(10000);
-                    guids.RemoveWhere((Predicate<ReqIdSet>)(re => (DateTime.UtcNow - re.Time).TotalSeconds > 10));
+                    await Task.Delay(3000);
+                    lock (this)
+                    {
+                        guids.RemoveWhere((Predicate<ReqIdSet>)(re => (DateTime.UtcNow - re.Time).TotalSeconds > 3));
+                    }
+                    
                 }
             }));
             while (true)
@@ -162,7 +166,11 @@ namespace Chronos.P2P.Server
                             // 所以这里直接返回ack而不处理
                             continue;
                         }
-                        guids.Add(new ReqIdSet(dto.ReqId, DateTime.UtcNow));
+                        lock (this)
+                        {
+                            guids.Add(new ReqIdSet(dto.ReqId, DateTime.UtcNow));
+                        }
+                        
                     }
                     CallHandler(td, new UdpContext(re.Buffer)
                     {
@@ -172,7 +180,7 @@ namespace Chronos.P2P.Server
                     });
                     AfterDataHandled?.Invoke(this, new());
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
                     OnError?.Invoke(this, re.Buffer);
                 }

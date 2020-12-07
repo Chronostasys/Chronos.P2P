@@ -17,7 +17,7 @@ namespace Chronos.P2P.Client
     public struct DataSlice
     {
         public Guid SessionId { get; set; }
-        public int No { get; set; }
+        public long No { get; set; }
         public byte[] Slice { get; set; }
         public int Len { get; set; }
         public bool Last { get; set; }
@@ -31,7 +31,7 @@ namespace Chronos.P2P.Client
     public struct DataSliceInfo
     {
         public Guid SessionId { get; set; }
-        public int No { get; set; }
+        public long No { get; set; }
         public override int GetHashCode()
         {
             unchecked
@@ -182,19 +182,19 @@ namespace Chronos.P2P.Client
             => Task.Run(async () =>
             {
                 pingCount = 10;
-                while (true)
-                {
-                    await Task.Delay(1000);
-                    pingCount--;
+                //while (true)
+                //{
+                //    await Task.Delay(1000);
+                //    pingCount--;
 
-                    if (pingCount == 0)
-                    {
-                        Console.WriteLine("connection lost!");
-                        Console.WriteLine($"{ID}");
-                        PeerConnectionLost?.Invoke(this, new());
-                        peer = null;
-                    }
-                }
+                //    if (pingCount == 0)
+                //    {
+                //        Console.WriteLine("connection lost!");
+                //        Console.WriteLine($"{ID}");
+                //        PeerConnectionLost?.Invoke(this, new());
+                //        peer = null;
+                //    }
+                //}
             });
 
         private Task StartReceiveData()
@@ -340,10 +340,6 @@ namespace Chronos.P2P.Client
                 fs = File.Create(FileRecvDic[dataSlice.SessionId].Item1);
                 currentHead = -1;
             }
-            if (dataSlice.Last)
-            {
-                Console.WriteLine("last");
-            }
             async Task CleanUpAsync()
             {
                 slices.Clear();
@@ -358,6 +354,10 @@ namespace Chronos.P2P.Client
             {
                 await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
                 currentHead = dataSlice.No;
+                if (dataSlice.No%100==0)
+                {
+                    Console.WriteLine($"slice: {dataSlice.No}");
+                }
                 if (dataSlice.Last)
                 {
                     await CleanUpAsync();
@@ -365,6 +365,10 @@ namespace Chronos.P2P.Client
                 while (slices.TryGetValue(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId }, out var slice))
                 {
                     await fs.WriteAsync(slice.Slice, 0, slice.Len);
+                    if (dataSlice.No % 100 == 0)
+                    {
+                        Console.WriteLine($"slice: {dataSlice.No}");
+                    }
                     currentHead = dataSlice.No;
                     if (slice.Last)
                     {
@@ -379,7 +383,7 @@ namespace Chronos.P2P.Client
             semaphoreSlim.Release();
 
         }
-        int currentHead = -1;
+        long currentHead = -1;
         Stream fs;
         ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new ConcurrentDictionary<DataSliceInfo, DataSlice>();
         const int bufferLen = 10240;
@@ -387,38 +391,41 @@ namespace Chronos.P2P.Client
         {
             
             using var fs = File.OpenRead(location);
+            using SemaphoreSlim semaphore = new SemaphoreSlim(20);
             var sessionId = Guid.NewGuid();
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo 
             {
                 Length = fs.Length,
-                Name = fs.Name,
+                Name = Path.GetFileName(fs.Name),
                 SessionId = sessionId
             });
             var cancelSource = new CancellationTokenSource();
-            var buffer = new byte[bufferLen];
             var last = fs.Length / bufferLen;
-            for (int i = 0, j = 0; i < fs.Length; i+=bufferLen, j++)
+            Console.WriteLine($"Slice count: {last}");
+            for (long i = 0, j = 0; i < fs.Length; i+=bufferLen, j++)
             {
+                await semaphore.WaitAsync();
+                var buffer = new byte[bufferLen];
                 var len = await fs.ReadAsync(buffer, 0, bufferLen);
                 if (i >= fs.Length - bufferLen)
                 {
                     Console.WriteLine("last");
                 }
                 cancelSource.Token.ThrowIfCancellationRequested();
-                _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
+                for (int i1 = 0; i1 < 3; i1++)
+                {
+                    if (await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
                     new DataSlice
                     {
                         No = j,
                         Slice = buffer,
                         Len = len,
-                        Last = i >= fs.Length - bufferLen
-                    }).ContinueWith(async re=>
-                    {
-                        if(!await re)
-                        {
-                            cancelSource.Cancel();
-                        }
-                    });
+                        Last = i >= fs.Length - bufferLen,
+                        SessionId = sessionId
+                    })) break;
+                    else cancelSource.Cancel();
+                }
+                semaphore.Release();
                 //while (!await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
                 //    new DataSlice
                 //    {
@@ -452,6 +459,7 @@ namespace Chronos.P2P.Client
         {
             return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, token);
         }
+        
 
         public async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, CancellationToken? token = null)
         {
