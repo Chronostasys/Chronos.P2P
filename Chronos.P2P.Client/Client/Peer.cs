@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -15,17 +14,6 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public struct FileTransferHandShakeResult
-    {
-        public Guid SessionId { get; set; }
-        public bool Accept { get; set; }
-    }
-    public struct FileRecvDicData
-    {
-        public string SavePath { get; set; }
-        public SemaphoreSlim Semaphore { get; set; }
-    }
-
     public class Peer : IDisposable
     {
         private const int bufferLen = 10240;
@@ -34,7 +22,9 @@ namespace Chronos.P2P.Client
                     = new ConcurrentDictionary<Guid, TaskCompletionSource<bool>>();
 
         private long currentHead = -1;
+        private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
+        private ConcurrentDictionary<Guid, Task> FileSaveTasks = new();
         private Stream fs;
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
@@ -65,16 +55,8 @@ namespace Chronos.P2P.Client
         public PeerEP OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
 
-        internal IEnumerable<PeerEP> GetEps()
-        {
-            foreach (var item in GetLocalIPAddress())
-            {
-                yield return PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port));
-            }
-        }
         public Peer(int port, IPEndPoint serverEP, string name = null)
         {
-            
             Name = name;
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
@@ -235,7 +217,7 @@ namespace Chronos.P2P.Client
                 AckTasks[reqId].TrySetResult(true);
             }
         }
-        ConcurrentDictionary<Guid, Task> FileSaveTasks = new();
+
         internal async Task FileDataReceived(UdpContext context)
         {
             var dataSlice = context.GetData<DataSlice>().Data;
@@ -251,7 +233,7 @@ namespace Chronos.P2P.Client
                 fs = File.Create(FileRecvDic[dataSlice.SessionId].SavePath);
                 currentHead = -1;
             }
-            
+
             async Task CleanUpAsync()
             {
                 slices.Clear();
@@ -267,9 +249,8 @@ namespace Chronos.P2P.Client
             if (fs is not null && currentHead == dataSlice.No - 1)
             {
                 currentHead = dataSlice.No;
-                if (dataSlice.No==0)
+                if (dataSlice.No == 0)
                 {
-
                     FileSaveTasks[dataSlice.SessionId] = fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
                 }
                 else
@@ -280,7 +261,7 @@ namespace Chronos.P2P.Client
                         await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
                     }).Unwrap();
                 }
-                
+
                 if (dataSlice.No % 100 == 0)
                 {
                     Console.WriteLine($"slice: {dataSlice.No}");
@@ -294,7 +275,6 @@ namespace Chronos.P2P.Client
                     currentHead = dataSlice.No;
                     if (dataSlice.No == 0)
                     {
-
                         FileSaveTasks[dataSlice.SessionId] = fs.WriteAsync(slice.Slice, 0, slice.Len);
                     }
                     else
@@ -309,7 +289,7 @@ namespace Chronos.P2P.Client
                     {
                         Console.WriteLine($"slice: {dataSlice.No}");
                     }
-                    
+
                     if (slice.Last)
                     {
                         await CleanUpAsync();
@@ -344,6 +324,23 @@ namespace Chronos.P2P.Client
             });
         }
 
+        internal IEnumerable<PeerEP> GetEps()
+        {
+            foreach (var item in GetLocalIPAddress())
+            {
+                yield return PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port));
+            }
+        }
+
+        internal void OnFileHandshakeResult(UdpContext context)
+        {
+            var data = context.GetData<FileTransferHandShakeResult>().Data;
+            Task.Run(() =>
+            {
+                FileAcceptTasks[data.SessionId].SetResult(data.Accept);
+            });
+        }
+
         internal async void PeerConnectedReceived()
         {
             if ((DateTime.UtcNow - lastConnectTime).TotalMilliseconds < 500)
@@ -363,7 +360,7 @@ namespace Chronos.P2P.Client
         internal async void PunchDataReceived(UdpContext context)
         {
             var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
-            if (ep!=peer.OuterEP&&peer.InnerEP.Contains(ep))
+            if (ep != peer.OuterEP && peer.InnerEP.Contains(ep))
             {
                 peer.OuterEP = ep;
             }
@@ -456,16 +453,7 @@ namespace Chronos.P2P.Client
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
         }
-        ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
-        internal void OnFileHandshakeResult(UdpContext context)
-        {
-            var data = context.GetData<FileTransferHandShakeResult>().Data;
-            Task.Run(() =>
-            {
-                FileAcceptTasks[data.SessionId].SetResult(data.Accept);
-            });
-            
-        }
+
         public async Task SendFileAsync(string location)
         {
             using var fs = File.OpenRead(location);

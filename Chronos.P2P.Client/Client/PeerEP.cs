@@ -7,6 +7,16 @@ namespace Chronos.P2P.Client
         public string IP { get; set; }
         public int Port { get; set; }
 
+        public static bool operator !=(PeerEP a, PeerEP b)
+        {
+            return !(a.IP == b.IP && a.Port == b.Port);
+        }
+
+        public static bool operator ==(PeerEP a, PeerEP b)
+        {
+            return a.IP == b.IP && a.Port == b.Port;
+        }
+
         public static PeerEP ParsePeerEPFromIPEP(IPEndPoint ep)
         {
             return new PeerEP
@@ -24,14 +34,6 @@ namespace Chronos.P2P.Client
         public override string ToString()
         {
             return $"{IP}:{Port}";
-        }
-        public static bool operator==(PeerEP a, PeerEP b)
-        {
-            return a.IP == b.IP && a.Port == b.Port;
-        }
-        public static bool operator !=(PeerEP a, PeerEP b)
-        {
-            return !(a.IP == b.IP && a.Port == b.Port);
         }
     }
 }
