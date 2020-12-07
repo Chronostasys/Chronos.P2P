@@ -147,6 +147,10 @@ namespace Chronos.P2P.Client
             {
                 while (true)
                 {
+                    if (!peerConnected)
+                    {
+                        continue;
+                    }
                     await Task.Delay(7000, lifeTokenSource.Token);
                     lifeTokenSource.Token.ThrowIfCancellationRequested();
                     await SendDataToPeerReliableAsync((int)CallMethods.P2PPing, "");
@@ -159,6 +163,10 @@ namespace Chronos.P2P.Client
                 pingCount = 10;
                 while (true)
                 {
+                    if (!peerConnected)
+                    {
+                        continue;
+                    }
                     await Task.Delay(1000);
                     pingCount--;
 
