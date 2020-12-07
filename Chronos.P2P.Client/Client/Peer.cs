@@ -344,7 +344,15 @@ namespace Chronos.P2P.Client
             {
                 Console.WriteLine("last");
             }
-
+            async Task CleanUpAsync()
+            {
+                slices.Clear();
+                currentHead = -1;
+                await fs.DisposeAsync();
+                FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
+                val.Item2.Dispose();
+                Console.WriteLine("transfer done!");
+            }
 
             if (fs is not null && currentHead == dataSlice.No - 1)
             {
@@ -352,10 +360,7 @@ namespace Chronos.P2P.Client
                 currentHead = dataSlice.No;
                 if (dataSlice.Last)
                 {
-                    slices.Clear();
-                    currentHead = -1;
-                    await fs.DisposeAsync();
-                    Console.WriteLine("transfer done!");
+                    await CleanUpAsync();
                 }
                 while (slices.TryGetValue(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId }, out var slice))
                 {
@@ -363,10 +368,7 @@ namespace Chronos.P2P.Client
                     currentHead = dataSlice.No;
                     if (slice.Last)
                     {
-                        currentHead = -1;
-                        slices.Clear();
-                        await fs.DisposeAsync();
-                        Console.WriteLine("transfer done!");
+                        await CleanUpAsync();
                     }
                 }
             }
