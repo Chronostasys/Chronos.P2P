@@ -25,6 +25,18 @@ namespace Chronos.P2P.Client
             peer.PeerConnectedReceived();
         }
 
+        [Handler((int)CallMethods.DataSlice)]
+        public void FileDataHandler(UdpContext context)
+        {
+            _ = peer.FileDataReceived(context);
+        }
+
+        [Handler((int)CallMethods.FileHandShake)]
+        public void FileHandShakeHandler(UdpContext context)
+        {
+            _ = peer.FileTransferRequested(context);
+        }
+
         [Handler((int)CallMethods.P2PPing)]
         public void PingHandeler(UdpContext context)
         {
@@ -36,16 +48,5 @@ namespace Chronos.P2P.Client
         {
             peer.PunchDataReceived();
         }
-        [Handler((int)CallMethods.DataSlice)]
-        public void FileDataHandler(UdpContext context)
-        {
-            peer.FileDataReceived(context);
-        }
-        [Handler((int)CallMethods.FileHandShake)]
-        public void FileHandShakeHandler(UdpContext context)
-        {
-            peer.FileTransferRequested(context);
-        }
-
     }
 }

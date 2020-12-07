@@ -45,7 +45,7 @@ namespace Chronos.P2P.Server.Sample
             peer.PeerConnected += Peer1_PeerConnected;
             peer.AddHandlers<ClientHandler>();
             //peer1.AddHandlers<ClientHandler>();
-            peer.StartPeer();
+            _ = peer.StartPeer();
 
             //peer1.StartPeer();
 

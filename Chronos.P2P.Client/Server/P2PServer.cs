@@ -140,7 +140,6 @@ namespace Chronos.P2P.Server
                     {
                         guids.RemoveWhere((Predicate<ReqIdSet>)(re => (DateTime.UtcNow - re.Time).TotalSeconds > 3));
                     }
-                    
                 }
             }));
             while (true)
@@ -170,7 +169,6 @@ namespace Chronos.P2P.Server
                         {
                             guids.Add(new ReqIdSet(dto.ReqId, DateTime.UtcNow));
                         }
-                        
                     }
                     CallHandler(td, new UdpContext(re.Buffer)
                     {
@@ -180,7 +178,7 @@ namespace Chronos.P2P.Server
                     });
                     AfterDataHandled?.Invoke(this, new());
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     OnError?.Invoke(this, re.Buffer);
                 }
