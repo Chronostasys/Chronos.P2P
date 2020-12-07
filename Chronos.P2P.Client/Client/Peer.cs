@@ -3,9 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -14,45 +14,27 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public struct DataSlice
+    public struct FileTransferHandShakeResult
     {
         public Guid SessionId { get; set; }
-        public long No { get; set; }
-        public byte[] Slice { get; set; }
-        public int Len { get; set; }
-        public bool Last { get; set; }
+        public bool Accept { get; set; }
     }
-    public struct BasicFileInfo
+    public struct FileRecvDicData
     {
-        public Guid SessionId { get; set; }
-        public string Name { get; set; }
-        public long Length { get; set; }
+        public string SavePath { get; set; }
+        public SemaphoreSlim Semaphore { get; set; }
     }
-    public struct DataSliceInfo
-    {
-        public Guid SessionId { get; set; }
-        public long No { get; set; }
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int result = 37; // prime
 
-                result *= 397; // also prime (see note)
-                result += SessionId.GetHashCode();
-
-                result *= 397;
-                result += No.GetHashCode();
-
-                return result;
-            }
-        }
-    }
     public class Peer : IDisposable
     {
-        private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks
-            = new ConcurrentDictionary<Guid, TaskCompletionSource<bool>>();
+        private const int bufferLen = 10240;
 
+        private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks
+                    = new ConcurrentDictionary<Guid, TaskCompletionSource<bool>>();
+
+        private long currentHead = -1;
+        private ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
+        private Stream fs;
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new CancellationTokenSource();
@@ -62,8 +44,11 @@ namespace Chronos.P2P.Client
         private int port;
         private P2PServer server;
         private IPEndPoint serverEP;
+        private ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new ConcurrentDictionary<DataSliceInfo, DataSlice>();
         private CancellationTokenSource tokenSource = new CancellationTokenSource();
         private UdpClient udpClient;
+
+        public Func<BasicFileInfo, Task<(bool receive, string savePath)>> OnInitFileTransfer;
 
         public event EventHandler PeerConnected;
 
@@ -76,9 +61,8 @@ namespace Chronos.P2P.Client
         public PeerEP LocalEP
             => PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(GetLocalIPAddress(), port));
 
-        public PeerEP OuterEp { get; private set; }
-
         public string Name { get; }
+        public PeerEP OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
 
         public Peer(int port, IPEndPoint serverEP, string name = null)
@@ -221,7 +205,6 @@ namespace Chronos.P2P.Client
                             {
                                 PeersDataReceiveed?.Invoke(this, new EventArgs());
                             });
-                            
                         }
                         catch (Exception)
                         {
@@ -238,14 +221,118 @@ namespace Chronos.P2P.Client
 
         internal void AckReturned(Guid reqId)
         {
-            try
+            if (AckTasks.ContainsKey(reqId))
             {
                 AckTasks[reqId].TrySetResult(true);
             }
-            catch (Exception)
+        }
+        ConcurrentDictionary<Guid, Task> FileSaveTasks = new();
+        internal async Task FileDataReceived(UdpContext context)
+        {
+            var dataSlice = context.GetData<DataSlice>().Data;
+
+            if (!FileRecvDic.ContainsKey(dataSlice.SessionId))
             {
+                throw new InvalidOperationException("The file transfer session doesn't exist!");
+            }
+            var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
+            await semaphoreSlim.WaitAsync();
+            if (dataSlice.No == 0)
+            {
+                fs = File.Create(FileRecvDic[dataSlice.SessionId].SavePath);
+                currentHead = -1;
             }
             
+            async Task CleanUpAsync()
+            {
+                slices.Clear();
+                currentHead = -1;
+                Console.WriteLine("Waiting for io...");
+                await FileSaveTasks[dataSlice.SessionId];
+                await fs.DisposeAsync();
+                FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
+                val.Semaphore.Dispose();
+                semaphoreSlim = null;
+                Console.WriteLine("transfer done!");
+            }
+            if (fs is not null && currentHead == dataSlice.No - 1)
+            {
+                currentHead = dataSlice.No;
+                if (dataSlice.No==0)
+                {
+
+                    FileSaveTasks[dataSlice.SessionId] = fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
+                }
+                else
+                {
+                    FileSaveTasks[dataSlice.SessionId] = FileSaveTasks[dataSlice.SessionId].ContinueWith(async re =>
+                    {
+                        await re;
+                        await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
+                    }).Unwrap();
+                }
+                
+                if (dataSlice.No % 100 == 0)
+                {
+                    Console.WriteLine($"slice: {dataSlice.No}");
+                }
+                if (dataSlice.Last)
+                {
+                    await CleanUpAsync();
+                }
+                while (slices.TryGetValue(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId }, out var slice))
+                {
+                    currentHead = dataSlice.No;
+                    if (dataSlice.No == 0)
+                    {
+
+                        FileSaveTasks[dataSlice.SessionId] = fs.WriteAsync(slice.Slice, 0, slice.Len);
+                    }
+                    else
+                    {
+                        FileSaveTasks[dataSlice.SessionId] = FileSaveTasks[dataSlice.SessionId].ContinueWith(async re =>
+                        {
+                            await re;
+                            await fs.WriteAsync(slice.Slice, 0, slice.Len);
+                        }).Unwrap();
+                    }
+                    if (dataSlice.No % 1000 == 0)
+                    {
+                        Console.WriteLine($"slice: {dataSlice.No}");
+                    }
+                    
+                    if (slice.Last)
+                    {
+                        await CleanUpAsync();
+                    }
+                }
+            }
+            else
+            {
+                slices[new DataSliceInfo { No = dataSlice.No, SessionId = dataSlice.SessionId }] = dataSlice;
+            }
+            semaphoreSlim?.Release();
+        }
+
+        internal async Task FileTransferRequested(UdpContext context)
+        {
+            var data = context.GetData<BasicFileInfo>().Data;
+            var (recv, savepath) = await (OnInitFileTransfer ??
+                (async (info) => (true, info.Name))).Invoke(data);
+            var sessionId = data.SessionId;
+            if (recv)
+            {
+                FileRecvDic[sessionId] = new FileRecvDicData
+                {
+                    SavePath = savepath,
+                    Semaphore = new SemaphoreSlim(1)
+                };
+            }
+            await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult
+            {
+                Accept = recv,
+                SessionId = data.SessionId
+            });
         }
 
         internal async void PeerConnectedReceived()
@@ -295,9 +382,8 @@ namespace Chronos.P2P.Client
                     return ip;
                 }
             }
-            return ipAddress??
+            return ipAddress ??
                 throw new Exception("No network adapters with an IPv4 address in the system!");
-
         }
 
         public void AddHandlers<T>() where T : class
@@ -311,133 +397,6 @@ namespace Chronos.P2P.Client
         public void Dispose()
         {
             udpClient.Dispose();
-        }
-        public Func<BasicFileInfo, Task<(bool receive, string savePath)>> OnInitFileTransfer;
-        internal async Task FileTransferRequested(UdpContext context)
-        {
-            var data = context.GetData<BasicFileInfo>().Data;
-            var (recv, savepath)= await (OnInitFileTransfer??
-                (async (info)=>(true, info.Name))).Invoke(data);
-            var sessionId = data.SessionId;
-            if (recv)
-            {
-                FileRecvDic[sessionId] = (savepath, new SemaphoreSlim(1));
-            }
-        }
-        ConcurrentDictionary<Guid, (string, SemaphoreSlim)> FileRecvDic = new();
-        internal async Task FileDataReceived(UdpContext context)
-        {
-            var dataSlice = context.GetData<DataSlice>().Data;
-            
-            if (!FileRecvDic.ContainsKey(dataSlice.SessionId))
-            {
-                throw new InvalidOperationException("The file transfer session doesn't exist!");
-            }
-            var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Item2;
-            await semaphoreSlim.WaitAsync();
-            if (dataSlice.No == 0)
-            {
-                fs = File.Create(FileRecvDic[dataSlice.SessionId].Item1);
-                currentHead = -1;
-            }
-            async Task CleanUpAsync()
-            {
-                slices.Clear();
-                currentHead = -1;
-                await fs.DisposeAsync();
-                FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
-                val.Item2.Dispose();
-                Console.WriteLine("transfer done!");
-            }
-
-            if (fs is not null && currentHead == dataSlice.No - 1)
-            {
-                await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
-                currentHead = dataSlice.No;
-                if (dataSlice.No%100==0)
-                {
-                    Console.WriteLine($"slice: {dataSlice.No}");
-                }
-                if (dataSlice.Last)
-                {
-                    await CleanUpAsync();
-                }
-                while (slices.TryGetValue(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId }, out var slice))
-                {
-                    await fs.WriteAsync(slice.Slice, 0, slice.Len);
-                    if (dataSlice.No % 100 == 0)
-                    {
-                        Console.WriteLine($"slice: {dataSlice.No}");
-                    }
-                    currentHead = dataSlice.No;
-                    if (slice.Last)
-                    {
-                        await CleanUpAsync();
-                    }
-                }
-            }
-            else
-            {
-                slices[new DataSliceInfo { No = dataSlice.No, SessionId = dataSlice.SessionId }] = dataSlice;
-            }
-            semaphoreSlim.Release();
-
-        }
-        long currentHead = -1;
-        Stream fs;
-        ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new ConcurrentDictionary<DataSliceInfo, DataSlice>();
-        const int bufferLen = 10240;
-        public async Task SendFileAsync(string location)
-        {
-            
-            using var fs = File.OpenRead(location);
-            using SemaphoreSlim semaphore = new SemaphoreSlim(20);
-            var sessionId = Guid.NewGuid();
-            await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo 
-            {
-                Length = fs.Length,
-                Name = Path.GetFileName(fs.Name),
-                SessionId = sessionId
-            });
-            var cancelSource = new CancellationTokenSource();
-            var last = fs.Length / bufferLen;
-            Console.WriteLine($"Slice count: {last}");
-            for (long i = 0, j = 0; i < fs.Length; i+=bufferLen, j++)
-            {
-                await semaphore.WaitAsync();
-                var buffer = new byte[bufferLen];
-                var len = await fs.ReadAsync(buffer, 0, bufferLen);
-                if (i >= fs.Length - bufferLen)
-                {
-                    Console.WriteLine("last");
-                }
-                cancelSource.Token.ThrowIfCancellationRequested();
-                for (int i1 = 0; i1 < 3; i1++)
-                {
-                    if (await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                    new DataSlice
-                    {
-                        No = j,
-                        Slice = buffer,
-                        Len = len,
-                        Last = i >= fs.Length - bufferLen,
-                        SessionId = sessionId
-                    })) break;
-                    else cancelSource.Cancel();
-                }
-                semaphore.Release();
-                //while (!await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                //    new DataSlice
-                //    {
-                //        No = j,
-                //        Slice = buffer,
-                //        Len = len,
-                //        Last = i >= fs.Length - bufferLen
-                //    }))
-                //{
-                //    Console.WriteLine("retry");
-                //}
-            }
         }
 
         public Task SendDataToPeerAsync<T>(T data) where T : class
@@ -459,7 +418,6 @@ namespace Chronos.P2P.Client
         {
             return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, token);
         }
-        
 
         public async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, CancellationToken? token = null)
         {
@@ -486,12 +444,64 @@ namespace Chronos.P2P.Client
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
         }
+        ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
+        internal void OnFileHandshakeResult(UdpContext context)
+        {
+            var data = context.GetData<FileTransferHandShakeResult>().Data;
+            Task.Run(() =>
+            {
+                FileAcceptTasks[data.SessionId].SetResult(data.Accept);
+            });
+            
+        }
+        public async Task SendFileAsync(string location)
+        {
+            using var fs = File.OpenRead(location);
+            using SemaphoreSlim semaphore = new SemaphoreSlim(20);
+            var sessionId = Guid.NewGuid();
+            await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo
+            {
+                Length = fs.Length,
+                Name = Path.GetFileName(fs.Name),
+                SessionId = sessionId
+            });
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
+            await FileAcceptTasks[sessionId].Task;
+            var cancelSource = new CancellationTokenSource();
+            var last = fs.Length / bufferLen;
+            Console.WriteLine($"Slice count: {last}");
+            for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
+            {
+                await semaphore.WaitAsync();
+                var buffer = new byte[bufferLen];
+                var len = await fs.ReadAsync(buffer, 0, bufferLen);
+                if (i >= fs.Length - bufferLen)
+                {
+                    Console.WriteLine("last");
+                }
+                cancelSource.Token.ThrowIfCancellationRequested();
+                for (int i1 = 0; i1 < 3; i1++)
+                {
+                    if (await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
+                    new DataSlice
+                    {
+                        No = j,
+                        Slice = buffer,
+                        Len = len,
+                        Last = i >= fs.Length - bufferLen,
+                        SessionId = sessionId
+                    })) break;
+                    else cancelSource.Cancel();
+                }
+                semaphore.Release();
+            }
+        }
 
         public void SetPeer(Guid id)
         {
             peer = peers[id];
             // 自动切换至局域网内连接
-            if (peer.OuterEP.IP==OuterEp.IP)
+            if (peer.OuterEP.IP == OuterEp.IP)
             {
                 peer.OuterEP = peer.InnerEP;
             }

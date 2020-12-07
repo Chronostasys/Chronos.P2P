@@ -13,5 +13,6 @@
         Ack,
         DataSlice,
         FileHandShake,
+        FileHandShakeCallback
     }
 }

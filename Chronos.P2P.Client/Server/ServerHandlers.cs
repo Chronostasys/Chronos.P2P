@@ -13,12 +13,12 @@ namespace Chronos.P2P.Server
         public void HandleConnect(UdpContext context)
         {
             var peer = context.GetData<PeerInfo>().Data;
-            
+
             var remote = context.RemoteEndPoint;
             var peers = context.Peers;
             foreach (var item in peers)
             {
-                if ((DateTime.UtcNow-item.Value.CreateTime).TotalSeconds>10)
+                if ((DateTime.UtcNow - item.Value.CreateTime).TotalSeconds > 10)
                 {
                     peers.TryRemove(item);
                 }
