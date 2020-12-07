@@ -182,19 +182,19 @@ namespace Chronos.P2P.Client
             => Task.Run(async () =>
             {
                 pingCount = 10;
-                //while (true)
-                //{
-                //    await Task.Delay(1000);
-                //    pingCount--;
+                while (true)
+                {
+                    await Task.Delay(1000);
+                    pingCount--;
 
-                //    if (pingCount == 0)
-                //    {
-                //        Console.WriteLine("connection lost!");
-                //        Console.WriteLine($"{ID}");
-                //        PeerConnectionLost?.Invoke(this, new());
-                //        peer = null;
-                //    }
-                //}
+                    if (pingCount == 0)
+                    {
+                        Console.WriteLine("connection lost!");
+                        Console.WriteLine($"{ID}");
+                        PeerConnectionLost?.Invoke(this, new());
+                        peer = null;
+                    }
+                }
             });
 
         private Task StartReceiveData()
