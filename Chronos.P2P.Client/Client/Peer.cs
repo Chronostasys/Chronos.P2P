@@ -307,7 +307,7 @@ namespace Chronos.P2P.Client
         {
             var data = context.GetData<BasicFileInfo>().Data;
             var (recv, savepath) = await (OnInitFileTransfer ??
-                (async (info) => (true, info.Name))).Invoke(data);
+                (async (info) =>await Task.FromResult((true, info.Name)))).Invoke(data);
             var sessionId = data.SessionId;
             if (recv)
             {

@@ -35,5 +35,36 @@ namespace Chronos.P2P.Client
         {
             return $"{IP}:{Port}";
         }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(obj, null))
+            {
+                return false;
+            }
+
+            return this == obj as PeerEP;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int result = 37; // prime
+
+                result *= 397; // also prime (see note)
+                result += IP.GetHashCode();
+
+                result *= 397;
+                result += Port.GetHashCode();
+
+                return result;
+            }
+        }
     }
 }
