@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -13,6 +14,11 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
+    public struct FileTransferHandShakeResult
+    {
+        public Guid SessionId { get; set; }
+        public bool Accept { get; set; }
+    }
 
     public class Peer : IDisposable
     {
@@ -22,7 +28,7 @@ namespace Chronos.P2P.Client
                     = new ConcurrentDictionary<Guid, TaskCompletionSource<bool>>();
 
         private long currentHead = -1;
-        private ConcurrentDictionary<Guid, (string, SemaphoreSlim)> FileRecvDic = new();
+        private ConcurrentDictionary<Guid, (string, SemaphoreSlim, Task)> FileRecvDic = new();
         private Stream fs;
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
@@ -210,15 +216,11 @@ namespace Chronos.P2P.Client
 
         internal void AckReturned(Guid reqId)
         {
-            try
+            if (AckTasks.ContainsKey(reqId))
             {
                 AckTasks[reqId].TrySetResult(true);
             }
-            catch (Exception)
-            {
-            }
         }
-
         internal async Task FileDataReceived(UdpContext context)
         {
             var dataSlice = context.GetData<DataSlice>().Data;
@@ -246,8 +248,9 @@ namespace Chronos.P2P.Client
 
             if (fs is not null && currentHead == dataSlice.No - 1)
             {
-                await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
                 currentHead = dataSlice.No;
+                await fs.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
+                
                 if (dataSlice.No % 100 == 0)
                 {
                     Console.WriteLine($"slice: {dataSlice.No}");
@@ -258,12 +261,13 @@ namespace Chronos.P2P.Client
                 }
                 while (slices.TryGetValue(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId }, out var slice))
                 {
+                    currentHead = dataSlice.No;
                     await fs.WriteAsync(slice.Slice, 0, slice.Len);
                     if (dataSlice.No % 100 == 0)
                     {
                         Console.WriteLine($"slice: {dataSlice.No}");
                     }
-                    currentHead = dataSlice.No;
+                    
                     if (slice.Last)
                     {
                         await CleanUpAsync();
@@ -285,8 +289,13 @@ namespace Chronos.P2P.Client
             var sessionId = data.SessionId;
             if (recv)
             {
-                FileRecvDic[sessionId] = (savepath, new SemaphoreSlim(1));
+                FileRecvDic[sessionId] = (savepath, new SemaphoreSlim(1), Task.CompletedTask);
             }
+            await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult
+            {
+                Accept = recv,
+                SessionId = data.SessionId
+            });
         }
 
         internal async void PeerConnectedReceived()
@@ -398,7 +407,16 @@ namespace Chronos.P2P.Client
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
         }
-
+        ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
+        internal void OnFileHandshakeResult(UdpContext context)
+        {
+            var data = context.GetData<FileTransferHandShakeResult>().Data;
+            Task.Run(() =>
+            {
+                FileAcceptTasks[data.SessionId].SetResult(data.Accept);
+            });
+            
+        }
         public async Task SendFileAsync(string location)
         {
             using var fs = File.OpenRead(location);
@@ -410,6 +428,8 @@ namespace Chronos.P2P.Client
                 Name = Path.GetFileName(fs.Name),
                 SessionId = sessionId
             });
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
+            await FileAcceptTasks[sessionId].Task;
             var cancelSource = new CancellationTokenSource();
             var last = fs.Length / bufferLen;
             Console.WriteLine($"Slice count: {last}");
@@ -437,17 +457,6 @@ namespace Chronos.P2P.Client
                     else cancelSource.Cancel();
                 }
                 semaphore.Release();
-                //while (!await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                //    new DataSlice
-                //    {
-                //        No = j,
-                //        Slice = buffer,
-                //        Len = len,
-                //        Last = i >= fs.Length - bufferLen
-                //    }))
-                //{
-                //    Console.WriteLine("retry");
-                //}
             }
         }
 

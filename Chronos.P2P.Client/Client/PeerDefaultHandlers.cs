@@ -36,6 +36,11 @@ namespace Chronos.P2P.Client
         {
             _ = peer.FileTransferRequested(context);
         }
+        [Handler((int)CallMethods.FileHandShakeCallback)]
+        public void FileHandShakeCallbackHandler(UdpContext context)
+        {
+            peer.OnFileHandshakeResult(context);
+        }
 
         [Handler((int)CallMethods.P2PPing)]
         public void PingHandeler(UdpContext context)
