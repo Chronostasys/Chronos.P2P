@@ -11,6 +11,7 @@
         P2PPing,
         P2PDataTransfer,
         Ack,
-        DataSlice
+        DataSlice,
+        FileHandShake,
     }
 }
