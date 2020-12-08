@@ -26,6 +26,7 @@ namespace Chronos.P2P.Test
         internal static string data;
         internal static int nums;
         TaskCompletionSource completionSource = new();
+        TaskCompletionSource getPeerCompletionSource = new();
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
         {
@@ -41,7 +42,8 @@ namespace Chronos.P2P.Test
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
-                p.SetPeer(p.peers.Keys.First(), true);
+                getPeerCompletionSource.TrySetResult();
+                //p.SetPeer(p.peers.Keys.First(), true);
             }
         }
 
@@ -65,6 +67,25 @@ namespace Chronos.P2P.Test
             _ = server.StartServerAsync();
             _ = peer1.StartPeer();
             _ = peer2.StartPeer();
+            await getPeerCompletionSource.Task;
+            while (true)
+            {
+                if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
+                {
+                    peer1.SetPeer(peer2.ID);
+                    break;
+                }
+                await Task.Delay(100);
+            }
+            while (true)
+            {
+                if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
+                {
+                    peer2.SetPeer(peer1.ID);
+                    break;
+                }
+                await Task.Delay(100);
+            }
             await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";
@@ -100,6 +121,25 @@ namespace Chronos.P2P.Test
 
             _ = peer1.StartPeer();
             _ = peer2.StartPeer();
+            await getPeerCompletionSource.Task;
+            while (true)
+            {
+                if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
+                {
+                    peer1.SetPeer(peer2.ID);
+                    break;
+                }
+                await Task.Delay(100);
+            }
+            while (true)
+            {
+                if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
+                {
+                    peer2.SetPeer(peer1.ID);
+                    break;
+                }
+                await Task.Delay(100);
+            }
             await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";

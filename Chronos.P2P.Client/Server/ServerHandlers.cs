@@ -23,7 +23,7 @@ namespace Chronos.P2P.Server
                     peers.TryRemove(item);
                 }
             }
-            peers[peer.Id] = peer;
+            peers[peer!.Id] = peer;
             peer.OuterEP = PeerEP.ParsePeerEPFromIPEP(remote);
 
             Console.WriteLine($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
