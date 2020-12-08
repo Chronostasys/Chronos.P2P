@@ -1,7 +1,7 @@
 # Chronos.P2P.Client
 实现udp协议下的P2P通讯
 
-## server
+## [server](./Server)
 ### 结构
 - P2PServer.cs
   - udp服务器
@@ -22,7 +22,9 @@
   - udp请求上下文，是handler的参数。
 - UdpRequest.cs
   - 部分反序列化用的类
-## client
+
+
+## [client](./Client)
 
 
 
