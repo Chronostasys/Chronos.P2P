@@ -50,7 +50,7 @@ namespace Chronos.P2P.Test
             }
         }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 10000)]
+        [Fact(DisplayName = "Local Server Integration test", Timeout = 20000)]
         public async Task TestIntegration()
         {
             Console.WriteLine("LocalTest");
@@ -115,13 +115,13 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(DisplayName = "Remote Server Integration test", Timeout = 10000)]
+        [Fact(DisplayName = "Remote Server Integration test", Timeout = 20000)]
         public async Task TestRemoteIntegration()
         {
             Console.WriteLine("RemoteTest");
             data = null;
-            var peer1 = new Peer(8999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            var peer2 = new Peer(8901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer1 = new Peer(9999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer2 = new Peer(9901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
 
             peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
