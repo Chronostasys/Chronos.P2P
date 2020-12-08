@@ -574,6 +574,7 @@ namespace Chronos.P2P.Client
                     }
                 }
             }
+            Console.WriteLine($"Trying remote ep: {peer.OuterEP}");
         }
 
         public Task StartPeer()

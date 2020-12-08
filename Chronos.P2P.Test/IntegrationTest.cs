@@ -41,7 +41,7 @@ namespace Chronos.P2P.Test
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
-                p.SetPeer(p.peers.Keys.First());
+                p.SetPeer(p.peers.Keys.First(), true);
             }
         }
 
