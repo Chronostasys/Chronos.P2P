@@ -39,6 +39,7 @@ namespace Chronos.P2P.Test
 
         private void Peer1_PeersDataReceiveed(object sender, EventArgs e)
         {
+            Console.WriteLine("Peer1_PeersDataReceiveed called");
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
@@ -126,6 +127,7 @@ namespace Chronos.P2P.Test
 
             _ = peer1.StartPeer();
             _ = peer2.StartPeer();
+            Console.WriteLine("waiting for peer data");
             await getPeerCompletionSource.Task;
             Console.WriteLine("peer data received");
             while (true)
