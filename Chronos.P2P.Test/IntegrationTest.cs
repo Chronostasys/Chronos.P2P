@@ -33,6 +33,7 @@ namespace Chronos.P2P.Test
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
         {
+            Console.WriteLine("a peer connected");
             Task.Run(() =>
             {
                 completionSource.SetResult();
@@ -41,6 +42,7 @@ namespace Chronos.P2P.Test
         }
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
+            Console.WriteLine("a peer connected");
             Task.Run(() =>
             {
                 completionSource1.SetResult();
@@ -83,6 +85,7 @@ namespace Chronos.P2P.Test
             peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
             peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
             peer1.PeerConnected += Peer_PeerConnected;
+            peer2.PeerConnected += Peer1_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
@@ -138,12 +141,13 @@ namespace Chronos.P2P.Test
         {
             Console.WriteLine("RemoteTest");
             data = null;
-            var peer1 = new Peer(8889, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            var peer2 = new Peer(8801, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer2 = new Peer(8800, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
 
             peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
             peer1.PeerConnected += Peer1_PeerConnected;
+            peer2.PeerConnected += Peer1_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
