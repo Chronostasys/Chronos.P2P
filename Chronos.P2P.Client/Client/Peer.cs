@@ -515,13 +515,13 @@ namespace Chronos.P2P.Client
             using var fs = File.OpenRead(location);
             using SemaphoreSlim semaphore = new SemaphoreSlim(20);
             var sessionId = Guid.NewGuid();
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo
             {
                 Length = fs.Length,
                 Name = Path.GetFileName(fs.Name),
                 SessionId = sessionId
             });
-            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
             await FileAcceptTasks[sessionId].Task;
             var cancelSource = new CancellationTokenSource();
             var last = fs.Length / bufferLen;
