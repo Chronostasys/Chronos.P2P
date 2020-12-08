@@ -7,7 +7,7 @@ namespace Chronos.P2P.Client
     {
         public DateTime CreateTime { get; }
         public Guid Id { get; set; }
-        public List<PeerEP> InnerEP { get; set; }
+        public List<PeerInnerEP> InnerEP { get; set; }
         public PeerEP OuterEP { get; set; }
 
         public PeerInfo()

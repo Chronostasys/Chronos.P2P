@@ -23,13 +23,17 @@ namespace Chronos.P2P.Test
 
     public class IntegrationTest
     {
-        private bool connected = false;
         internal static string data;
         internal static int nums;
+        TaskCompletionSource completionSource = new();
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
         {
-            connected = true;
+            Task.Run(() =>
+            {
+                completionSource.SetResult();
+            });
+
         }
 
         private void Peer1_PeersDataReceiveed(object sender, EventArgs e)
@@ -37,7 +41,7 @@ namespace Chronos.P2P.Test
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
-                p.SetPeer(p.peers.Keys.First());
+                p.SetPeer(p.peers.Keys.First(), true);
             }
         }
 
@@ -58,14 +62,10 @@ namespace Chronos.P2P.Test
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
 
-            var t1 = peer1.StartPeer();
-            var t2 = peer2.StartPeer();
-            var t3 = server.StartServerAsync();
-            await Task.WhenAny(
-                t1,
-                t2,
-                t3, Task.Delay(5000));
-            Assert.True(connected);
+            _ = server.StartServerAsync();
+            _ = peer1.StartPeer();
+            _ = peer2.StartPeer();
+            await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };
@@ -84,7 +84,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(Skip = "只在锥形nat环境下会成功")]
+        [Fact]
         public async Task TestRemoteIntegration()
         {
             data = null;
@@ -98,12 +98,9 @@ namespace Chronos.P2P.Test
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
 
-            var t1 = peer1.StartPeer();
-            var t2 = peer2.StartPeer();
-            await Task.WhenAny(
-                t1,
-                t2, Task.Delay(5000));
-            Assert.True(connected);
+            _ = peer1.StartPeer();
+            _ = peer2.StartPeer();
+            await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };

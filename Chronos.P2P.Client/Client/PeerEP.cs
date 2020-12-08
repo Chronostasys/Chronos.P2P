@@ -1,7 +1,66 @@
 ﻿using System.Net;
+using System.Text.Json.Serialization;
 
 namespace Chronos.P2P.Client
 {
+    public class PeerInnerEP: PeerEP
+    {
+        public PeerInnerEP() { }
+        public PeerInnerEP(PeerEP ep)
+        {
+            IP = ep.IP;
+            Port = ep.Port;
+        }
+        public bool IsInSameSubNet(PeerInnerEP ep)
+        {
+            return IPAddress.Parse(IP).IsInSameSubnet(IPAddress.Parse(ep.IP), SubnetMask);
+        }
+        [JsonIgnore]
+        public IPAddress SubnetMask
+            => Peer.GetSubnetMask(IPAddress.Parse(IP));
+        public static bool operator !=(PeerInnerEP a, PeerInnerEP b)
+        {
+            return !(a.IP == b.IP && a.Port == b.Port && a.SubnetMask == b.SubnetMask);
+        }
+
+        public static bool operator ==(PeerInnerEP a, PeerInnerEP b)
+        {
+            return a.IP == b.IP && a.Port == b.Port && a.SubnetMask == b.SubnetMask;
+        }
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(obj, null))
+            {
+                return false;
+            }
+
+            return this == obj as PeerInnerEP;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int result = 37; // prime
+
+                result *= 397; // also prime (see note)
+                result += IP.GetHashCode();
+
+                result *= 397;
+                result += Port.GetHashCode();
+
+                result *= 397;
+                result += SubnetMask.GetHashCode();
+
+                return result;
+            }
+        }
+    }
     public class PeerEP
     {
         public string IP { get; set; }
