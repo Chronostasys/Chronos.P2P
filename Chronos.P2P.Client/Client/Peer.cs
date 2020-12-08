@@ -122,6 +122,9 @@ namespace Chronos.P2P.Client
                 var peerInfo = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() };
                 while (true)
                 {
+#if TEST
+                    Console.WriteLine("Broadcast message sent!");
+#endif
                     tokenSource.Token.ThrowIfCancellationRequested();
                     if (peerConnected)
                     {
