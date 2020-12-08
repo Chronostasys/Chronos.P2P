@@ -67,12 +67,16 @@ namespace Chronos.P2P.Test
             _ = server.StartServerAsync();
             _ = peer1.StartPeer();
             _ = peer2.StartPeer();
+            Console.WriteLine("waiting for peer data");
+            
             await getPeerCompletionSource.Task;
+            Console.WriteLine("peer data received");
             while (true)
             {
                 if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
+                    Console.WriteLine("peer1 set peer");
                     break;
                 }
                 await Task.Delay(100);
@@ -82,6 +86,7 @@ namespace Chronos.P2P.Test
                 if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
                 {
                     peer2.SetPeer(peer1.ID);
+                    Console.WriteLine("peer2 set peer");
                     break;
                 }
                 await Task.Delay(100);
@@ -122,11 +127,13 @@ namespace Chronos.P2P.Test
             _ = peer1.StartPeer();
             _ = peer2.StartPeer();
             await getPeerCompletionSource.Task;
+            Console.WriteLine("peer data received");
             while (true)
             {
                 if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
+                    Console.WriteLine("peer1 set peer");
                     break;
                 }
                 await Task.Delay(100);
@@ -136,6 +143,7 @@ namespace Chronos.P2P.Test
                 if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
                 {
                     peer2.SetPeer(peer1.ID);
+                    Console.WriteLine("peer2 set peer");
                     break;
                 }
                 await Task.Delay(100);
