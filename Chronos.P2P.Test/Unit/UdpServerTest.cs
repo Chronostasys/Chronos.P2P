@@ -46,7 +46,7 @@ namespace Chronos.P2P.Test
             {
                 Method = 1,
                 Data = hello
-            })));
+            }),new(),new(1000,1000),new()));
             server.Dispose();
         }
     }

@@ -19,9 +19,12 @@ namespace Chronos.P2P.Server
 
         public UdpClient UdpClient { get; init; }
 
-        public UdpContext(byte[] buffer)
+        public UdpContext(byte[] buffer, ConcurrentDictionary<Guid, PeerInfo> peers, IPEndPoint remoteEp, UdpClient client)
         {
             data = buffer;
+            Peers = peers;
+            RemoteEndPoint = remoteEp;
+            UdpClient = client;
         }
 
         /// <summary>
@@ -31,7 +34,7 @@ namespace Chronos.P2P.Server
         /// <returns></returns>
         public CallServerDto<T> GetData<T>()
         {
-            return JsonSerializer.Deserialize<CallServerDto<T>>(data);
+            return JsonSerializer.Deserialize<CallServerDto<T>>(data)!;
         }
     }
 }
