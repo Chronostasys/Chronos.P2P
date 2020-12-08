@@ -70,21 +70,21 @@ namespace Chronos.P2P.Test
             await getPeerCompletionSource.Task;
             while (true)
             {
-                await Task.Delay(100);
-                if (peer1.peers.ContainsKey(peer2.ID))
+                if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
                     break;
                 }
+                await Task.Delay(100);
             }
             while (true)
             {
-                await Task.Delay(100);
-                if (peer2.peers.ContainsKey(peer1.ID))
+                if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
                 {
                     peer2.SetPeer(peer1.ID);
                     break;
                 }
+                await Task.Delay(100);
             }
             await completionSource.Task;
             Assert.Null(data);
@@ -124,21 +124,21 @@ namespace Chronos.P2P.Test
             await getPeerCompletionSource.Task;
             while (true)
             {
-                await Task.Delay(100);
-                if (peer1.peers.ContainsKey(peer2.ID))
+                if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
                     break;
                 }
+                await Task.Delay(100);
             }
             while (true)
             {
-                await Task.Delay(100);
-                if (peer2.peers.ContainsKey(peer1.ID))
+                if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
                 {
                     peer2.SetPeer(peer1.ID);
                     break;
                 }
+                await Task.Delay(100);
             }
             await completionSource.Task;
             Assert.Null(data);
