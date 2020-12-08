@@ -51,6 +51,7 @@ namespace Chronos.P2P.Test
         [Fact]
         public async Task TestIntegration()
         {
+            Console.WriteLine("LocalTest");
             nums = 0;
             data = null;
             var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
@@ -114,6 +115,7 @@ namespace Chronos.P2P.Test
         [Fact]
         public async Task TestRemoteIntegration()
         {
+            Console.WriteLine("RemoteTest");
             data = null;
             var peer1 = new Peer(8889, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             var peer2 = new Peer(8801, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
