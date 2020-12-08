@@ -27,9 +27,7 @@ namespace Chronos.P2P.Test
         internal static string data;
         internal static int nums;
         TaskCompletionSource completionSource = new();
-        TaskCompletionSource completionSource1 = new();
         TaskCompletionSource getPeerCompletionSource = new();
-        TaskCompletionSource getPeerCompletionSource1 = new();
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
         {
@@ -37,15 +35,6 @@ namespace Chronos.P2P.Test
             Task.Run(() =>
             {
                 completionSource.SetResult();
-            });
-
-        }
-        private void Peer_PeerConnected(object sender, EventArgs e)
-        {
-            Console.WriteLine("a peer connected");
-            Task.Run(() =>
-            {
-                completionSource1.SetResult();
             });
 
         }
@@ -60,32 +49,22 @@ namespace Chronos.P2P.Test
                 //p.SetPeer(p.peers.Keys.First(), true);
             }
         }
-        private void Peer_PeersDataReceiveed(object sender, EventArgs e)
-        {
-            Console.WriteLine("Peer1_PeersDataReceiveed called");
-            var p = sender as Peer;
-            if (!p.peers.IsEmpty)
-            {
-                getPeerCompletionSource1.TrySetResult();
-                //p.SetPeer(p.peers.Keys.First(), true);
-            }
-        }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 20000)]
+        [Fact(DisplayName = "Local Server Integration test", Timeout = 10000)]
         public async Task TestIntegration()
         {
             Console.WriteLine("LocalTest");
             nums = 0;
             data = null;
-            var peer1 = new Peer(8888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
-            var peer2 = new Peer(8800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            var peer1 = new Peer(9888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            var peer2 = new Peer(9800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             var server = new P2PServer(5001);
             server.AddDefaultServerHandler();
 
-            peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
-            peer1.PeerConnected += Peer_PeerConnected;
-            peer2.PeerConnected += Peer_PeerConnected;
+            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer1.PeerConnected += Peer1_PeerConnected;
+            peer2.PeerConnected += Peer1_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
@@ -95,7 +74,7 @@ namespace Chronos.P2P.Test
             _ = peer2.StartPeer();
             Console.WriteLine("waiting for peer data");
             
-            await getPeerCompletionSource1.Task;
+            await getPeerCompletionSource.Task;
             Console.WriteLine("peer data received");
             while (true)
             {
@@ -117,7 +96,7 @@ namespace Chronos.P2P.Test
                 }
                 await Task.Delay(100);
             }
-            await completionSource1.Task;
+            await completionSource.Task;
             Assert.Null(data);
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };
@@ -136,7 +115,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(DisplayName = "Remote Server Integration test", Timeout = 20000)]
+        [Fact(DisplayName = "Remote Server Integration test", Timeout = 10000)]
         public async Task TestRemoteIntegration()
         {
             Console.WriteLine("RemoteTest");
