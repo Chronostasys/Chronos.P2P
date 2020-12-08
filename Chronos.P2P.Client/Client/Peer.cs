@@ -53,11 +53,11 @@ namespace Chronos.P2P.Client
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         private ConcurrentDictionary<Guid, Task> FileSaveTasks = new();
-        private Stream fs;
+        private Stream? fs;
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new();
-        private PeerInfo peer;
+        private PeerInfo? peer;
         private bool peerConnected = false;
         private int pingCount = 10;
         private int port;
@@ -67,23 +67,23 @@ namespace Chronos.P2P.Client
         private CancellationTokenSource tokenSource = new();
         private UdpClient udpClient;
 
-        public Func<BasicFileInfo, Task<(bool receive, string savePath)>> OnInitFileTransfer;
+        public Func<BasicFileInfo, Task<(bool receive, string savePath)>>? OnInitFileTransfer;
 
-        public event EventHandler PeerConnected;
+        public event EventHandler? PeerConnected;
 
-        public event EventHandler PeerConnectionLost;
+        public event EventHandler? PeerConnectionLost;
 
-        public event EventHandler PeersDataReceiveed;
+        public event EventHandler? PeersDataReceiveed;
 
         public Guid ID { get; }
 
         public IEnumerable<PeerInnerEP> LocalEP { get; }
 
-        public string Name { get; }
-        public PeerEP OuterEp { get; private set; }
-        public ConcurrentDictionary<Guid, PeerInfo> peers { get; private set; }
+        public string? Name { get; }
+        public PeerEP? OuterEp { get; private set; }
+        public ConcurrentDictionary<Guid, PeerInfo>? peers { get; private set; }
 
-        public Peer(int port, IPEndPoint serverEP, string name = null)
+        public Peer(int port, IPEndPoint serverEP, string? name = null)
         {
             Name = name;
             this.serverEP = serverEP;
@@ -107,12 +107,12 @@ namespace Chronos.P2P.Client
             return false;
         }
 
-        private void Server_OnError(object sender, byte[] e)
+        private void Server_OnError(object? sender, byte[] e)
         {
             var str = Encoding.Default.GetString(e);
             if (str == "Connected\n")
             {
-                udpClient.SendAsync(e, e.Length, peer.OuterEP.ToIPEP());
+                udpClient.SendAsync(e, e.Length, peer!.OuterEP.ToIPEP());
             }
         }
 
@@ -224,7 +224,7 @@ namespace Chronos.P2P.Client
                                 if (item.Key == ID)
                                 {
                                     peers.Remove(ID, out var val);
-                                    OuterEp = val.OuterEP;
+                                    OuterEp = val!.OuterEP;
                                 }
                             }
                             // just fire and forget
@@ -393,7 +393,7 @@ namespace Chronos.P2P.Client
         internal async void PunchDataReceived(UdpContext context)
         {
             var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
-            if (ep != peer.OuterEP && peer.InnerEP.Contains(new PeerInnerEP(ep)))
+            if (ep != peer!.OuterEP && peer.InnerEP.Contains(new PeerInnerEP(ep)))
             {
                 peer.OuterEP = ep;
             }
@@ -476,7 +476,7 @@ namespace Chronos.P2P.Client
                 Method = method,
                 Data = data,
             });
-            await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+            await udpClient.SendAsync(bytes, bytes.Length, peer!.OuterEP.ToIPEP());
         }
 
         public async Task<bool> SendDataToPeerReliableAsync<T>(T data, CancellationToken? token = null)
@@ -497,7 +497,7 @@ namespace Chronos.P2P.Client
             for (int i = 0; i < 3; i++)
             {
                 token?.ThrowIfCancellationRequested();
-                await udpClient.SendAsync(bytes, bytes.Length, peer.OuterEP.ToIPEP());
+                await udpClient.SendAsync(bytes, bytes.Length, peer!.OuterEP.ToIPEP());
                 var t = await await Task.WhenAny(AckTasks[reqId].Task, Delay());
                 if (t)
                 {
@@ -555,9 +555,9 @@ namespace Chronos.P2P.Client
 
         public void SetPeer(Guid id, bool inSubNet = false)
         {
-            peer = peers[id];
+            peer = peers![id];
             // 自动切换至局域网内连接
-            if (peer.OuterEP.IP == OuterEp.IP || inSubNet)
+            if (peer.OuterEP.IP == OuterEp!.IP || inSubNet)
             {
                 foreach (var item in LocalEP)
                 {

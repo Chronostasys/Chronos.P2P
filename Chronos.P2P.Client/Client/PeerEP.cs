@@ -27,7 +27,7 @@ namespace Chronos.P2P.Client
         {
             return a.IP == b.IP && a.Port == b.Port && a.SubnetMask == b.SubnetMask;
         }
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {
@@ -39,7 +39,7 @@ namespace Chronos.P2P.Client
                 return false;
             }
 
-            return this == obj as PeerInnerEP;
+            return this == (PeerInnerEP)obj;
         }
 
         public override int GetHashCode()
@@ -63,8 +63,12 @@ namespace Chronos.P2P.Client
     }
     public class PeerEP
     {
-        public string IP { get; set; }
-        public int Port { get; set; }
+        public string IP { get; init; }
+        public int Port { get; init; }
+        public PeerEP()
+        {
+            IP = "";
+        }
 
         public static bool operator !=(PeerEP a, PeerEP b)
         {
@@ -95,7 +99,7 @@ namespace Chronos.P2P.Client
             return $"{IP}:{Port}";
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {
@@ -106,8 +110,8 @@ namespace Chronos.P2P.Client
             {
                 return false;
             }
+            return this == (PeerEP)obj;
 
-            return this == obj as PeerEP;
         }
 
         public override int GetHashCode()

@@ -13,6 +13,8 @@ namespace Chronos.P2P.Client
         public PeerInfo()
         {
             CreateTime = DateTime.UtcNow;
+            InnerEP = new List<PeerInnerEP>();
+            OuterEP = new PeerEP();
         }
     }
 }

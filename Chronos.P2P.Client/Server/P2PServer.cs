@@ -19,13 +19,13 @@ namespace Chronos.P2P.Server
         ConcurrentDictionary<Guid, DateTime> guidDic = new();
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
-        private ServiceProvider serviceProvider;
+        private ServiceProvider? serviceProvider;
         private ServiceCollection services;
         internal Dictionary<int, TypeData> requestHandlers;
 
-        public event EventHandler AfterDataHandled;
+        public event EventHandler? AfterDataHandled;
 
-        public event EventHandler<byte[]> OnError;
+        public event EventHandler<byte[]>? OnError;
 
         public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port)))
         {
@@ -49,7 +49,7 @@ namespace Chronos.P2P.Server
             var handler = GetInstance(data);
             Task.Run(() =>
             {
-                data.Method.Invoke(handler, new[] { param });
+                data.Method!.Invoke(handler, new[] { param });
             });
         }
 
@@ -63,9 +63,9 @@ namespace Chronos.P2P.Server
             List<object> args = new List<object>();
             foreach (var item in data.Parameters)
             {
-                args.Add(serviceProvider.GetRequiredService(item.ParameterType));
+                args.Add(serviceProvider!.GetRequiredService(item.ParameterType));
             }
-            return Activator.CreateInstance(data.GenericType, args.ToArray());
+            return Activator.CreateInstance(data.GenericType, args.ToArray())!;
         }
 
         /// <summary>
@@ -83,9 +83,9 @@ namespace Chronos.P2P.Server
         public void AddHandler<T>() where T : class
         {
             var type = typeof(T);
-            var ctor = type.GetConstructors()[0];
-            var cstParams = ctor.GetParameters();
-            var td = new TypeData { GenericType = type, Parameters = cstParams };
+            var ctor = type.GetConstructors()[0]!;
+            var cstParams = ctor.GetParameters()!;
+            var td = new TypeData(type, cstParams, null);
 
             var methods = type.GetMethods();
             foreach (var item in methods)
@@ -146,7 +146,7 @@ namespace Chronos.P2P.Server
 
                 try
                 {
-                    var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer);
+                    var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer)!;
                     var td = requestHandlers[dto.Method];
                     // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
                     if (dto.ReqId != Guid.Empty)
@@ -165,12 +165,7 @@ namespace Chronos.P2P.Server
                         }
                         guidDic[dto.ReqId] = DateTime.UtcNow;
                     }
-                    CallHandler(td, new UdpContext(re.Buffer)
-                    {
-                        Peers = peers,
-                        RemoteEndPoint = re.RemoteEndPoint,
-                        UdpClient = listener
-                    });
+                    CallHandler(td, new UdpContext(re.Buffer, peers, re.RemoteEndPoint, listener));
                     AfterDataHandled?.Invoke(this, new());
                 }
                 catch (Exception)
