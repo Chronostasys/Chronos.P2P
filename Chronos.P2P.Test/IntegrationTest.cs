@@ -71,7 +71,7 @@ namespace Chronos.P2P.Test
             }
         }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 10000)]
+        [Fact(DisplayName = "Local Server Integration test", Timeout = 20000)]
         public async Task TestIntegration()
         {
             Console.WriteLine("LocalTest");
@@ -136,7 +136,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(DisplayName = "Remote Server Integration test", Timeout = 10000)]
+        [Fact(DisplayName = "Remote Server Integration test", Timeout = 20000)]
         public async Task TestRemoteIntegration()
         {
             Console.WriteLine("RemoteTest");
