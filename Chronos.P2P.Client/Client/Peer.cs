@@ -557,11 +557,7 @@ namespace Chronos.P2P.Client
         {
             peer = peers[id];
             // 自动切换至局域网内连接
-            if (peer.OuterEP.IP == OuterEp.IP)
-            {
-                peer.OuterEP = peer.InnerEP[0];
-            }
-            if (inSubNet)
+            if (peer.OuterEP.IP == OuterEp.IP || inSubNet)
             {
                 foreach (var item in LocalEP)
                 {
