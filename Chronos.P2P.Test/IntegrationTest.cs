@@ -29,7 +29,7 @@ namespace Chronos.P2P.Test
         TaskCompletionSource completionSource = new();
         TaskCompletionSource getPeerCompletionSource = new();
 
-        private void Peer1_PeerConnected(object sender, EventArgs e)
+        private void Peer_PeerConnected(object sender, EventArgs e)
         {
             Console.WriteLine("a peer connected");
             Task.Run(() =>
@@ -39,7 +39,7 @@ namespace Chronos.P2P.Test
 
         }
 
-        private void Peer1_PeersDataReceiveed(object sender, EventArgs e)
+        private void Peer_PeersDataReceiveed(object sender, EventArgs e)
         {
             Console.WriteLine("Peer1_PeersDataReceiveed called");
             var p = sender as Peer;
@@ -61,10 +61,10 @@ namespace Chronos.P2P.Test
             var server = new P2PServer(5001);
             server.AddDefaultServerHandler();
 
-            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer1.PeerConnected += Peer1_PeerConnected;
-            peer2.PeerConnected += Peer1_PeerConnected;
+            peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer1.PeerConnected += Peer_PeerConnected;
+            peer2.PeerConnected += Peer_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
@@ -123,10 +123,10 @@ namespace Chronos.P2P.Test
             var peer1 = new Peer(9999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             var peer2 = new Peer(9901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
 
-            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer1.PeerConnected += Peer1_PeerConnected;
-            peer2.PeerConnected += Peer1_PeerConnected;
+            peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer1.PeerConnected += Peer_PeerConnected;
+            peer2.PeerConnected += Peer_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
