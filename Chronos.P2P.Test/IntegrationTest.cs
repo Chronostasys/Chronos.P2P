@@ -26,13 +26,23 @@ namespace Chronos.P2P.Test
         internal static string data;
         internal static int nums;
         TaskCompletionSource completionSource = new();
+        TaskCompletionSource completionSource1 = new();
         TaskCompletionSource getPeerCompletionSource = new();
+        TaskCompletionSource getPeerCompletionSource1 = new();
 
         private void Peer1_PeerConnected(object sender, EventArgs e)
         {
             Task.Run(() =>
             {
                 completionSource.SetResult();
+            });
+
+        }
+        private void Peer_PeerConnected(object sender, EventArgs e)
+        {
+            Task.Run(() =>
+            {
+                completionSource1.SetResult();
             });
 
         }
@@ -44,6 +54,16 @@ namespace Chronos.P2P.Test
             if (!p.peers.IsEmpty)
             {
                 getPeerCompletionSource.TrySetResult();
+                //p.SetPeer(p.peers.Keys.First(), true);
+            }
+        }
+        private void Peer_PeersDataReceiveed(object sender, EventArgs e)
+        {
+            Console.WriteLine("Peer1_PeersDataReceiveed called");
+            var p = sender as Peer;
+            if (!p.peers.IsEmpty)
+            {
+                getPeerCompletionSource1.TrySetResult();
                 //p.SetPeer(p.peers.Keys.First(), true);
             }
         }
@@ -59,9 +79,9 @@ namespace Chronos.P2P.Test
             var server = new P2PServer(5001);
             server.AddDefaultServerHandler();
 
-            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer1.PeerConnected += Peer1_PeerConnected;
+            peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer1.PeerConnected += Peer_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
@@ -71,7 +91,7 @@ namespace Chronos.P2P.Test
             _ = peer2.StartPeer();
             Console.WriteLine("waiting for peer data");
             
-            await getPeerCompletionSource.Task;
+            await getPeerCompletionSource1.Task;
             Console.WriteLine("peer data received");
             while (true)
             {
@@ -93,7 +113,7 @@ namespace Chronos.P2P.Test
                 }
                 await Task.Delay(100);
             }
-            await completionSource.Task;
+            await completionSource1.Task;
             Assert.Null(data);
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };
