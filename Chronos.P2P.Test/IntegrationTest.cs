@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -18,7 +19,7 @@ namespace Chronos.P2P.Test
             IntegrationTest.data = udpContext.GetData<string>().Data;
             if (IntegrationTest.data is "test")
             {
-                IntegrationTest.nums++;
+                Interlocked.Increment(ref IntegrationTest.nums);
             }
         }
     }
