@@ -117,7 +117,7 @@ namespace Chronos.P2P.Test
             await getPeerCompletionSource.Task;
             while (true)
             {
-                if (!peer1.peers.IsEmpty && peer1.peers.ContainsKey(peer2.ID))
+                if (peer1.peers is not null && peer1.peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
                     break;
@@ -126,7 +126,7 @@ namespace Chronos.P2P.Test
             }
             while (true)
             {
-                if (!peer2.peers.IsEmpty && peer2.peers.ContainsKey(peer1.ID))
+                if (peer2.peers is not null && peer2.peers.ContainsKey(peer1.ID))
                 {
                     peer2.SetPeer(peer1.ID);
                     break;
