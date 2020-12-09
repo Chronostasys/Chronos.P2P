@@ -28,7 +28,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.DataSlice)]
         public void FileDataHandler(UdpContext context)
         {
-            _ = peer.FileDataReceived(context);
+            _ = peer.FileDataReceived(context.GetData<DataSlice>().Data);
         }
 
         [Handler((int)CallMethods.FileHandShakeCallback)]
@@ -40,7 +40,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.FileHandShake)]
         public void FileHandShakeHandler(UdpContext context)
         {
-            _ = peer.FileTransferRequested(context);
+            _ = peer.FileTransferRequested(context.GetData<BasicFileInfo>().Data);
         }
 
         [Handler((int)CallMethods.P2PPing)]

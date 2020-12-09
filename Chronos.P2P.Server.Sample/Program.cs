@@ -1,30 +1,17 @@
 ﻿using Chronos.P2P.Client;
 using System;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
 namespace Chronos.P2P.Server.Sample
 {
-    public class ClientHandler
+    internal class Program
     {
-        [Handler((int)CallMethods.P2PDataTransfer)]
-        public void OnReceiveData(UdpContext udpContext)
-        {
-            var d = udpContext.GetData<string>().Data;
-            if (d=="test")
-            {
-                Program.nums++;
-            }
-            Console.WriteLine("peer:"+d);
-        }
-    }
-    class Program
-    {
+        private static TaskCompletionSource completionSource = new TaskCompletionSource();
+        private static TaskCompletionSource connectionCompletionSource = new TaskCompletionSource();
         public static int nums;
-        static TaskCompletionSource connectionCompletionSource = new TaskCompletionSource();
-        static TaskCompletionSource completionSource = new TaskCompletionSource();
-        static async Task Main(string[] args)
+
+        private static async Task Main(string[] args)
         {
             bool server = false;
             if (server)
@@ -43,7 +30,6 @@ namespace Chronos.P2P.Server.Sample
                 _ = peer.StartPeer();
 
                 //peer1.StartPeer();
-
 
                 Console.WriteLine($"your peer id: {peer.ID}");
                 Console.WriteLine("Waiting for handshake server...");
@@ -65,18 +51,9 @@ namespace Chronos.P2P.Server.Sample
                 Console.WriteLine("Peer connectd!");
                 while (true)
                 {
-
                     await peer.SendFileAsync(Console.ReadLine());
                 }
             }
-
-            
-        }
-        static async Task StartServerAsync()
-        {
-            var server = new P2PServer();
-            server.AddDefaultServerHandler();
-            await server.StartServerAsync();
         }
 
         private static void Peer_PeerConnectionLost(object sender, EventArgs e)
@@ -91,10 +68,30 @@ namespace Chronos.P2P.Server.Sample
 
         private static void Peer1_PeersDataReceiveed(object sender, EventArgs e)
         {
-
             var a = completionSource.TrySetResult();
 
             return;
+        }
+
+        private static async Task StartServerAsync()
+        {
+            var server = new P2PServer();
+            server.AddDefaultServerHandler();
+            await server.StartServerAsync();
+        }
+    }
+
+    public class ClientHandler
+    {
+        [Handler((int)CallMethods.P2PDataTransfer)]
+        public void OnReceiveData(UdpContext udpContext)
+        {
+            var d = udpContext.GetData<string>().Data;
+            if (d == "test")
+            {
+                Program.nums++;
+            }
+            Console.WriteLine("peer:" + d);
         }
     }
 }
