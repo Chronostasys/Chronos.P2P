@@ -50,7 +50,7 @@ namespace Chronos.P2P.Client
 
         public event EventHandler? PeerConnectionLost;
 
-        public event EventHandler? PeersDataReceiveed;
+        public event EventHandler? PeersDataReceived;
 
         #endregion Delegates & Events
 
@@ -200,7 +200,7 @@ namespace Chronos.P2P.Client
                             // just fire and forget
                             _ = Task.Run(() =>
                             {
-                                PeersDataReceiveed?.Invoke(this, new EventArgs());
+                                PeersDataReceived?.Invoke(this, new EventArgs());
                             });
                         }
                         catch (Exception)

@@ -39,9 +39,9 @@ namespace Chronos.P2P.Test
             });
         }
 
-        private void Peer_PeersDataReceiveed(object sender, EventArgs e)
+        private void Peer_PeersDataReceived(object sender, EventArgs e)
         {
-            Console.WriteLine("Peer1_PeersDataReceiveed called");
+            Console.WriteLine("Peer1_PeersDataReceived called");
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
@@ -51,8 +51,8 @@ namespace Chronos.P2P.Test
 
         private async Task SetUpPeers(Peer peer1, Peer peer2)
         {
-            peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
+            peer1.PeersDataReceived += Peer_PeersDataReceived;
+            peer2.PeersDataReceived += Peer_PeersDataReceived;
             peer1.PeerConnected += Peer_PeerConnected;
             peer2.PeerConnected += Peer_PeerConnected;
 
