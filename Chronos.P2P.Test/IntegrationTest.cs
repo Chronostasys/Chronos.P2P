@@ -70,20 +70,18 @@ namespace Chronos.P2P.Test
                 if (peer1.peers is not null && peer1.peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
+                }
+                if (peer2.peers is not null && peer2.peers.ContainsKey(peer1.ID))
+                {
+                    peer2.SetPeer(peer1.ID);
+                }
+                if (peer1.RmotePeer is not null && peer2.RmotePeer is not null)
+                {
                     break;
                 }
                 await Task.Delay(100);
             }
             Console.WriteLine("set peer2");
-            while (true)
-            {
-                if (peer2.peers is not null && peer2.peers.ContainsKey(peer1.ID))
-                {
-                    peer2.SetPeer(peer1.ID);
-                    break;
-                }
-                await Task.Delay(100);
-            }
             Console.WriteLine("All peers set");
             await completionSource.Task;
             Console.WriteLine("one peer connected");

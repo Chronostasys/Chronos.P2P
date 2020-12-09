@@ -56,6 +56,7 @@ namespace Chronos.P2P.Client
 
         #region Properties
 
+        public PeerInfo? RmotePeer => peer;
         public Guid ID { get; }
 
         public IEnumerable<PeerInnerEP> LocalEP { get; }
