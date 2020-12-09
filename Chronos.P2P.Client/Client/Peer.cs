@@ -52,8 +52,7 @@ namespace Chronos.P2P.Client
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
-        private ConcurrentDictionary<Guid, Task> FileSaveTasks = new();
-        private Stream? fs;
+        internal Stream? fs;
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new();
@@ -63,7 +62,7 @@ namespace Chronos.P2P.Client
         private int port;
         private P2PServer server;
         private IPEndPoint serverEP;
-        private ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
+        internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
         private CancellationTokenSource tokenSource = new();
         private UdpClient udpClient;
 
@@ -262,11 +261,11 @@ namespace Chronos.P2P.Client
                 throw new InvalidOperationException("The file transfer session doesn't exist!");
             }
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
-            await semaphoreSlim.WaitAsync();
+            //await semaphoreSlim.WaitAsync();
+
             if (dataSlice.No == 0)
             {
                 FileRecvDic[dataSlice.SessionId].Watch.Start();
-                fs = File.Create(FileRecvDic[dataSlice.SessionId].SavePath);
                 currentHead = -1;
             }
 
@@ -277,6 +276,7 @@ namespace Chronos.P2P.Client
                 Console.WriteLine("\nWaiting for io to complete...");
                 //await FileSaveTasks[dataSlice.SessionId];
                 await fs!.DisposeAsync();
+                fs = null;
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
                 val.Semaphore.Dispose();
                 semaphoreSlim = null;
@@ -286,34 +286,21 @@ namespace Chronos.P2P.Client
                 Console.WriteLine($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
 
             }
-            void EnqueIOTask(DataSlice slice)
-            {
-                if (dataSlice.No == 0)
-                {
-                    FileSaveTasks[dataSlice.SessionId] = fs!.WriteAsync(slice.Slice, 0, slice.Len);
-                }
-                else
-                {
-                    FileSaveTasks[dataSlice.SessionId] = FileSaveTasks[dataSlice.SessionId].ContinueWith(async re =>
-                    {
-                        await re;
-                        await fs!.WriteAsync(dataSlice.Slice, 0, dataSlice.Len);
-                    }).Unwrap();
-                }
-
-            }
-            await ProcessDataSliceAsync(dataSlice, EnqueIOTask, CleanUpAsync);
-            semaphoreSlim?.Release();
+            await ProcessDataSliceAsync(dataSlice, CleanUpAsync);
+            //semaphoreSlim?.Release();
         }
-        internal async Task ProcessDataSliceAsync(DataSlice dataSlice, Action<DataSlice> enqueIOTask, Func<Task> cleanUpAsync)
+        internal async Task ProcessDataSliceAsync(DataSlice dataSlice, Func<Task> cleanUpAsync)
         {
+            var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
             async Task ProcessSliceAsync(DataSlice slice)
             {
                 currentHead = dataSlice.No;
-                enqueIOTask(dataSlice);
+                await semaphoreSlim.WaitAsync();
+                await fs!.WriteAsync(slice.Slice, 0, slice.Len);
+                semaphoreSlim.Release();
                 if (dataSlice.No % 1000 == 0)
                 {
-                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString().Substring(0, 4),5}%");
+                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString(),5}%");
                 }
                 if (dataSlice.Last)
                 {
@@ -323,7 +310,7 @@ namespace Chronos.P2P.Client
             if (currentHead == dataSlice.No - 1)
             {
                 await ProcessSliceAsync(dataSlice);
-                while (slices.TryGetValue(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId },
+                while (slices.TryRemove(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId },
                     out var slice))
                 {
                     await ProcessSliceAsync(slice);
@@ -350,6 +337,7 @@ namespace Chronos.P2P.Client
                     Length = data.Length,
                     Watch = new Stopwatch()
                 };
+                fs = File.Create(FileRecvDic[sessionId].SavePath);
             }
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult
             {
@@ -510,11 +498,11 @@ namespace Chronos.P2P.Client
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
         }
-
+        int concurrentLevel = 30;
         public async Task SendFileAsync(string location)
         {
             using var fs = File.OpenRead(location);
-            using SemaphoreSlim semaphore = new SemaphoreSlim(20);
+            using SemaphoreSlim semaphore = new SemaphoreSlim(concurrentLevel);
             var sessionId = Guid.NewGuid();
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo

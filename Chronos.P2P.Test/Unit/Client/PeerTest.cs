@@ -1,6 +1,7 @@
 ﻿using Chronos.P2P.Client;
 using Moq;
 using System;
+using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +30,7 @@ namespace Chronos.P2P.Test
         {
             await peer.FileTransferRequested(new BasicFileInfo
             {
-                Length = 100,
+                Length = 10 * Peer.bufferLen,
                 Name = "1.test",
                 SessionId = id
             });
@@ -41,7 +42,6 @@ namespace Chronos.P2P.Test
         {
             await TestTransferRequested();
             const int testlen = 10;
-            int count = 0;
             for (int i = 0; i < testlen; i++)
             {
                 await peer.ProcessDataSliceAsync(new DataSlice
@@ -49,16 +49,12 @@ namespace Chronos.P2P.Test
                     No = testlen - i - 1,
                     Len = Peer.bufferLen,
                     SessionId = id,
-                    Last = false,
+                    Last = i==0,
                     Slice = new byte[Peer.bufferLen]
-                }, dataSLice=> 
-                {
-                    Assert.Equal(dataSLice.No, count);
-                    count++;
                 }, ()=>Task.CompletedTask);
             }
             await Task.Delay(100);
-            Assert.Equal(testlen, count);
+            Assert.Empty(peer.slices);
             peer.Dispose();
         }
 

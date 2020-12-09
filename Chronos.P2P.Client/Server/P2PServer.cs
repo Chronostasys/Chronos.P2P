@@ -117,6 +117,7 @@ namespace Chronos.P2P.Server
 
         internal async Task ProcessRequestAsync(UdpReceiveResult re)
         {
+            await Task.Yield();
             var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer)!;
             var td = requestHandlers[dto.Method];
             // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
@@ -171,7 +172,7 @@ namespace Chronos.P2P.Server
 
                 try
                 {
-                    await ProcessRequestAsync(re);
+                    _ = ProcessRequestAsync(re);
                 }
                 catch (Exception)
                 {
