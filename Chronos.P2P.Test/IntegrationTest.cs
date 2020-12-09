@@ -1,5 +1,4 @@
-﻿#define TEST
-using Chronos.P2P.Client;
+﻿using Chronos.P2P.Client;
 using Chronos.P2P.Server;
 using System;
 using System.Linq;
