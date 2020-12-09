@@ -83,7 +83,7 @@ namespace Chronos.P2P.Test
             await completionSource.Task;
         }
 
-        [Fact(DisplayName = "File Transfer test", Timeout = 320000)]
+        [Fact(DisplayName = "File Transfer test", Timeout = 20000)]
         public async Task TestFileTransfer()
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
@@ -111,7 +111,7 @@ namespace Chronos.P2P.Test
             }
         }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 60000)]
+        [Fact(DisplayName = "Local Server Integration test", Timeout = 20000)]
         public async Task TestIntegration()
         {
             nums = 0;
@@ -148,7 +148,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(DisplayName = "Remote Server Integration test", Timeout = 60000)]
+        [Fact(DisplayName = "Remote Server Integration test", Timeout = 20000)]
         public async Task TestRemoteIntegration()
         {
             data = null;
