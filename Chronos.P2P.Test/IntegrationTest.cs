@@ -156,7 +156,7 @@ namespace Chronos.P2P.Test
             peer2.Dispose();
         }
 
-        [Fact(DisplayName = "File Transfer test", Timeout = 60000)]
+        [Fact(DisplayName = "File Transfer test", Timeout = 320000)]
         public async Task TestFileTransfer()
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
