@@ -101,7 +101,7 @@ namespace Chronos.P2P.Test
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
             var dst = "transfered.mp3";
             var peer1 = new Peer(10999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            var peer2 = new Peer(10901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer2 = new Peer(30901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             peer1.OnInitFileTransfer = info =>
             {
                 return Task.FromResult((true, dst));
@@ -111,6 +111,7 @@ namespace Chronos.P2P.Test
                 return Task.FromResult((true, dst));
             };
             await SetUpPeers(peer1, peer2);
+            await Task.Delay(1000);
             await peer1.SendFileAsync(src);
             await Task.Delay(1000);
             using (var md5 = MD5.Create())
