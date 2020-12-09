@@ -152,6 +152,7 @@ namespace Chronos.P2P.Test
                     }
                 }
             }
+            await Task.Delay(1000);
             Assert.Equal(1000, nums);
             peer1.Dispose();
             peer2.Dispose();
