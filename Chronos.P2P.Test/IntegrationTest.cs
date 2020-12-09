@@ -58,8 +58,14 @@ namespace Chronos.P2P.Test
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
 
-            _ = peer1.StartPeer();
-            _ = peer2.StartPeer();
+            _ = Task.Run(() =>
+            {
+                _ = peer1.StartPeer();
+            });
+            _ = Task.Run(() =>
+            {
+                _ = peer2.StartPeer();
+            });
 
             await getPeerCompletionSource.Task;
             while (true)
