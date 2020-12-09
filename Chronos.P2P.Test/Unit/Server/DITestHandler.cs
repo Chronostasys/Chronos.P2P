@@ -19,9 +19,9 @@ namespace Chronos.P2P.Test
         public void TestHandler(UdpContext udpContext)
         {
             hello = udpContext.GetData<Hello>().Data;
-            if (hello.HelloString != "hello")
+            if (hello.HelloString=="re")
             {
-                throw new Exception();
+                UdpServerTest.ackNums++;
             }
         }
     }
