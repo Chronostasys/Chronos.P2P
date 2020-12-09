@@ -8,7 +8,7 @@
 ## modules
 ### [client](./Chronos.P2P.Client)
 客户端与服务器实现
-### [sample](./Chronos.P2P.ServerSample)
+### [sample](./Chronos.P2P.Server.Sample)
 示例
 ### [test](./Chronos.P2P.Test)
 测试
