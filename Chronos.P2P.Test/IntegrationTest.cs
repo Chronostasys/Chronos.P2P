@@ -83,10 +83,13 @@ namespace Chronos.P2P.Test
                 await Task.Delay(100);
             }
             await completionSource.Task;
-            while (!(peer1.IsPeerConnected && peer2.IsPeerConnected)) ;
+            while (!(peer1.IsPeerConnected && peer2.IsPeerConnected))
+            {
+                await Task.Delay(100);
+            }
         }
 
-        [Fact(DisplayName = "File Transfer test", Timeout = 20000)]
+        [Fact(DisplayName = "File Transfer test", Timeout = 40000)]
         public async Task TestFileTransfer()
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
@@ -114,7 +117,7 @@ namespace Chronos.P2P.Test
             }
         }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 20000)]
+        [Fact(DisplayName = "Local Server Integration test", Timeout = 40000)]
         public async Task TestIntegration()
         {
             nums = 0;
@@ -151,7 +154,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(DisplayName = "Remote Server Integration test", Timeout = 20000)]
+        [Fact(DisplayName = "Remote Server Integration test", Timeout = 40000)]
         public async Task TestRemoteIntegration()
         {
             data = null;
