@@ -29,7 +29,7 @@ namespace Chronos.P2P.Test
         [Fact]
         private void SetUpTest()
         {
-            server = new P2PServer();
+            server = new P2PServer(Guid.NewGuid().GetHashCode()%5000+15000);
             server.AddHandler<DITestHandler>();
 
             server.ConfigureServices(services =>
@@ -77,6 +77,7 @@ namespace Chronos.P2P.Test
             await Task.Delay(100);
             Assert.Equal(1, ackNums);
             Assert.True(server.guidDic.ContainsKey(id));
+            server.Dispose();
         }
     }
 }
