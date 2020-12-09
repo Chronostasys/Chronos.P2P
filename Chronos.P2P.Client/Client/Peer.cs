@@ -18,6 +18,8 @@ namespace Chronos.P2P.Client
 {
     public class Peer : IDisposable
     {
+        #region Fields
+
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
         private int concurrentLevel = 30;
         private long currentHead = -1;
@@ -37,6 +39,11 @@ namespace Chronos.P2P.Client
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
+
+        #endregion Fields
+
+        #region Delegates & Events
+
         public Func<BasicFileInfo, Task<(bool receive, string savePath)>>? OnInitFileTransfer;
 
         public event EventHandler? PeerConnected;
@@ -45,6 +52,10 @@ namespace Chronos.P2P.Client
 
         public event EventHandler? PeersDataReceiveed;
 
+        #endregion Delegates & Events
+
+        #region Properties
+
         public Guid ID { get; }
 
         public IEnumerable<PeerInnerEP> LocalEP { get; }
@@ -52,6 +63,8 @@ namespace Chronos.P2P.Client
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo>? peers { get; private set; }
+
+        #endregion Properties
 
         public Peer(int port, IPEndPoint serverEP, string? name = null)
         {
@@ -71,20 +84,7 @@ namespace Chronos.P2P.Client
             server.OnError += Server_OnError;
         }
 
-        private async Task<bool> Delay()
-        {
-            await Task.Delay(1000);
-            return false;
-        }
-
-        private void Server_OnError(object? sender, byte[] e)
-        {
-            var str = Encoding.Default.GetString(e);
-            if (str == "Connected\n")
-            {
-                udpClient.SendAsync(e, e.Length, peer!.OuterEP.ToIPEP());
-            }
-        }
+        #region Workers
 
         private Task StartBroadCast()
             => Task.Run(async () =>
@@ -216,13 +216,7 @@ namespace Chronos.P2P.Client
                 await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
             });
 
-        internal void AckReturned(Guid reqId)
-        {
-            if (AckTasks.ContainsKey(reqId))
-            {
-                AckTasks[reqId].TrySetResult(true);
-            }
-        }
+        #endregion Workers
 
         #region File Transfer
 
@@ -233,7 +227,6 @@ namespace Chronos.P2P.Client
                 throw new InvalidOperationException("The file transfer session doesn't exist!");
             }
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
-            //await semaphoreSlim.WaitAsync();
 
             if (dataSlice.No == 0)
             {
@@ -369,11 +362,22 @@ namespace Chronos.P2P.Client
 
         #endregion File Transfer
 
-        internal IEnumerable<PeerInnerEP> GetEps()
+        #region Handlers
+
+        private void Server_OnError(object? sender, byte[] e)
         {
-            foreach (var item in GetLocalIPAddress())
+            var str = Encoding.Default.GetString(e);
+            if (str == "Connected\n")
             {
-                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port)));
+                udpClient.SendAsync(e, e.Length, peer!.OuterEP.ToIPEP());
+            }
+        }
+
+        internal void AckReturned(Guid reqId)
+        {
+            if (AckTasks.ContainsKey(reqId))
+            {
+                AckTasks[reqId].TrySetResult(true);
             }
         }
 
@@ -418,6 +422,18 @@ namespace Chronos.P2P.Client
             pingCount = 10;
         }
 
+        #endregion Handlers
+
+        #region Network Helper
+
+        internal IEnumerable<PeerInnerEP> GetEps()
+        {
+            foreach (var item in GetLocalIPAddress())
+            {
+                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port)));
+            }
+        }
+
         public static IEnumerable<IPAddress> GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -455,18 +471,9 @@ namespace Chronos.P2P.Client
             throw new ArgumentException(string.Format("Can't find subnetmask for IP address '{0}'", address));
         }
 
-        public void AddHandlers<T>() where T : class
-            => server.AddHandler<T>();
+        #endregion Network Helper
 
-        public void Cancel()
-        {
-            lifeTokenSource.Cancel();
-        }
-
-        public void Dispose()
-        {
-            udpClient.Dispose();
-        }
+        #region Send Data
 
         public Task SendDataToPeerAsync<T>(T data) where T : class
         {
@@ -502,7 +509,11 @@ namespace Chronos.P2P.Client
             {
                 token?.ThrowIfCancellationRequested();
                 await udpClient.SendAsync(bytes, bytes.Length, peer!.OuterEP.ToIPEP());
-                var t = await await Task.WhenAny(AckTasks[reqId].Task, Delay());
+                var t = await await Task.WhenAny(AckTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
+                {
+                    await Task.Delay(1000);
+                    return false;
+                }))());
                 if (t)
                 {
                     AckTasks.TryRemove(reqId, out var completionSource);
@@ -512,6 +523,23 @@ namespace Chronos.P2P.Client
 
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
+        }
+
+        #endregion Send Data
+
+        #region User Interface
+
+        public void AddHandlers<T>() where T : class
+            => server.AddHandler<T>();
+
+        public void Cancel()
+        {
+            lifeTokenSource.Cancel();
+        }
+
+        public void Dispose()
+        {
+            udpClient.Dispose();
         }
 
         public void SetPeer(Guid id, bool inSubNet = false)
@@ -541,5 +569,7 @@ namespace Chronos.P2P.Client
             StartHolePunching();
             return t;
         }
+
+        #endregion User Interface
     }
 }
