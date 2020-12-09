@@ -64,6 +64,7 @@ namespace Chronos.P2P.Test
             _ = peer2.StartPeer();
             Console.WriteLine("all peers started");
             await getPeerCompletionSource.Task;
+            Console.WriteLine("set peer1");
             while (true)
             {
                 if (peer1.peers is not null && peer1.peers.ContainsKey(peer2.ID))
@@ -73,6 +74,7 @@ namespace Chronos.P2P.Test
                 }
                 await Task.Delay(100);
             }
+            Console.WriteLine("set peer2");
             while (true)
             {
                 if (peer2.peers is not null && peer2.peers.ContainsKey(peer1.ID))
@@ -82,11 +84,14 @@ namespace Chronos.P2P.Test
                 }
                 await Task.Delay(100);
             }
+            Console.WriteLine("All peers set");
             await completionSource.Task;
+            Console.WriteLine("one peer connected");
             while (!(peer1.IsPeerConnected && peer2.IsPeerConnected))
             {
                 await Task.Delay(100);
             }
+            Console.WriteLine("all peers connected");
         }
 
         [Fact(DisplayName = "File Transfer test", Timeout = 40000)]
