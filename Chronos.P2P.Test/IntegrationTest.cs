@@ -2,9 +2,7 @@
 using Chronos.P2P.Server;
 using System;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -25,10 +23,65 @@ namespace Chronos.P2P.Test
 
     public class IntegrationTest
     {
+        private TaskCompletionSource completionSource = new();
+        private TaskCompletionSource getPeerCompletionSource = new();
         internal static string data;
         internal static int nums;
-        TaskCompletionSource completionSource = new();
-        TaskCompletionSource getPeerCompletionSource = new();
+
+        // This method accepts two strings the represent two files to
+        // compare. A return value of 0 indicates that the contents of the files
+        // are the same. A return value of any other value indicates that the
+        // files are not the same.
+        private bool FileCompare(string file1, string file2)
+        {
+            int file1byte;
+            int file2byte;
+            FileStream fs1;
+            FileStream fs2;
+
+            // Determine if the same file was referenced two times.
+            if (file1 == file2)
+            {
+                // Return true to indicate that the files are the same.
+                return true;
+            }
+
+            // Open the two files.
+            fs1 = new FileStream(file1, FileMode.Open, FileAccess.Read);
+            fs2 = new FileStream(file2, FileMode.Open, FileAccess.Read);
+
+            // Check the file sizes. If they are not the same, the files
+            // are not the same.
+            if (fs1.Length != fs2.Length)
+            {
+                // Close the file
+                fs1.Close();
+                fs2.Close();
+
+                // Return false to indicate files are different
+                return false;
+            }
+
+            // Read and compare a byte from each file until either a
+            // non-matching set of bytes is found or until the end of
+            // file1 is reached.
+            do
+            {
+                // Read one byte from each file.
+                file1byte = fs1.ReadByte();
+                file2byte = fs2.ReadByte();
+            }
+            while ((file1byte == file2byte) && (file1byte != -1));
+
+            // Close the files.
+            fs1.Close();
+            fs2.Close();
+
+            // Return the success of the comparison. "file1byte" is
+            // equal to "file2byte" at this point only if the files are
+            // the same.
+            return ((file1byte - file2byte) == 0);
+        }
 
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
@@ -36,7 +89,6 @@ namespace Chronos.P2P.Test
             {
                 completionSource.TrySetResult();
             });
-
         }
 
         private void Peer_PeersDataReceiveed(object sender, EventArgs e)
@@ -48,7 +100,8 @@ namespace Chronos.P2P.Test
                 getPeerCompletionSource.TrySetResult();
             }
         }
-        async Task SetUpPeers(Peer peer1, Peer peer2)
+
+        private async Task SetUpPeers(Peer peer1, Peer peer2)
         {
             peer1.PeersDataReceiveed += Peer_PeersDataReceiveed;
             peer2.PeersDataReceiveed += Peer_PeersDataReceiveed;
@@ -83,7 +136,7 @@ namespace Chronos.P2P.Test
             await completionSource.Task;
         }
 
-        async Task TestConnection(Peer peer1, Peer peer2)
+        private async Task TestConnection(Peer peer1, Peer peer2)
         {
             await SetUpPeers(peer1, peer2);
             Assert.Null(data);
@@ -103,31 +156,6 @@ namespace Chronos.P2P.Test
             peer2.Dispose();
         }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 60000)]
-        public async Task TestIntegration()
-        {
-            nums = 0;
-            data = null;
-            var peer1 = new Peer(9888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
-            var peer2 = new Peer(9800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
-            var server = new P2PServer(5001);
-            server.AddDefaultServerHandler();
-            _ = server.StartServerAsync();
-
-            await TestConnection(peer1, peer2);
-
-            server.Dispose();
-        }
-
-        [Fact(DisplayName = "Remote Server Integration test", Timeout = 60000)]
-        public async Task TestRemoteIntegration()
-        {
-            data = null;
-            var peer1 = new Peer(9999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            var peer2 = new Peer(9901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-
-            await TestConnection(peer1, peer2);
-        }
         [Fact(DisplayName = "File Transfer test", Timeout = 60000)]
         public async Task TestFileTransfer()
         {
@@ -157,59 +185,31 @@ namespace Chronos.P2P.Test
             //    Assert.True(hash1.SequenceEqual(hash2));
             //}
         }
-        // This method accepts two strings the represent two files to 
-        // compare. A return value of 0 indicates that the contents of the files
-        // are the same. A return value of any other value indicates that the 
-        // files are not the same.
-        private bool FileCompare(string file1, string file2)
+
+        [Fact(DisplayName = "Local Server Integration test", Timeout = 60000)]
+        public async Task TestIntegration()
         {
-            int file1byte;
-            int file2byte;
-            FileStream fs1;
-            FileStream fs2;
+            nums = 0;
+            data = null;
+            var peer1 = new Peer(9888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            var peer2 = new Peer(9800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            var server = new P2PServer(5001);
+            server.AddDefaultServerHandler();
+            _ = server.StartServerAsync();
 
-            // Determine if the same file was referenced two times.
-            if (file1 == file2)
-            {
-                // Return true to indicate that the files are the same.
-                return true;
-            }
+            await TestConnection(peer1, peer2);
 
-            // Open the two files.
-            fs1 = new FileStream(file1, FileMode.Open, FileAccess.Read);
-            fs2 = new FileStream(file2, FileMode.Open, FileAccess.Read);
+            server.Dispose();
+        }
 
-            // Check the file sizes. If they are not the same, the files 
-            // are not the same.
-            if (fs1.Length != fs2.Length)
-            {
-                // Close the file
-                fs1.Close();
-                fs2.Close();
+        [Fact(DisplayName = "Remote Server Integration test", Timeout = 60000)]
+        public async Task TestRemoteIntegration()
+        {
+            data = null;
+            var peer1 = new Peer(9999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            var peer2 = new Peer(9901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
 
-                // Return false to indicate files are different
-                return false;
-            }
-
-            // Read and compare a byte from each file until either a
-            // non-matching set of bytes is found or until the end of
-            // file1 is reached.
-            do
-            {
-                // Read one byte from each file.
-                file1byte = fs1.ReadByte();
-                file2byte = fs2.ReadByte();
-            }
-            while ((file1byte == file2byte) && (file1byte != -1));
-
-            // Close the files.
-            fs1.Close();
-            fs2.Close();
-
-            // Return the success of the comparison. "file1byte" is 
-            // equal to "file2byte" at this point only if the files are 
-            // the same.
-            return ((file1byte - file2byte) == 0);
+            await TestConnection(peer1, peer2);
         }
     }
 }

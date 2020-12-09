@@ -1,7 +1,6 @@
 using Chronos.P2P.Client;
 using Chronos.P2P.Server;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -14,16 +13,18 @@ namespace Chronos.P2P.Test
     public class UdpServerTest
     {
         private const string s = "hello";
-        private P2PServer server;
         private static Guid id = Guid.NewGuid();
-        internal static int ackNums = 0;
-        byte[] callBytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Hello>
+
+        private byte[] callBytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Hello>
         {
             Method = 1,
             ReqId = id,
-            Data = new Hello { HelloString="re"}
+            Data = new Hello { HelloString = "re" }
         });
-        IPEndPoint ep = new(1000, 1000);
+
+        private IPEndPoint ep = new(1000, 1000);
+        private P2PServer server;
+        internal static int ackNums = 0;
 
         public UdpServerTest()
         {
@@ -59,9 +60,10 @@ namespace Chronos.P2P.Test
             {
                 Method = 1,
                 Data = hello
-            }),new(),new(1000,1000),new()));
+            }), new(), new(1000, 1000), new()));
             server.Dispose();
         }
+
         [Fact]
         public async Task TestReliableRequest()
         {
