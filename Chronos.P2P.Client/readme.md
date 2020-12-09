@@ -47,27 +47,14 @@
     - 记录IP和端口
   - Peerlnfo.cs
     - peer自身信息
-    -  ```        public DateTime CreateTime { get; }
-          public Guid Id { get; set; }
-          public List<PeerInnerEP> InnerEP { get; set; }
-          public PeerEP OuterEP { get; set; }
 - 传输文件部分          
-- BasicFilelnfo.cs
-  - 传输文件信息
-  - ```         public long Length { get; set; }
-        public string Name { get; set; }
-        public Guid SessionId { get; set; }
-- DataSlice.cs
-  - 数据分块
-- DataSlicelnfo.cs
-- FileRecvDicData.cs
-- FileTransferHandShakeResult.cs
-
-
-
-
-
-
-
-
-
+  - BasicFilelnfo.cs
+    - 传输文件信息
+  - DataSlice.cs
+    - 数据分块信息
+  - DataSlicelnfo.cs
+    - 通过字典`slices`与数据分块信息对应
+  - FileRecvDicData.cs  
+    - 保存传输文件
+  - FileTransferHandShakeResult.cs
+    - 传输文件的握手过程结果
