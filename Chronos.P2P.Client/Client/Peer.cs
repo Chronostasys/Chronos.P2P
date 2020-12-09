@@ -28,7 +28,7 @@ namespace Chronos.P2P.Client
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new();
         private PeerInfo? peer;
-        private bool peerConnected = false;
+        public bool IsPeerConnected { get; private set; } = false;
         private int pingCount = 10;
         private int port;
         private P2PServer server;
@@ -93,7 +93,7 @@ namespace Chronos.P2P.Client
                 while (true)
                 {
                     tokenSource.Token.ThrowIfCancellationRequested();
-                    if (peerConnected)
+                    if (IsPeerConnected)
                     {
                         break;
                     }
@@ -114,14 +114,14 @@ namespace Chronos.P2P.Client
                 {
                     if (peer is not null)
                     {
-                        if (peerConnected)
+                        if (IsPeerConnected)
                         {
                             break;
                         }
                         if (tokenSource.IsCancellationRequested)
                         {
                             await SendDataToPeerAsync((int)CallMethods.Connected, "");
-                            if (peerConnected)
+                            if (IsPeerConnected)
                             {
                                 break;
                             }
@@ -145,7 +145,7 @@ namespace Chronos.P2P.Client
             {
                 while (true)
                 {
-                    if (!peerConnected)
+                    if (!IsPeerConnected)
                     {
                         continue;
                     }
@@ -161,7 +161,7 @@ namespace Chronos.P2P.Client
                 pingCount = 10;
                 while (true)
                 {
-                    if (!peerConnected)
+                    if (!IsPeerConnected)
                     {
                         continue;
                     }
@@ -387,13 +387,13 @@ namespace Chronos.P2P.Client
             {
                 return;
             }
-            if (peerConnected)
+            if (IsPeerConnected)
             {
                 await SendDataToPeerAsync((int)CallMethods.Connected, "");
                 return;
             }
             Console.WriteLine("Peer connected");
-            peerConnected = true;
+            IsPeerConnected = true;
             PeerConnected?.Invoke(this, new EventArgs());
         }
 

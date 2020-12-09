@@ -83,7 +83,7 @@ namespace Chronos.P2P.Test
                 await Task.Delay(100);
             }
             await completionSource.Task;
-            await Task.Delay(1000);
+            while (!(peer1.IsPeerConnected && peer2.IsPeerConnected)) ;
         }
 
         [Fact(DisplayName = "File Transfer test", Timeout = 20000)]
