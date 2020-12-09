@@ -45,7 +45,10 @@ namespace Chronos.P2P.Test
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
-                getPeerCompletionSource.TrySetResult();
+                Task.Run(() =>
+                {
+                    getPeerCompletionSource.TrySetResult();
+                });
             }
         }
 
