@@ -16,11 +16,11 @@ namespace Chronos.P2P.Server
     public class P2PServer : IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
-        internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
         private ServiceCollection services;
+        internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         internal Dictionary<int, TypeData> requestHandlers;
 
         public event EventHandler? AfterDataHandled;
@@ -66,6 +66,32 @@ namespace Chronos.P2P.Server
                 args.Add(serviceProvider!.GetRequiredService(item.ParameterType));
             }
             return Activator.CreateInstance(data.GenericType, args.ToArray())!;
+        }
+
+        internal async Task ProcessRequestAsync(UdpReceiveResult re)
+        {
+            await Task.Yield();
+            var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer)!;
+            var td = requestHandlers[dto.Method];
+            // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
+            if (dto.ReqId != Guid.Empty)
+            {
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Guid>
+                {
+                    Method = (int)CallMethods.Ack,
+                    Data = dto.ReqId
+                });
+                await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
+                if (guidDic.ContainsKey(dto.ReqId))
+                {
+                    // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
+                    // 所以这里直接返回ack而不处理
+                    return;
+                }
+                guidDic[dto.ReqId] = DateTime.UtcNow;
+            }
+            CallHandler(td, new UdpContext(re.Buffer, peers, re.RemoteEndPoint, listener));
+            AfterDataHandled?.Invoke(this, new());
         }
 
         /// <summary>
@@ -115,31 +141,6 @@ namespace Chronos.P2P.Server
             listener?.Dispose();
         }
 
-        internal async Task ProcessRequestAsync(UdpReceiveResult re)
-        {
-            var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer)!;
-            var td = requestHandlers[dto.Method];
-            // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
-            if (dto.ReqId != Guid.Empty)
-            {
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Guid>
-                {
-                    Method = (int)CallMethods.Ack,
-                    Data = dto.ReqId
-                });
-                await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
-                if (guidDic.ContainsKey(dto.ReqId))
-                {
-                    // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
-                    // 所以这里直接返回ack而不处理
-                    return;
-                }
-                guidDic[dto.ReqId] = DateTime.UtcNow;
-            }
-            CallHandler(td, new UdpContext(re.Buffer, peers, re.RemoteEndPoint, listener));
-            AfterDataHandled?.Invoke(this, new());
-        }
-
         /// <summary>
         /// 启动消息接收的循环
         /// </summary>
@@ -171,7 +172,7 @@ namespace Chronos.P2P.Server
 
                 try
                 {
-                    await ProcessRequestAsync(re);
+                    _ = ProcessRequestAsync(re);
                 }
                 catch (Exception)
                 {

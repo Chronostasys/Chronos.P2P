@@ -1,5 +1,4 @@
 ﻿using Chronos.P2P.Server;
-using System;
 
 namespace Chronos.P2P.Test
 {
@@ -19,7 +18,7 @@ namespace Chronos.P2P.Test
         public void TestHandler(UdpContext udpContext)
         {
             hello = udpContext.GetData<Hello>().Data;
-            if (hello.HelloString=="re")
+            if (hello.HelloString == "re")
             {
                 UdpServerTest.ackNums++;
             }

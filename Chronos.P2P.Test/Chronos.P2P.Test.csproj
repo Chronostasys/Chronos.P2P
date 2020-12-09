@@ -28,4 +28,10 @@
     <ProjectReference Include="..\Chronos.P2P.Client\Chronos.P2P.Client.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Tommee Profitt,Jung Youth,Fleurie - In the End.mp3">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
