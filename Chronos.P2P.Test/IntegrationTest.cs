@@ -57,8 +57,8 @@ namespace Chronos.P2P.Test
             var server = new P2PServer(5001);
             server.AddDefaultServerHandler();
 
-            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer1.PeersDataReceived += Peer1_PeersDataReceiveed;
+            peer2.PeersDataReceived += Peer1_PeersDataReceiveed;
             peer1.PeerConnected += Peer1_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();
@@ -112,8 +112,8 @@ namespace Chronos.P2P.Test
             var peer1 = new Peer(8889, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             var peer2 = new Peer(8801, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
 
-            peer1.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-            peer2.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+            peer1.PeersDataReceived += Peer1_PeersDataReceiveed;
+            peer2.PeersDataReceived += Peer1_PeersDataReceiveed;
             peer1.PeerConnected += Peer1_PeerConnected;
 
             peer1.AddHandlers<ClientHandler>();

@@ -37,7 +37,7 @@ namespace Chronos.P2P.Server.Sample
 
                 var p = int.Parse(Console.ReadLine());
                 var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-                peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
+                peer.PeersDataReceived += Peer1_PeersDataReceiveed;
                 peer.PeerConnected += Peer1_PeerConnected;
                 peer.AddHandlers<ClientHandler>();
                 _ = peer.StartPeer();

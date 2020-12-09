@@ -107,3 +107,15 @@ udp服务器
     }
     
 ```
+
+## UdpContext
+udp请求上下文，是handler的参数。
+
+```        public UdpContext(byte[] buffer, ConcurrentDictionary<Guid, PeerInfo> peers, IPEndPoint remoteEp, UdpClient client)
+        {
+            data = buffer;
+            Peers = peers;
+            RemoteEndPoint = remoteEp;
+            UdpClient = client;
+        }
+```
