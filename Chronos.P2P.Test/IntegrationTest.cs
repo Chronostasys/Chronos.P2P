@@ -57,8 +57,11 @@ namespace Chronos.P2P.Test
         {
             if (peer1 == null)
             {
-                peer1 = new Peer(9009, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-                peer2 = new Peer(9020, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+                peer1 = new Peer(9009, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 45000));
+                peer2 = new Peer(9020, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 45000));
+                var server = new P2PServer(45000);
+                server.AddDefaultServerHandler();
+                _ = server.StartServerAsync();
             }
             completionSource[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             completionSource[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
