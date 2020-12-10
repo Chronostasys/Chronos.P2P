@@ -41,12 +41,8 @@ namespace Chronos.P2P.Test
 
         private void Peer_PeersDataReceived(object sender, EventArgs e)
         {
-            Console.WriteLine("Peer1_PeersDataReceived called");
             var p = sender as Peer;
-            if (!p.Peers.IsEmpty)
-            {
-                sources[p.ID].TrySetResult();
-            }
+            sources[p.ID].TrySetResult();
         }
         [Fact(DisplayName = "Set Up Test", Timeout = 10000)]
         private async Task SetUpPeers()
