@@ -402,7 +402,7 @@ namespace Chronos.P2P.Client
             Console.WriteLine(semaphore.CurrentCount);
             using var fs = File.OpenRead(location);
             var sessionId = Guid.NewGuid();
-            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo
             {
                 Length = fs.Length,
@@ -428,15 +428,18 @@ namespace Chronos.P2P.Client
                     Last = l,
                     SessionId = sessionId
                 };
-                _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 10, cancelSource.Token)
-                    .ContinueWith(async re =>
-                    {
-                        var excr = await re;
-                        if (!excr)
+                _ = Task.Run(() =>
+                {
+                    _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 10, cancelSource.Token)
+                        .ContinueWith(async re =>
                         {
-                            cancelSource.Cancel();
-                        }
-                    });
+                            var excr = await re;
+                            if (!excr)
+                            {
+                                cancelSource.Cancel();
+                            }
+                        });
+                });
                 
             }
         }
