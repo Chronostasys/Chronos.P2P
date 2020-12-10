@@ -22,16 +22,16 @@ namespace Chronos.P2P.Client
         public IPEndPoint Ep { get; init; }
         public TaskCompletionSource? SendTask { get; init; }
     }
-    public class UdpMsgQueue
+    public class MsgQueue<T>
     {
-        ConcurrentQueue<UdpMsg> queue = new();
+        ConcurrentQueue<T> queue = new();
         SemaphoreSlim semaphore = new(0);
         public Task WaitDataAsync()
         {
             return semaphore.WaitAsync();
         }
 
-        public async Task<UdpMsg> DequeueAsync()
+        public async Task<T> DequeueAsync()
         {
             await semaphore.WaitAsync();
             while (true)
@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
                 }
             }
         }
-        public void Enqueue(UdpMsg result)
+        public void Enqueue(T result)
         {
             semaphore.Release();
             queue.Enqueue(result);
@@ -55,7 +55,7 @@ namespace Chronos.P2P.Client
         #region Fields
 
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
-        private const int concurrentLevel = 3;
+        private const int concurrentLevel = 20;
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private DateTime lastConnectTime = DateTime.UtcNow;
@@ -73,7 +73,7 @@ namespace Chronos.P2P.Client
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
-        UdpMsgQueue msgs = new();
+        MsgQueue<UdpMsg> msgs = new();
 
         #endregion Fields
 
@@ -125,26 +125,26 @@ namespace Chronos.P2P.Client
 
         private Task StartSendTask()
         {
+            return StartQueuedTask(msgs, async msg =>
+            {
+                await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                if (msg.SendTask is not null)
+                {
+                    _ = Task.Run(() =>
+                    {
+                        msg.SendTask.SetResult();
+                    });
+                }
+            });
+        }
+        private Task StartQueuedTask<T>(MsgQueue<T> msgQueue, Func<T, Task> processor)
+        {
             return Task.Run(async () =>
             {
                 while (true)
                 {
-                    try
-                    {
-                        var msg = await msgs.DequeueAsync();
-                        await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
-                        if (msg.SendTask is not null)
-                        {
-                            _ = Task.Run(() =>
-                            {
-                                msg.SendTask.SetResult();
-                            });
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
+                    var msg = await msgQueue.DequeueAsync();
+                    await processor(msg);
                 }
             });
         }
@@ -306,6 +306,13 @@ namespace Chronos.P2P.Client
                 slices.Clear();
                 currentHead = -1;
                 Console.WriteLine("\nWaiting for io to complete...");
+                try
+                {
+                    await FileRecvDic[dataSlice.SessionId].IOTask;
+                }
+                catch (Exception)
+                {
+                }
                 await fs!.DisposeAsync();
                 fs = null;
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
@@ -326,14 +333,25 @@ namespace Chronos.P2P.Client
             var sessionId = data.SessionId;
             if (recv)
             {
+                MsgQueue<DataSlice> queue = new();
+                fs = File.Create(savepath);
                 FileRecvDic[sessionId] = new FileRecvDicData
                 {
                     SavePath = savepath,
                     Semaphore = new SemaphoreSlim(1),
                     Length = data.Length,
-                    Watch = new Stopwatch()
+                    Watch = new Stopwatch(),
+                    MsgQueue = queue,
+                    IOTask = StartQueuedTask(queue, async fm =>
+                    {
+                        await fs.WriteAsync(fm.Slice, 0, fm.Slice.Length);
+                        if (fm.Last)
+                        {
+                            throw new OperationCanceledException();
+                        }
+                    })
                 };
-                fs = File.Create(FileRecvDic[sessionId].SavePath);
+
             }
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult
             {
@@ -358,7 +376,7 @@ namespace Chronos.P2P.Client
             {
                 
                 currentHead = slice.No;
-                await fs!.WriteAsync(slice.Slice, 0, slice.Len);
+                FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
                 if (slice.No % 1000 == 0)
                 {
                     Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString(),5}%");
