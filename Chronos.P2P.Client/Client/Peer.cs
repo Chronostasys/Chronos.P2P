@@ -64,7 +64,7 @@ namespace Chronos.P2P.Client
         private PeerInfo? peer;
         public bool IsPeerConnected { get; private set; } = false;
         private int pingCount = 10;
-        private int port;
+        public int Port { get; }
         private P2PServer server;
         private IPEndPoint serverEP;
         private CancellationTokenSource tokenSource = new();
@@ -98,7 +98,7 @@ namespace Chronos.P2P.Client
 
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
-        public ConcurrentDictionary<Guid, PeerInfo>? peers { get; private set; }
+        public ConcurrentDictionary<Guid, PeerInfo>? Peers { get; private set; }
 
         #endregion Properties
 
@@ -108,7 +108,7 @@ namespace Chronos.P2P.Client
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
-            this.port = port;
+            this.Port = port;
             LocalEP = GetEps();
             server = new P2PServer(udpClient);
             server.AddHandler<PeerDefaultHandlers>();
@@ -130,10 +130,7 @@ namespace Chronos.P2P.Client
                 await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
                 if (msg.SendTask is not null)
                 {
-                    _ = Task.Run(() =>
-                    {
-                        msg.SendTask.SetResult();
-                    });
+                    msg.SendTask.SetResult();
                 }
             });
         }
@@ -187,6 +184,7 @@ namespace Chronos.P2P.Client
                         }
                         if (tokenSource.IsCancellationRequested)
                         {
+                            Console.WriteLine($"Connected data sent to peer {peer.OuterEP.ToIPEP()}");
                             await SendDataToPeerAsync((int)CallMethods.Connected, "");
                             if (IsPeerConnected)
                             {
@@ -255,12 +253,12 @@ namespace Chronos.P2P.Client
                     {
                         try
                         {
-                            peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
-                            foreach (var item in peers)
+                            Peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
+                            foreach (var item in Peers)
                             {
                                 if (item.Key == ID)
                                 {
-                                    peers.Remove(ID, out var val);
+                                    Peers.Remove(ID, out var val);
                                     OuterEp = val!.OuterEP;
                                 }
                             }
@@ -363,10 +361,7 @@ namespace Chronos.P2P.Client
         internal void OnFileHandshakeResult(UdpContext context)
         {
             var data = context.GetData<FileTransferHandShakeResult>().Data;
-            Task.Run(() =>
-            {
-                FileAcceptTasks[data.SessionId].SetResult(data.Accept);
-            });
+            FileAcceptTasks[data.SessionId].SetResult(data.Accept);
         }
 
         internal async Task ProcessDataSliceAsync(DataSlice dataSlice, Func<Task> cleanUpAsync)
@@ -408,7 +403,7 @@ namespace Chronos.P2P.Client
             Console.WriteLine(semaphore.CurrentCount);
             using var fs = File.OpenRead(location);
             var sessionId = Guid.NewGuid();
-            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo
             {
                 Length = fs.Length,
@@ -434,15 +429,18 @@ namespace Chronos.P2P.Client
                     Last = l,
                     SessionId = sessionId
                 };
-                _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 10, cancelSource.Token)
-                    .ContinueWith(async re =>
-                    {
-                        var excr = await re;
-                        if (!excr)
+                _ = Task.Run(() =>
+                {
+                    _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 10, cancelSource.Token)
+                        .ContinueWith(async re =>
                         {
-                            cancelSource.Cancel();
-                        }
-                    });
+                            var excr = await re;
+                            if (!excr)
+                            {
+                                cancelSource.Cancel();
+                            }
+                        });
+                });
                 
             }
         }
@@ -466,10 +464,7 @@ namespace Chronos.P2P.Client
 
         internal void AckReturned(Guid reqId)
         {
-            if (AckTasks.ContainsKey(reqId))
-            {
-                Task.Run(()=> AckTasks[reqId].TrySetResult(true));
-            }
+            AckTasks[reqId].TrySetResult(true);
         }
 
         internal async void PeerConnectedReceived()
@@ -485,7 +480,10 @@ namespace Chronos.P2P.Client
             }
             Console.WriteLine("Peer connected");
             IsPeerConnected = true;
-            PeerConnected?.Invoke(this, new EventArgs());
+            _ = Task.Run(() =>
+            {
+                PeerConnected?.Invoke(this, new EventArgs());
+            });
         }
 
         internal async void PunchDataReceived(UdpContext context)
@@ -521,7 +519,7 @@ namespace Chronos.P2P.Client
         {
             foreach (var item in GetLocalIPAddress())
             {
-                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port)));
+                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, Port)));
             }
         }
 
@@ -573,7 +571,7 @@ namespace Chronos.P2P.Client
 
         public Task SendDataToPeerAsync<T>(int method, T data)
         {
-            var t = new TaskCompletionSource();
+            var t = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
             {
                 Method = method,
@@ -598,7 +596,7 @@ namespace Chronos.P2P.Client
         {
             await semaphore.WaitAsync();
             var reqId = Guid.NewGuid();
-            AckTasks[reqId] = new TaskCompletionSource<bool>();
+            AckTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
             {
                 Method = method,
@@ -608,7 +606,7 @@ namespace Chronos.P2P.Client
             for (int i = 0; i < retry; i++)
             {
                 token?.ThrowIfCancellationRequested();
-                var ts = new TaskCompletionSource();
+                var ts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 msgs.Enqueue(new UdpMsg 
                 {
@@ -654,7 +652,11 @@ namespace Chronos.P2P.Client
 
         public void SetPeer(Guid id, bool inSubNet = false)
         {
-            peer = peers![id];
+            if (peer is not null)
+            {
+                return;
+            }
+            peer = Peers![id];
             // 自动切换至局域网内连接
             if (peer.OuterEP.IP == OuterEp!.IP || inSubNet)
             {
