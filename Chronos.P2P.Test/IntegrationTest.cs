@@ -33,10 +33,7 @@ namespace Chronos.P2P.Test
 
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
-            Task.Run(() =>
-            {
-                completionSource.TrySetResult();
-            });
+            completionSource.TrySetResult();
         }
 
         private void Peer_PeersDataReceived(object sender, EventArgs e)
@@ -45,10 +42,7 @@ namespace Chronos.P2P.Test
             var p = sender as Peer;
             if (!p.peers.IsEmpty)
             {
-                Task.Run(() =>
-                {
-                    getPeerCompletionSource.TrySetResult();
-                });
+                getPeerCompletionSource.TrySetResult();
             }
         }
 
