@@ -52,6 +52,7 @@ namespace Chronos.P2P.Test
                 peer1 = new Peer(9009, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
                 peer2 = new Peer(9020, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             }
+            completionSource = new();
             sources[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             sources[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             peer1.PeersDataReceived += Peer_PeersDataReceived;
