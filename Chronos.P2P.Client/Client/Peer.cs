@@ -648,6 +648,10 @@ namespace Chronos.P2P.Client
 
         public void SetPeer(Guid id, bool inSubNet = false)
         {
+            if (peer is not null)
+            {
+                return;
+            }
             peer = peers![id];
             // 自动切换至局域网内连接
             if (peer.OuterEP.IP == OuterEp!.IP || inSubNet)
