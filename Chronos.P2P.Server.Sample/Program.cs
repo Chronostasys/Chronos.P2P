@@ -38,7 +38,7 @@ namespace Chronos.P2P.Server.Sample
                 Guid id;
                 while (!Guid.TryParse(Console.ReadLine(), out id))
                 {
-                    foreach (var item in peer.peers)
+                    foreach (var item in peer.Peers)
                     {
                         Console.WriteLine($"peer id: {item.Key}, innerip: {item.Value.InnerEP}, outerip: {item.Value.OuterEP}");
                     }

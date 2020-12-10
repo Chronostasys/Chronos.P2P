@@ -1,6 +1,7 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Server;
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -27,7 +28,7 @@ namespace Chronos.P2P.Test
     public class IntegrationTest
     {
         private TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private TaskCompletionSource getPeerCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
         internal static string data;
         internal static int nums;
 
@@ -40,14 +41,16 @@ namespace Chronos.P2P.Test
         {
             Console.WriteLine("Peer1_PeersDataReceived called");
             var p = sender as Peer;
-            if (!p.peers.IsEmpty)
+            if (!p.Peers.IsEmpty)
             {
-                getPeerCompletionSource.TrySetResult();
+                sources[p.ID].TrySetResult();
             }
         }
 
         private async Task SetUpPeers(Peer peer1, Peer peer2)
         {
+            sources[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            sources[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             peer1.PeersDataReceived += Peer_PeersDataReceived;
             peer2.PeersDataReceived += Peer_PeersDataReceived;
             peer1.PeerConnected += Peer_PeerConnected;
@@ -60,15 +63,16 @@ namespace Chronos.P2P.Test
             Console.WriteLine("start peer 2");
             _ = peer2.StartPeer();
             Console.WriteLine("all peers started");
-            await getPeerCompletionSource.Task;
+            await sources[peer1.ID].Task;
+            await sources[peer2.ID].Task;
             Console.WriteLine("set peer1");
             while (true)
             {
-                if (peer1.peers is not null && peer1.peers.ContainsKey(peer2.ID))
+                if (peer1.Peers is not null && peer1.Peers.ContainsKey(peer2.ID))
                 {
                     peer1.SetPeer(peer2.ID);
                 }
-                if (peer2.peers is not null && peer2.peers.ContainsKey(peer1.ID))
+                if (peer2.Peers is not null && peer2.Peers.ContainsKey(peer1.ID))
                 {
                     peer2.SetPeer(peer1.ID);
                 }

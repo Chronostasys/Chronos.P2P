@@ -98,7 +98,7 @@ namespace Chronos.P2P.Client
 
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
-        public ConcurrentDictionary<Guid, PeerInfo>? peers { get; private set; }
+        public ConcurrentDictionary<Guid, PeerInfo>? Peers { get; private set; }
 
         #endregion Properties
 
@@ -253,12 +253,12 @@ namespace Chronos.P2P.Client
                     {
                         try
                         {
-                            peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
-                            foreach (var item in peers)
+                            Peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
+                            foreach (var item in Peers)
                             {
                                 if (item.Key == ID)
                                 {
-                                    peers.Remove(ID, out var val);
+                                    Peers.Remove(ID, out var val);
                                     OuterEp = val!.OuterEP;
                                 }
                             }
@@ -653,7 +653,7 @@ namespace Chronos.P2P.Client
             {
                 return;
             }
-            peer = peers![id];
+            peer = Peers![id];
             // 自动切换至局域网内连接
             if (peer.OuterEP.IP == OuterEp!.IP || inSubNet)
             {
