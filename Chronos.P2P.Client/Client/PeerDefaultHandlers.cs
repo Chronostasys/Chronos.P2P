@@ -23,6 +23,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.Connected)]
         public void ConnectedDataHandler(UdpContext context)
         {
+            Console.WriteLine($"peer {peer.OuterEp?.ToIPEP()} connect data received");
             peer.PeerConnectedReceived();
         }
 
@@ -56,6 +57,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.PunchHole)]
         public void PunchingDataHandler(UdpContext context)
         {
+            Console.WriteLine($"peer {peer.OuterEp?.ToIPEP()} punch data received");
             peer.PunchDataReceived(context);
         }
     }

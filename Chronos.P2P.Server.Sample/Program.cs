@@ -7,8 +7,8 @@ namespace Chronos.P2P.Server.Sample
 {
     internal class Program
     {
-        private static TaskCompletionSource completionSource = new TaskCompletionSource();
-        private static TaskCompletionSource connectionCompletionSource = new TaskCompletionSource();
+        private static TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private static TaskCompletionSource connectionCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public static int nums;
 
         private static async Task Main(string[] args)
@@ -38,7 +38,7 @@ namespace Chronos.P2P.Server.Sample
                 Guid id;
                 while (!Guid.TryParse(Console.ReadLine(), out id))
                 {
-                    foreach (var item in peer.peers)
+                    foreach (var item in peer.Peers)
                     {
                         Console.WriteLine($"peer id: {item.Key}, innerip: {item.Value.InnerEP}, outerip: {item.Value.OuterEP}");
                     }
