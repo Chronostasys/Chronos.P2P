@@ -6,7 +6,7 @@
 
 ## 流程
 ### server
-```
+```c#
         static async Task StartServerAsync()
         {
             var server = new P2PServer();
@@ -48,7 +48,7 @@
 端口
 
 #### peer的生命周期
-
+由于单个peer在特定时间只能与一个peer建立连接，故只有未建立连接的peer不断发送broadcast
 TODO
 
 #### `tokenSource.IsCancellationRequested`的意义
@@ -56,24 +56,34 @@ TODO
 TODO
 
 
-#### TaskCompletionSource的理解
+#### TaskCompletionSource的应用
+问题：对于获取其他peer信息的异步操作处理
+
+需要等待`peer.PeersDataReceived`这个[事件](https://www.limfx.pro/readarticle/1233/c-xue-xi-event)发生后，再进行peers显示的相关操作
+
+则令方法`Peer1_PeersDataReceived()`订阅该事件,`peer.PeersDataReceiveed`监听获取到数据的事件，这样可以从获得的数据里选择连接对象
+
+```c#         
+        peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
 ```
-        static TaskCompletionSource connectionCompletionSource = new TaskCompletionSource();
+以上是完成对某个事件的监听工作，下面实现异步处理
+在对事件的处理方法中对一个`TaskCompletionSource`类型的对象`completionSource`进行执行`TrySetResult()`
+    TaskCompletionSource<T>这是一种受你控制创建Task的方式。你可以使Task在任何你想要的时候完成，你也可以在任何地方给它一个异常让它失败
+```c#
         static TaskCompletionSource completionSource = new TaskCompletionSource();
 ```
+事件处理函数：
+```csharp
+        private static void Peer1_PeersDataReceived(object sender, EventArgs e)
+        {
+            var a = completionSource.TrySetResult();
 
+            return;
+        }
 
-TaskCompletionSource<T>这是一种受你控制创建Task的方式。你可以使Task在任何你想要的时候完成，你也可以在任何地方给它一个异常让它失败
-
-[#]: #(当取对象时，才进行任务)
-
-
-```         
-       peer.PeersDataReceiveed += Peer1_PeersDataReceiveed;
-                peer.PeerConnected += Peer1_PeerConnected;
 ```
-监听获取到数据的事件，这样可以从获得的数据里选择连接对象
 
-
-
-
+当该方法调用后返回，则异步等待的下列语句得到执行，程序继续运行
+```csharp
+await completionSource.Task;
+```
