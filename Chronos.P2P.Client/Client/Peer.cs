@@ -621,7 +621,7 @@ namespace Chronos.P2P.Client
                 await ts.Task;
                 var t = await await Task.WhenAny(AckTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
                 {
-                    await Task.Delay(100);
+                    await Task.Delay(1000);
                     return false;
                 }))());
                 if (t)
