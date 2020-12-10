@@ -31,6 +31,8 @@ namespace Chronos.P2P.Test
         ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
         internal static string data;
         internal static int nums;
+        Peer peer1;
+        Peer peer2;
 
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
@@ -46,9 +48,14 @@ namespace Chronos.P2P.Test
                 sources[p.ID].TrySetResult();
             }
         }
-
-        private async Task SetUpPeers(Peer peer1, Peer peer2)
+        [Fact(DisplayName = "Set Up Test", Timeout = 10000)]
+        private async Task SetUpPeers()
         {
+            if (peer1 == null)
+            {
+                peer1 = new Peer(9009, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+                peer2 = new Peer(9020, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            }
             sources[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             sources[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             peer1.PeersDataReceived += Peer_PeersDataReceived;
@@ -96,8 +103,8 @@ namespace Chronos.P2P.Test
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
             var dst = "transfered.mp3";
-            var peer1 = new Peer(10999, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5003));
-            var peer2 = new Peer(30901, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5003));
+            peer1 = new Peer(10999, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5003));
+            peer2 = new Peer(30901, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5003));
             var server = new P2PServer(5003);
             server.AddDefaultServerHandler();
             _ = server.StartServerAsync();
@@ -109,7 +116,7 @@ namespace Chronos.P2P.Test
             {
                 return Task.FromResult((true, dst));
             };
-            await SetUpPeers(peer1, peer2);
+            await SetUpPeers();
             await Task.Delay(1000);
             await peer1.SendFileAsync(src);
             await Task.Delay(5000);
@@ -128,13 +135,13 @@ namespace Chronos.P2P.Test
         {
             nums = 0;
             data = null;
-            var peer1 = new Peer(9888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
-            var peer2 = new Peer(9800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            peer1 = new Peer(9888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            peer2 = new Peer(9800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             var server = new P2PServer(5001);
             server.AddDefaultServerHandler();
             _ = server.StartServerAsync();
 
-            await SetUpPeers(peer1, peer2);
+            await SetUpPeers();
             Assert.Null(data);
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };
@@ -165,10 +172,10 @@ namespace Chronos.P2P.Test
         public async Task TestRemoteIntegration()
         {
             data = null;
-            var peer1 = new Peer(9999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            var peer2 = new Peer(9901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            peer1 = new Peer(9999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
+            peer2 = new Peer(9901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
 
-            await SetUpPeers(peer1, peer2);
+            await SetUpPeers();
             Assert.Null(data);
             var greetingString = "Hi";
             var hello = new Hello { HelloString = greetingString };
