@@ -64,7 +64,7 @@ namespace Chronos.P2P.Client
         private PeerInfo? peer;
         public bool IsPeerConnected { get; private set; } = false;
         private int pingCount = 10;
-        private int port;
+        public int Port { get; }
         private P2PServer server;
         private IPEndPoint serverEP;
         private CancellationTokenSource tokenSource = new();
@@ -108,7 +108,7 @@ namespace Chronos.P2P.Client
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
-            this.port = port;
+            this.Port = port;
             LocalEP = GetEps();
             server = new P2PServer(udpClient);
             server.AddHandler<PeerDefaultHandlers>();
@@ -516,7 +516,7 @@ namespace Chronos.P2P.Client
         {
             foreach (var item in GetLocalIPAddress())
             {
-                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, port)));
+                yield return new PeerInnerEP(PeerEP.ParsePeerEPFromIPEP(new IPEndPoint(item, Port)));
             }
         }
 

@@ -27,8 +27,8 @@ namespace Chronos.P2P.Test
 
     public class IntegrationTest
     {
-        private TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
+        ConcurrentDictionary<Guid, TaskCompletionSource> completionSource = new();
         internal static string data;
         internal static int nums;
         Peer peer1;
@@ -36,7 +36,8 @@ namespace Chronos.P2P.Test
 
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
-            completionSource.TrySetResult();
+            var p = sender as Peer;
+            completionSource[p.ID].TrySetResult();
         }
 
         private void Peer_PeersDataReceived(object sender, EventArgs e)
@@ -55,7 +56,8 @@ namespace Chronos.P2P.Test
                 peer1 = new Peer(9009, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
                 peer2 = new Peer(9020, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             }
-            completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            completionSource[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            completionSource[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             sources[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             sources[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             peer1.PeersDataReceived += Peer_PeersDataReceived;
@@ -65,6 +67,8 @@ namespace Chronos.P2P.Test
 
             peer1.AddHandlers<ClientHandler>();
             peer2.AddHandlers<ClientHandler>();
+            Assert.Null(peer1.Peers);
+            Assert.Null(peer2.Peers);
             Console.WriteLine("start peer 1");
             _ = peer1.StartPeer();
             Console.WriteLine("start peer 2");
@@ -72,29 +76,13 @@ namespace Chronos.P2P.Test
             Console.WriteLine("all peers started");
             await sources[peer1.ID].Task;
             await sources[peer2.ID].Task;
-            Console.WriteLine("set peer1");
-            while (true)
-            {
-                if (peer1.Peers is not null && peer1.Peers.ContainsKey(peer2.ID))
-                {
-                    peer1.SetPeer(peer2.ID);
-                }
-                if (peer2.Peers is not null && peer2.Peers.ContainsKey(peer1.ID))
-                {
-                    peer2.SetPeer(peer1.ID);
-                }
-                if (peer1.RmotePeer is not null && peer2.RmotePeer is not null)
-                {
-                    break;
-                }
-                await Task.Delay(100);
-            }
-            Console.WriteLine("set peer2");
+            Assert.Contains(peer2.ID, peer1.Peers.Keys);
+            Assert.Contains(peer1.ID, peer2.Peers.Keys);
+            peer1.SetPeer(peer2.ID);
+            peer2.SetPeer(peer1.ID);
             Console.WriteLine("All peers set");
-            while (!(peer1.IsPeerConnected && peer2.IsPeerConnected))
-            {
-                await Task.Delay(100);
-            }
+            await completionSource[peer1.ID].Task;
+            await completionSource[peer2.ID].Task;
             Console.WriteLine("all peers connected");
         }
 
