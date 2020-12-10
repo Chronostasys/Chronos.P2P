@@ -184,6 +184,7 @@ namespace Chronos.P2P.Client
                         }
                         if (tokenSource.IsCancellationRequested)
                         {
+                            Console.WriteLine($"Connected data sent to peer {peer.OuterEP.ToIPEP()}");
                             await SendDataToPeerAsync((int)CallMethods.Connected, "");
                             if (IsPeerConnected)
                             {
