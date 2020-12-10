@@ -110,9 +110,9 @@ namespace Chronos.P2P.Test
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
             var dst = "transfered.mp3";
-            peer1 = new Peer(10999, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5003));
-            peer2 = new Peer(30901, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5003));
-            var server = new P2PServer(5003);
+            peer1 = new Peer(17999, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 15003));
+            peer2 = new Peer(35901, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 15003));
+            var server = new P2PServer(15003);
             server.AddDefaultServerHandler();
             _ = server.StartServerAsync();
             peer1.OnInitFileTransfer = info =>
