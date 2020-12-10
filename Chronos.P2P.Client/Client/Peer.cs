@@ -21,7 +21,7 @@ namespace Chronos.P2P.Client
         #region Fields
 
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
-        private int concurrentLevel = 30;
+        private int concurrentLevel = 1;
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private DateTime lastConnectTime = DateTime.UtcNow;
@@ -336,17 +336,15 @@ namespace Chronos.P2P.Client
             Console.WriteLine($"Slice count: {last}");
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                await semaphore.WaitAsync();
                 var buffer = new byte[bufferLen];
                 var len = await fs.ReadAsync(buffer, 0, bufferLen);
+                await semaphore.WaitAsync();
                 if (i >= fs.Length - bufferLen)
                 {
                     Console.WriteLine("last");
                 }
                 cancelSource.Token.ThrowIfCancellationRequested();
-                for (int i1 = 0; i1 < 3; i1++)
-                {
-                    if (await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
+                if(!await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
                     new DataSlice
                     {
                         No = j,
@@ -354,9 +352,7 @@ namespace Chronos.P2P.Client
                         Len = len,
                         Last = i >= fs.Length - bufferLen,
                         SessionId = sessionId
-                    })) break;
-                    else cancelSource.Cancel();
-                }
+                    })) cancelSource.Cancel();
                 semaphore.Release();
             }
         }
