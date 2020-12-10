@@ -55,7 +55,7 @@ namespace Chronos.P2P.Client
         #region Fields
 
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
-        private const int concurrentLevel = 10;
+        private const int concurrentLevel = 3;
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private DateTime lastConnectTime = DateTime.UtcNow;
@@ -356,10 +356,9 @@ namespace Chronos.P2P.Client
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
             async Task ProcessSliceAsync(DataSlice slice)
             {
-                await semaphoreSlim.WaitAsync();
+                
                 currentHead = slice.No;
                 await fs!.WriteAsync(slice.Slice, 0, slice.Len);
-                semaphoreSlim.Release();
                 if (slice.No % 1000 == 0)
                 {
                     Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString(),5}%");
@@ -369,6 +368,7 @@ namespace Chronos.P2P.Client
                     await cleanUpAsync();
                 }
             }
+            await semaphoreSlim.WaitAsync();
             if (currentHead == dataSlice.No - 1)
             {
                 await ProcessSliceAsync(dataSlice);
@@ -382,6 +382,7 @@ namespace Chronos.P2P.Client
             {
                 slices[new DataSliceInfo { No = dataSlice.No, SessionId = dataSlice.SessionId }] = dataSlice;
             }
+            semaphoreSlim.Release();
         }
 
         public async Task SendFileAsync(string location)
@@ -405,10 +406,6 @@ namespace Chronos.P2P.Client
                 var buffer = new byte[bufferLen];
                 var len = await fs.ReadAsync(buffer, 0, bufferLen);
                 var l = i >= fs.Length - bufferLen;
-                if (l)
-                {
-                    Console.WriteLine("last");
-                }
                 cancelSource.Token.ThrowIfCancellationRequested();
                 var j1 = j;
                 var slice = new DataSlice
@@ -453,7 +450,7 @@ namespace Chronos.P2P.Client
         {
             if (AckTasks.ContainsKey(reqId))
             {
-                AckTasks[reqId].TrySetResult(true);
+                Task.Run(()=> AckTasks[reqId].TrySetResult(true));
             }
         }
 
