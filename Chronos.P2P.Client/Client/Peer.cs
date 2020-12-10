@@ -480,7 +480,10 @@ namespace Chronos.P2P.Client
             }
             Console.WriteLine("Peer connected");
             IsPeerConnected = true;
-            PeerConnected?.Invoke(this, new EventArgs());
+            _ = Task.Run(() =>
+            {
+                PeerConnected?.Invoke(this, new EventArgs());
+            });
         }
 
         internal async void PunchDataReceived(UdpContext context)
