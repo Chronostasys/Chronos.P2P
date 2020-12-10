@@ -114,7 +114,7 @@ namespace Chronos.P2P.Test
             await SetUpPeers(peer1, peer2);
             await Task.Delay(1000);
             await peer1.SendFileAsync(src);
-            await Task.Delay(1000);
+            await Task.Delay(5000);
             using (var md5 = MD5.Create())
             using (var fs1 = File.OpenRead(src))
             using (var fs2 = File.OpenRead(dst))
