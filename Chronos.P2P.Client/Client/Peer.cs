@@ -417,6 +417,7 @@ namespace Chronos.P2P.Client
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
                 var buffer = new byte[bufferLen];
+                await semaphore.WaitAsync();
                 var len = await fs.ReadAsync(buffer, 0, bufferLen);
                 var l = i >= fs.Length - bufferLen;
                 cancelSource.Token.ThrowIfCancellationRequested();
@@ -435,6 +436,7 @@ namespace Chronos.P2P.Client
                         .ContinueWith(async re =>
                         {
                             var excr = await re;
+                            semaphore.Release();
                             if (!excr)
                             {
                                 cancelSource.Cancel();
@@ -464,7 +466,10 @@ namespace Chronos.P2P.Client
 
         internal void AckReturned(Guid reqId)
         {
-            AckTasks[reqId].TrySetResult(true);
+            if (AckTasks.TryGetValue(reqId, out var src))
+            {
+                src.TrySetResult(true);
+            }
         }
 
         internal async void PeerConnectedReceived()
@@ -594,7 +599,6 @@ namespace Chronos.P2P.Client
 
         public virtual async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 3, CancellationToken? token = null)
         {
-            await semaphore.WaitAsync();
             var reqId = Guid.NewGuid();
             AckTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
@@ -617,19 +621,17 @@ namespace Chronos.P2P.Client
                 await ts.Task;
                 var t = await await Task.WhenAny(AckTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
                 {
-                    await Task.Delay(500);
+                    await Task.Delay(100);
                     return false;
                 }))());
                 if (t)
                 {
-                    semaphore.Release();
                     AckTasks.TryRemove(reqId, out var completionSource);
                     return true;
                 }
             }
 
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
-            semaphore.Release();
             return false;
         }
 
