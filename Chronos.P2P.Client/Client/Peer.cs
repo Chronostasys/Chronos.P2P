@@ -344,7 +344,7 @@ namespace Chronos.P2P.Client
                     MsgQueue = queue,
                     IOTask = StartQueuedTask(queue, async fm =>
                     {
-                        await fs.WriteAsync(fm.Slice, 0, fm.Slice.Length);
+                        await fs.WriteAsync(fm.Slice, 0, fm.Len);
                         if (fm.Last)
                         {
                             throw new OperationCanceledException();
