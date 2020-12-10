@@ -34,13 +34,12 @@ namespace Chronos.P2P.Client
         public async Task<UdpMsg> DequeueAsync()
         {
             await semaphore.WaitAsync();
-            if(queue.TryDequeue(out var result))
+            while (true)
             {
-                return result;
-            }
-            else
-            {
-                throw new Exception();
+                if (queue.TryDequeue(out var result))
+                {
+                    return result;
+                }
             }
         }
         public void Enqueue(UdpMsg result)
@@ -56,7 +55,7 @@ namespace Chronos.P2P.Client
         #region Fields
 
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
-        private int concurrentLevel = 10;
+        private const int concurrentLevel = 10;
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private DateTime lastConnectTime = DateTime.UtcNow;
@@ -74,7 +73,7 @@ namespace Chronos.P2P.Client
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
-        ConcurrentQueue<UdpMsg> msgs = new();
+        UdpMsgQueue msgs = new();
 
         #endregion Fields
 
@@ -130,18 +129,21 @@ namespace Chronos.P2P.Client
             {
                 while (true)
                 {
-                    if (msgs.TryDequeue(out var msg))
+                    try
                     {
-                        try
+                        var msg = await msgs.DequeueAsync();
+                        await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                        if (msg.SendTask is not null)
                         {
-                            await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                            _ = Task.Run(() =>
+                            {
+                                msg.SendTask.SetResult();
+                            });
                         }
-                        catch (Exception)
-                        {
-
-                            throw;
-                        }
-                        msg.SendTask?.TrySetResult();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
                     }
                 }
             });
@@ -354,15 +356,15 @@ namespace Chronos.P2P.Client
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
             async Task ProcessSliceAsync(DataSlice slice)
             {
-                currentHead = dataSlice.No;
                 await semaphoreSlim.WaitAsync();
+                currentHead = slice.No;
                 await fs!.WriteAsync(slice.Slice, 0, slice.Len);
                 semaphoreSlim.Release();
-                if (dataSlice.No % 1000 == 0)
+                if (slice.No % 1000 == 0)
                 {
                     Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString(),5}%");
                 }
-                if (dataSlice.Last)
+                if (slice.Last)
                 {
                     await cleanUpAsync();
                 }
@@ -384,8 +386,8 @@ namespace Chronos.P2P.Client
 
         public async Task SendFileAsync(string location)
         {
+            Console.WriteLine(semaphore.CurrentCount);
             using var fs = File.OpenRead(location);
-            using SemaphoreSlim semaphore = new SemaphoreSlim(concurrentLevel);
             var sessionId = Guid.NewGuid();
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>();
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo
@@ -402,31 +404,31 @@ namespace Chronos.P2P.Client
             {
                 var buffer = new byte[bufferLen];
                 var len = await fs.ReadAsync(buffer, 0, bufferLen);
-                await semaphore.WaitAsync();
-                if (i >= fs.Length - bufferLen)
+                var l = i >= fs.Length - bufferLen;
+                if (l)
                 {
                     Console.WriteLine("last");
                 }
                 cancelSource.Token.ThrowIfCancellationRequested();
-                //_ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                //    new DataSlice
-                //    {
-                //        No = j,
-                //        Slice = buffer,
-                //        Len = len,
-                //        Last = i >= fs.Length - bufferLen,
-                //        SessionId = sessionId
-                //    });
-                if (!await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                    new DataSlice
+                var j1 = j;
+                var slice = new DataSlice
+                {
+                    No = j1,
+                    Slice = buffer,
+                    Len = len,
+                    Last = l,
+                    SessionId = sessionId
+                };
+                _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 10, cancelSource.Token)
+                    .ContinueWith(async re =>
                     {
-                        No = j,
-                        Slice = buffer,
-                        Len = len,
-                        Last = i >= fs.Length - bufferLen,
-                        SessionId = sessionId
-                    })) cancelSource.Cancel();
-                semaphore.Release();
+                        var excr = await re;
+                        if (!excr)
+                        {
+                            cancelSource.Cancel();
+                        }
+                    });
+                
             }
         }
 
@@ -573,11 +575,13 @@ namespace Chronos.P2P.Client
 
         public virtual async Task<bool> SendDataToPeerReliableAsync<T>(T data, CancellationToken? token = null)
         {
-            return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, token);
+            return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, 3, token);
         }
+        SemaphoreSlim semaphore = new(concurrentLevel);
 
-        public virtual async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, CancellationToken? token = null)
+        public virtual async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 3, CancellationToken? token = null)
         {
+            await semaphore.WaitAsync();
             var reqId = Guid.NewGuid();
             AckTasks[reqId] = new TaskCompletionSource<bool>();
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
@@ -586,7 +590,7 @@ namespace Chronos.P2P.Client
                 Data = data,
                 ReqId = reqId
             });
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < retry; i++)
             {
                 token?.ThrowIfCancellationRequested();
                 var ts = new TaskCompletionSource();
@@ -600,17 +604,19 @@ namespace Chronos.P2P.Client
                 await ts.Task;
                 var t = await await Task.WhenAny(AckTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
                 {
-                    await Task.Delay(1000);
+                    await Task.Delay(500);
                     return false;
                 }))());
                 if (t)
                 {
+                    semaphore.Release();
                     AckTasks.TryRemove(reqId, out var completionSource);
                     return true;
                 }
             }
 
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
+            semaphore.Release();
             return false;
         }
 
