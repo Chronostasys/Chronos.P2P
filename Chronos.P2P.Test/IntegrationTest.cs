@@ -26,8 +26,8 @@ namespace Chronos.P2P.Test
 
     public class IntegrationTest
     {
-        private TaskCompletionSource completionSource = new();
-        private TaskCompletionSource getPeerCompletionSource = new();
+        private TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource getPeerCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal static string data;
         internal static int nums;
 

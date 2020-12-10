@@ -130,10 +130,7 @@ namespace Chronos.P2P.Client
                 await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
                 if (msg.SendTask is not null)
                 {
-                    _ = Task.Run(() =>
-                    {
-                        msg.SendTask.SetResult();
-                    });
+                    msg.SendTask.SetResult();
                 }
             });
         }
@@ -363,10 +360,7 @@ namespace Chronos.P2P.Client
         internal void OnFileHandshakeResult(UdpContext context)
         {
             var data = context.GetData<FileTransferHandShakeResult>().Data;
-            Task.Run(() =>
-            {
-                FileAcceptTasks[data.SessionId].SetResult(data.Accept);
-            });
+            FileAcceptTasks[data.SessionId].SetResult(data.Accept);
         }
 
         internal async Task ProcessDataSliceAsync(DataSlice dataSlice, Func<Task> cleanUpAsync)
@@ -466,10 +460,7 @@ namespace Chronos.P2P.Client
 
         internal void AckReturned(Guid reqId)
         {
-            if (AckTasks.ContainsKey(reqId))
-            {
-                Task.Run(()=> AckTasks[reqId].TrySetResult(true));
-            }
+            AckTasks[reqId].TrySetResult(true);
         }
 
         internal async void PeerConnectedReceived()
@@ -573,7 +564,7 @@ namespace Chronos.P2P.Client
 
         public Task SendDataToPeerAsync<T>(int method, T data)
         {
-            var t = new TaskCompletionSource();
+            var t = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
             {
                 Method = method,
@@ -598,7 +589,7 @@ namespace Chronos.P2P.Client
         {
             await semaphore.WaitAsync();
             var reqId = Guid.NewGuid();
-            AckTasks[reqId] = new TaskCompletionSource<bool>();
+            AckTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
             {
                 Method = method,
@@ -608,7 +599,7 @@ namespace Chronos.P2P.Client
             for (int i = 0; i < retry; i++)
             {
                 token?.ThrowIfCancellationRequested();
-                var ts = new TaskCompletionSource();
+                var ts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 msgs.Enqueue(new UdpMsg 
                 {

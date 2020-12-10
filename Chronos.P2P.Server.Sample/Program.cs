@@ -7,8 +7,8 @@ namespace Chronos.P2P.Server.Sample
 {
     internal class Program
     {
-        private static TaskCompletionSource completionSource = new TaskCompletionSource();
-        private static TaskCompletionSource connectionCompletionSource = new TaskCompletionSource();
+        private static TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private static TaskCompletionSource connectionCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public static int nums;
 
         private static async Task Main(string[] args)
