@@ -42,7 +42,10 @@ namespace Chronos.P2P.Test
         private void Peer_PeersDataReceived(object sender, EventArgs e)
         {
             var p = sender as Peer;
-            sources[p.ID].TrySetResult();
+            if (!p.Peers.IsEmpty)
+            {
+                sources[p.ID].TrySetResult();
+            }
         }
         [Fact(DisplayName = "Set Up Test", Timeout = 10000)]
         private async Task SetUpPeers()
@@ -52,7 +55,7 @@ namespace Chronos.P2P.Test
                 peer1 = new Peer(9009, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
                 peer2 = new Peer(9020, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
             }
-            completionSource = new();
+            completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
             sources[peer1.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             sources[peer2.ID] = new(TaskCreationOptions.RunContinuationsAsynchronously);
             peer1.PeersDataReceived += Peer_PeersDataReceived;
