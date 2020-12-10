@@ -1,5 +1,6 @@
 ﻿using Chronos.P2P.Server;
 using System;
+using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
@@ -28,7 +29,10 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.DataSlice)]
         public void FileDataHandler(UdpContext context)
         {
-            _ = peer.FileDataReceived(context.GetData<DataSlice>().Data);
+            Task.Run(() =>
+            {
+                _ = peer.FileDataReceived(context.GetData<DataSlice>().Data);
+            });
         }
 
         [Handler((int)CallMethods.FileHandShakeCallback)]
