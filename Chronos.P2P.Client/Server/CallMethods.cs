@@ -12,7 +12,8 @@
         P2PDataTransfer,
         Ack,
         DataSlice,
-        FileHandShake,
-        FileHandShakeCallback
+        StreamHandShake,
+        StreamHandShakeCallback,
+        AudioDataSlice
     }
 }

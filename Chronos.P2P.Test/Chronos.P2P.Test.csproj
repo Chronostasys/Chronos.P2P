@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Chronos.P2P.Client.Audio\Chronos.P2P.Client.Audio.csproj" />
     <ProjectReference Include="..\Chronos.P2P.Client\Chronos.P2P.Client.csproj" />
   </ItemGroup>
 
