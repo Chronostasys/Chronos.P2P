@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Client;
+using Chronos.P2P.Client.Audio;
 using System;
 using System.Net;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Chronos.P2P.Server.Sample
         private static async Task Main(string[] args)
         {
             bool server = false;
+            bool audio = true;
             if (server)
             {
                 await StartServerAsync();
@@ -27,6 +29,7 @@ namespace Chronos.P2P.Server.Sample
                 peer.PeersDataReceived += Peer1_PeersDataReceived;
                 peer.PeerConnected += Peer1_PeerConnected;
                 peer.AddHandlers<ClientHandler>();
+                peer.AddHandlers<AudioLiveStreamHandler>();
                 _ = peer.StartPeer();
 
                 //peer1.StartPeer();
@@ -49,9 +52,19 @@ namespace Chronos.P2P.Server.Sample
                 await connectionCompletionSource.Task;
                 Console.Clear();
                 Console.WriteLine("Peer connectd!");
-                while (true)
+                if (audio)
                 {
-                    await peer.SendFileAsync(Console.ReadLine(), int.Parse(Console.ReadLine()));
+                    Console.WriteLine("press enter to start live chat");
+                    Console.ReadLine();
+                    peer.StartSendLiveAudio("");
+                    Console.ReadLine();
+                }
+                else
+                {
+                    while (true)
+                    {
+                        await peer.SendFileAsync(Console.ReadLine(), int.Parse(Console.ReadLine()));
+                    }
                 }
             }
         }

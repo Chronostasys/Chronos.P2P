@@ -12,6 +12,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using static Chronos.P2P.Client.Utils;
 
@@ -271,7 +272,7 @@ namespace Chronos.P2P.Client
             await ProcessDataSliceAsync(dataSlice, CleanUpAsync);
         }
 
-        internal async Task FileTransferRequested(BasicFileInfo data)
+        internal async Task StreamTransferRequested(BasicFileInfo data)
         {
             var (recv, savepath) = await (OnInitFileTransfer ??
                 (async (info) => await Task.FromResult((true, info.Name)))).Invoke(data);
@@ -279,7 +280,10 @@ namespace Chronos.P2P.Client
             if (recv)
             {
                 MsgQueue<DataSlice> queue = new();
-                fs = File.Create(savepath);
+                if (data.Length>0)
+                {
+                    fs = File.Create(savepath);
+                }
                 FileRecvDic[sessionId] = new FileRecvDicData
                 {
                     SavePath = savepath,
@@ -297,14 +301,14 @@ namespace Chronos.P2P.Client
                     })
                 };
             }
-            await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult
+            await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShakeCallback, new FileTransferHandShakeResult
             {
                 Accept = recv,
                 SessionId = data.SessionId
             });
         }
 
-        internal void OnFileHandshakeResult(UdpContext context)
+        internal void OnStreamHandshakeResult(UdpContext context)
         {
             var data = context.GetData<FileTransferHandShakeResult>().Data;
             successMsg = 0;
@@ -349,14 +353,46 @@ namespace Chronos.P2P.Client
             }
             semaphoreSlim.Release();
         }
-
+        public async Task SendLiveStreamAsync(Channel<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
+        {
+            var sessionId = Guid.NewGuid();
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
+            {
+                Length = -1,
+                Name = name,
+                SessionId = sessionId
+            });
+            await FileAcceptTasks[sessionId].Task;
+            var cancelSource = new CancellationTokenSource();
+            int no = 0;
+            while (await channel.Reader.WaitToReadAsync(token))
+            {
+                var (buffer, len) = await channel.Reader.ReadAsync(token);
+                var slice = new DataSlice
+                {
+                    No = no++,
+                    Slice = buffer,
+                    Len = len,
+                    Last = false,
+                    SessionId = sessionId
+                };
+                var excr = await SendDataToPeerReliableAsync(callMethod, slice, 30, cancelSource.Token);
+                if (!excr)
+                {
+                    cancelSource.Cancel();
+                }
+            }
+            Console.WriteLine($"Send complete. Lost = {(1 - (double)successMsg / totalMsg) * 100}%");
+            Console.WriteLine($"Auto adjusted timeout: {sendTimeOut}ms");
+        }
         public async Task SendFileAsync(string location, int concurrentLevel = 3)
         {
             using SemaphoreSlim semaphore = new(concurrentLevel);
             using var fs = File.OpenRead(location);
             var sessionId = Guid.NewGuid();
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await SendDataToPeerReliableAsync((int)CallMethods.FileHandShake, new BasicFileInfo
+            await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
             {
                 Length = fs.Length,
                 Name = Path.GetFileName(fs.Name),
@@ -385,31 +421,24 @@ namespace Chronos.P2P.Client
 
                 if (l)
                 {
-                    await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 30, cancelSource.Token)
-                            .ContinueWith(async re =>
-                            {
-                                var excr = await re;
-                                semaphore.Release();
-                                if (!excr)
-                                {
-                                    cancelSource.Cancel();
-                                }
-                            });
+                    
+                    var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 30, cancelSource.Token);
+                    semaphore.Release();
+                    if (!excr)
+                    {
+                        cancelSource.Cancel();
+                    }
                 }
                 else
                 {
-                    _ = Task.Run(() =>
+                    _ = Task.Run(async () =>
                     {
-                        _ = SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 30, cancelSource.Token)
-                            .ContinueWith(async re =>
-                            {
-                                var excr = await re;
-                                semaphore.Release();
-                                if (!excr)
-                                {
-                                    cancelSource.Cancel();
-                                }
-                            });
+                        var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 30, cancelSource.Token);
+                        semaphore.Release();
+                        if (!excr)
+                        {
+                            cancelSource.Cancel();
+                        }
                     });
                 }
             }
@@ -566,7 +595,7 @@ namespace Chronos.P2P.Client
             return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, 3, token);
         }
 
-        public virtual async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 10, CancellationToken? token = null)
+        public virtual async ValueTask<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 10, CancellationToken? token = null)
         {
             Stopwatch? stopwatch = null;
             if (rtts.Count < avgNum)
