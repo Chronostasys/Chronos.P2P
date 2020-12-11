@@ -16,70 +16,36 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public struct UdpMsg
-    {
-        public byte[] Data { get; init; }
-        public IPEndPoint Ep { get; init; }
-        public TaskCompletionSource? SendTask { get; init; }
-    }
-    public class MsgQueue<T>
-    {
-        ConcurrentQueue<T> queue = new();
-        SemaphoreSlim semaphore = new(0);
-        public Task WaitDataAsync()
-        {
-            return semaphore.WaitAsync();
-        }
-
-        public async Task<T> DequeueAsync()
-        {
-            await semaphore.WaitAsync();
-            while (true)
-            {
-                if (queue.TryDequeue(out var result))
-                {
-                    return result;
-                }
-            }
-        }
-        public void Enqueue(T result)
-        {
-            semaphore.Release();
-            queue.Enqueue(result);
-        }
-
-
-    }
     public class Peer : IDisposable
     {
         #region Fields
 
-        int sendTimeOut = 1000;
-        SemaphoreSlim semaphore = new(concurrentLevel);
-        long successMsg = 0;
-        long totalMsg = 0;
-        ConcurrentQueue<long> rtts = new();
-        const int avgNum = 1000;
-        private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
+        private const int avgNum = 1000;
         private const int concurrentLevel = 20;
+        private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new();
+        private MsgQueue<UdpMsg> msgs = new();
         private PeerInfo? peer;
-        public bool IsPeerConnected { get; private set; } = false;
         private int pingCount = 10;
-        public int Port { get; }
+        private ConcurrentQueue<long> rtts = new();
+        private SemaphoreSlim semaphore = new(concurrentLevel);
+        private int sendTimeOut = 1000;
         private P2PServer server;
         private IPEndPoint serverEP;
+        private long successMsg = 0;
         private CancellationTokenSource tokenSource = new();
+        private long totalMsg = 0;
         private UdpClient udpClient;
         internal const int bufferLen = 40000;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
-        MsgQueue<UdpMsg> msgs = new();
+        public bool IsPeerConnected { get; private set; } = false;
+        public int Port { get; }
 
         #endregion Fields
 
@@ -97,14 +63,12 @@ namespace Chronos.P2P.Client
 
         #region Properties
 
-        public PeerInfo? RmotePeer => peer;
         public Guid ID { get; }
-
         public IEnumerable<PeerInnerEP> LocalEP { get; }
-
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo>? Peers { get; private set; }
+        public PeerInfo? RmotePeer => peer;
 
         #endregion Properties
 
@@ -128,29 +92,6 @@ namespace Chronos.P2P.Client
         }
 
         #region Workers
-
-        private Task StartSendTask()
-        {
-            return StartQueuedTask(msgs, async msg =>
-            {
-                await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
-                if (msg.SendTask is not null)
-                {
-                    msg.SendTask.SetResult();
-                }
-            });
-        }
-        private Task StartQueuedTask<T>(MsgQueue<T> msgQueue, Func<T, Task> processor)
-        {
-            return Task.Run(async () =>
-            {
-                while (true)
-                {
-                    var msg = await msgQueue.DequeueAsync();
-                    await processor(msg);
-                }
-            });
-        }
 
         private Task StartBroadCast()
             => Task.Run(async () =>
@@ -249,6 +190,18 @@ namespace Chronos.P2P.Client
                 }
             });
 
+        private Task StartQueuedTask<T>(MsgQueue<T> msgQueue, Func<T, Task> processor)
+        {
+            return Task.Run(async () =>
+            {
+                while (true)
+                {
+                    var msg = await msgQueue.DequeueAsync();
+                    await processor(msg);
+                }
+            });
+        }
+
         private Task StartReceiveData()
             => Task.Run(async () =>
             {
@@ -286,6 +239,18 @@ namespace Chronos.P2P.Client
                 }
                 await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
             });
+
+        private Task StartSendTask()
+        {
+            return StartQueuedTask(msgs, async msg =>
+            {
+                await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                if (msg.SendTask is not null)
+                {
+                    msg.SendTask.SetResult();
+                }
+            });
+        }
 
         #endregion Workers
 
@@ -355,7 +320,6 @@ namespace Chronos.P2P.Client
                         }
                     })
                 };
-
             }
             await SendDataToPeerReliableAsync((int)CallMethods.FileHandShakeCallback, new FileTransferHandShakeResult
             {
@@ -379,13 +343,11 @@ namespace Chronos.P2P.Client
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
             async Task ProcessSliceAsync(DataSlice slice)
             {
-                
                 currentHead = slice.No;
                 FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
                 if (slice.No % 1000 == 0)
                 {
-                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100), 5}%");
-
+                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100),5}%");
                 }
                 if (slice.Last)
                 {
@@ -471,9 +433,8 @@ namespace Chronos.P2P.Client
                             });
                     });
                 }
-                
             }
-            Console.WriteLine($"Send complete. Lost = {(1 - (double)successMsg / totalMsg)* 100}%");
+            Console.WriteLine($"Send complete. Lost = {(1 - (double)successMsg / totalMsg) * 100}%");
             Console.WriteLine($"Auto adjusted timeout: {sendTimeOut}ms");
         }
 
@@ -625,10 +586,11 @@ namespace Chronos.P2P.Client
         {
             return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, 3, token);
         }
+
         public virtual async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 10, CancellationToken? token = null)
         {
             Stopwatch? stopwatch = null;
-            if (rtts.Count<avgNum)
+            if (rtts.Count < avgNum)
             {
                 stopwatch = new();
             }
@@ -645,7 +607,7 @@ namespace Chronos.P2P.Client
                 token?.ThrowIfCancellationRequested();
                 var ts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 Interlocked.Increment(ref totalMsg);
-                msgs.Enqueue(new UdpMsg 
+                msgs.Enqueue(new UdpMsg
                 {
                     Data = bytes,
                     Ep = peer!.OuterEP.ToIPEP(),
@@ -662,7 +624,6 @@ namespace Chronos.P2P.Client
                     {
                         stopwatch!.Start();
                     }
-
                 }
                 var t = await await Task.WhenAny(AckTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
                 {
@@ -676,9 +637,8 @@ namespace Chronos.P2P.Client
                         rtts.Enqueue(stopwatch!.ElapsedMilliseconds);
                         if (rtts.Count == avgNum)
                         {
-                            sendTimeOut = (int)rtts.OrderBy(i => i).Take((int)(0.98 * rtts.Count)).Max()*2;
-                            //sendTimeOut = (int)(rtts.Average() * 10);
-                            //rtts.TryDequeue(out var re);
+                            sendTimeOut = (int)rtts.OrderBy(i => i)
+                                .Take((int)(0.98 * rtts.Count)).Max() * 2;
                         }
                     }
                     Interlocked.Increment(ref successMsg);
@@ -690,6 +650,7 @@ namespace Chronos.P2P.Client
             AckTasks.TryRemove(reqId, out var taskCompletionSource);
             return false;
         }
+
         #endregion Send Data
 
         #region User Interface
