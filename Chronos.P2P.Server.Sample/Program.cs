@@ -51,7 +51,7 @@ namespace Chronos.P2P.Server.Sample
                 Console.WriteLine("Peer connectd!");
                 while (true)
                 {
-                    await peer.SendFileAsync(Console.ReadLine());
+                    await peer.SendFileAsync(Console.ReadLine(), int.Parse(Console.ReadLine()));
                 }
             }
         }

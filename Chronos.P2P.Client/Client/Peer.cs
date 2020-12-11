@@ -21,7 +21,6 @@ namespace Chronos.P2P.Client
         #region Fields
 
         private const int avgNum = 1000;
-        private const int concurrentLevel = 20;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
         private long currentHead = -1;
         private ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
@@ -32,7 +31,6 @@ namespace Chronos.P2P.Client
         private PeerInfo? peer;
         private int pingCount = 10;
         private ConcurrentQueue<long> rtts = new();
-        private SemaphoreSlim semaphore = new(concurrentLevel);
         private int sendTimeOut = 1000;
         private P2PServer server;
         private IPEndPoint serverEP;
@@ -355,13 +353,16 @@ namespace Chronos.P2P.Client
                 }
             }
             await semaphoreSlim.WaitAsync();
+            var sliceInfo = new DataSliceInfo { SessionId = dataSlice.SessionId };
             if (currentHead == dataSlice.No - 1)
             {
                 await ProcessSliceAsync(dataSlice);
-                while (slices.TryRemove(new DataSliceInfo { No = ++dataSlice.No, SessionId = dataSlice.SessionId },
+                sliceInfo.No = ++dataSlice.No;
+                while (slices.TryRemove(sliceInfo,
                     out var slice))
                 {
                     await ProcessSliceAsync(slice);
+                    sliceInfo.No++;
                 }
             }
             else
@@ -371,9 +372,9 @@ namespace Chronos.P2P.Client
             semaphoreSlim.Release();
         }
 
-        public async Task SendFileAsync(string location)
+        public async Task SendFileAsync(string location, int concurrentLevel = 3)
         {
-            Console.WriteLine(semaphore.CurrentCount);
+            using SemaphoreSlim semaphore = new(concurrentLevel);
             using var fs = File.OpenRead(location);
             var sessionId = Guid.NewGuid();
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -638,7 +639,7 @@ namespace Chronos.P2P.Client
                         if (rtts.Count == avgNum)
                         {
                             sendTimeOut = (int)rtts.OrderBy(i => i)
-                                .Take((int)(0.98 * rtts.Count)).Max() * 2;
+                                .Take((int)(0.98 * rtts.Count)).Max() * 2 + 1;
                         }
                     }
                     Interlocked.Increment(ref successMsg);
