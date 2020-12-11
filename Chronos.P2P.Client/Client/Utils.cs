@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
@@ -19,6 +20,17 @@ namespace Chronos.P2P.Client
                 broadcastAddress[i] = (byte)(ipAdressBytes[i] & (subnetMaskBytes[i]));
             }
             return new IPAddress(broadcastAddress);
+        }
+        public static Task StartQueuedTask<T>(MsgQueue<T> msgQueue, Func<T, Task> processor)
+        {
+            return Task.Run(async () =>
+            {
+                while (true)
+                {
+                    var msg = await msgQueue.DequeueAsync();
+                    await processor(msg);
+                }
+            });
         }
 
         public static bool IsInSameSubnet(this IPAddress address2, IPAddress address, IPAddress subnetMask)

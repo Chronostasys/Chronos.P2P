@@ -13,6 +13,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using static Chronos.P2P.Client.Utils;
 
 namespace Chronos.P2P.Client
 {
@@ -27,7 +28,7 @@ namespace Chronos.P2P.Client
         private DateTime lastConnectTime = DateTime.UtcNow;
         private DateTime lastPunchTime = DateTime.UtcNow;
         private CancellationTokenSource lifeTokenSource = new();
-        private MsgQueue<UdpMsg> msgs = new();
+        private MsgQueue<UdpMsg> msgs => server.msgs;
         private PeerInfo? peer;
         private int pingCount = 10;
         private ConcurrentQueue<long> rtts = new();
@@ -86,7 +87,6 @@ namespace Chronos.P2P.Client
             });
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
-            _ = StartSendTask();
         }
 
         #region Workers
@@ -188,17 +188,6 @@ namespace Chronos.P2P.Client
                 }
             });
 
-        private Task StartQueuedTask<T>(MsgQueue<T> msgQueue, Func<T, Task> processor)
-        {
-            return Task.Run(async () =>
-            {
-                while (true)
-                {
-                    var msg = await msgQueue.DequeueAsync();
-                    await processor(msg);
-                }
-            });
-        }
 
         private Task StartReceiveData()
             => Task.Run(async () =>
@@ -238,17 +227,6 @@ namespace Chronos.P2P.Client
                 await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
             });
 
-        private Task StartSendTask()
-        {
-            return StartQueuedTask(msgs, async msg =>
-            {
-                await udpClient.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
-                if (msg.SendTask is not null)
-                {
-                    msg.SendTask.SetResult();
-                }
-            });
-        }
 
         #endregion Workers
 
