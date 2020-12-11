@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Chronos.P2P.Test
 {
@@ -79,5 +80,12 @@ namespace Chronos.P2P.Test
             Assert.True(server.guidDic.ContainsKey(id));
             server.Dispose();
         }
+        [Fact]
+        public void TestProcessRequestCreateNewThread()
+        {
+            SetUpTest();
+            _ = server.ProcessRequestAsync(new UdpReceiveResult());
+        }
+
     }
 }
