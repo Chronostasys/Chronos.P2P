@@ -20,6 +20,7 @@ namespace Chronos.P2P.Server
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
         private ServiceCollection services;
+        internal MsgQueue<UdpMsg> msgs = new();
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         internal Dictionary<int, TypeData> requestHandlers;
 
@@ -37,6 +38,19 @@ namespace Chronos.P2P.Server
             listener = client;
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
+            _ = StartSendTask();
+        }
+
+        private Task StartSendTask()
+        {
+            return Utils.StartQueuedTask(msgs, async msg =>
+            {
+                await listener.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                if (msg.SendTask is not null)
+                {
+                    msg.SendTask.SetResult();
+                }
+            });
         }
 
         /// <summary>
@@ -81,7 +95,11 @@ namespace Chronos.P2P.Server
                     Method = (int)CallMethods.Ack,
                     Data = dto.ReqId
                 });
-                await listener.SendAsync(bytes, bytes.Length, re.RemoteEndPoint);
+                msgs.Enqueue(new UdpMsg
+                {
+                    Data = bytes,
+                    Ep = re.RemoteEndPoint
+                });
                 if (guidDic.ContainsKey(dto.ReqId))
                 {
                     // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。

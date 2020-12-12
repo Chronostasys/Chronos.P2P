@@ -9,6 +9,11 @@ namespace Chronos.P2P.Server
     /// </summary>
     public class ServerHandlers
     {
+        P2PServer server;
+        public ServerHandlers(P2PServer _server)
+        {
+            server = _server;
+        }
         [Handler((int)CallMethods.Connect)]
         public void HandleConnect(UdpContext context)
         {
@@ -29,7 +34,11 @@ namespace Chronos.P2P.Server
             Console.WriteLine($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
 
             var sendbytes = JsonSerializer.SerializeToUtf8Bytes(peers);
-            context.UdpClient.SendAsync(sendbytes, sendbytes.Length, remote);
+            server.msgs.Enqueue(new UdpMsg
+            {
+                Data = sendbytes,
+                Ep = remote
+            });
         }
     }
 }

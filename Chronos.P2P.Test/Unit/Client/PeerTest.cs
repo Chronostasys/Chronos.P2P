@@ -22,7 +22,7 @@ namespace Chronos.P2P.Test
             var mock = new Mock<Peer>(() => new Peer(9000, new(1000, 1000), ""));
             mock.Setup(p => p.SendDataToPeerReliableAsync(It.IsAny<int>(), It.IsAny<FileTransferHandShakeResult>(),
                     It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                .Returns(Task.FromResult(true));
+                .Returns(ValueTask.FromResult(true));
             peer = mock.Object;
         }
 
@@ -50,7 +50,7 @@ namespace Chronos.P2P.Test
         [Fact]
         public async Task TestTransferRequested()
         {
-            await peer.FileTransferRequested(new BasicFileInfo
+            await peer.StreamTransferRequested(new BasicFileInfo
             {
                 Length = 10 * Peer.bufferLen,
                 Name = $"{Guid.NewGuid()}.test",

@@ -36,16 +36,16 @@ namespace Chronos.P2P.Client
             });
         }
 
-        [Handler((int)CallMethods.FileHandShakeCallback)]
-        public void FileHandShakeCallbackHandler(UdpContext context)
+        [Handler((int)CallMethods.StreamHandShakeCallback)]
+        public void StreamHandShakeCallbackHandler(UdpContext context)
         {
-            peer.OnFileHandshakeResult(context);
+            peer.OnStreamHandshakeResult(context);
         }
 
-        [Handler((int)CallMethods.FileHandShake)]
-        public void FileHandShakeHandler(UdpContext context)
+        [Handler((int)CallMethods.StreamHandShake)]
+        public void StreamHandShakeHandler(UdpContext context)
         {
-            _ = peer.FileTransferRequested(context.GetData<BasicFileInfo>().Data);
+            _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>().Data);
         }
 
         [Handler((int)CallMethods.P2PPing)]
