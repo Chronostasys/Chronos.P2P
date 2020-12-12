@@ -433,11 +433,7 @@ namespace Chronos.P2P.Client
                     Last = false,
                     SessionId = sessionId
                 };
-                var excr = await SendDataToPeerReliableAsync(callMethod, slice, 30, cancelSource.Token);
-                if (!excr)
-                {
-                    cancelSource.Cancel();
-                }
+                _ = SendDataToPeerAsync(callMethod, slice);
             }
             Console.WriteLine($"Send complete. Lost = {(1 - (double)successMsg / totalMsg) * 100}%");
             Console.WriteLine($"Auto adjusted timeout: {sendTimeOut}ms");
