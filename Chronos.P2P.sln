@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30709.64
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Client", "Chronos.P2P.Client\Chronos.P2P.Client.csproj", "{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Client", "src\Chronos.P2P.Client\Chronos.P2P.Client.csproj", "{B68BD1FD-79F2-403B-A044-45286424EA03}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Server.Sample", "Chronos.P2P.Server.Sample\Chronos.P2P.Server.Sample.csproj", "{F1D09A26-757D-4C73-9665-C518AFFC0F1A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Client.Audio", "src\Chronos.P2P.Client.Audio\Chronos.P2P.Client.Audio.csproj", "{BCD9EB72-CD28-43F7-9D12-77382D2B1E49}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Test", "Chronos.P2P.Test\Chronos.P2P.Test.csproj", "{32FF39FD-8D5E-41C0-AE2E-B973676CF8E6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Server.Sample", "src\Chronos.P2P.Server.Sample\Chronos.P2P.Server.Sample.csproj", "{D713DA1F-4CAC-4A7B-9C58-A53D1B9B0A9D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.P2P.Client.Audio", "Chronos.P2P.Client.Audio\Chronos.P2P.Client.Audio.csproj", "{B775707E-CB49-49BE-8A2E-90B1F4A36AF1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Test", "src\Chronos.P2P.Test\Chronos.P2P.Test.csproj", "{61322357-5FA6-49D4-AD65-3C505CC34C19}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,22 +17,22 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F87B79CB-E7E0-4AFC-895B-5FE5D56CA029}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F1D09A26-757D-4C73-9665-C518AFFC0F1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F1D09A26-757D-4C73-9665-C518AFFC0F1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F1D09A26-757D-4C73-9665-C518AFFC0F1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F1D09A26-757D-4C73-9665-C518AFFC0F1A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{32FF39FD-8D5E-41C0-AE2E-B973676CF8E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{32FF39FD-8D5E-41C0-AE2E-B973676CF8E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{32FF39FD-8D5E-41C0-AE2E-B973676CF8E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{32FF39FD-8D5E-41C0-AE2E-B973676CF8E6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B775707E-CB49-49BE-8A2E-90B1F4A36AF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B775707E-CB49-49BE-8A2E-90B1F4A36AF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B775707E-CB49-49BE-8A2E-90B1F4A36AF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B775707E-CB49-49BE-8A2E-90B1F4A36AF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B68BD1FD-79F2-403B-A044-45286424EA03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B68BD1FD-79F2-403B-A044-45286424EA03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B68BD1FD-79F2-403B-A044-45286424EA03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B68BD1FD-79F2-403B-A044-45286424EA03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCD9EB72-CD28-43F7-9D12-77382D2B1E49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCD9EB72-CD28-43F7-9D12-77382D2B1E49}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCD9EB72-CD28-43F7-9D12-77382D2B1E49}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCD9EB72-CD28-43F7-9D12-77382D2B1E49}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D713DA1F-4CAC-4A7B-9C58-A53D1B9B0A9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D713DA1F-4CAC-4A7B-9C58-A53D1B9B0A9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D713DA1F-4CAC-4A7B-9C58-A53D1B9B0A9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D713DA1F-4CAC-4A7B-9C58-A53D1B9B0A9D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

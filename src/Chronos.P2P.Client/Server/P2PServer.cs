@@ -13,13 +13,13 @@ namespace Chronos.P2P.Server
     /// <summary>
     /// 一个简单udp服务器
     /// </summary>
-    public class P2PServer : IDisposable
+    public class P2PServer : IRequestHandlerCollection, IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
-        private ServiceCollection services;
+        internal ServiceCollection services;
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         internal MsgQueue<UdpMsg> msgs = new();
         internal Dictionary<int, TypeData> requestHandlers;
@@ -51,6 +51,21 @@ namespace Chronos.P2P.Server
                     msg.SendTask.SetResult();
                 }
             });
+        }
+
+        public static P2PServer BuildWithStartUp<T>(int port = 5000)
+            where T : IStartUp, new()
+        {
+            return BuildWithStartUp<T>(new UdpClient(new IPEndPoint(IPAddress.Any, port)));
+        }
+        public static P2PServer BuildWithStartUp<T>(UdpClient client)
+            where T : IStartUp, new()
+        {
+            var server = new P2PServer(client);
+            var startUp = new T();
+            startUp.Configure(server);
+            server.ConfigureServices(startUp.ConfigureServices);
+            return server;
         }
 
         /// <summary>

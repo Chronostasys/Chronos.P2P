@@ -72,8 +72,8 @@ namespace Chronos.P2P.Test
             peer1.PeerConnected += Peer_PeerConnected;
             peer2.PeerConnected += Peer_PeerConnected;
 
-            peer1.AddHandlers<ClientHandler>();
-            peer2.AddHandlers<ClientHandler>();
+            peer1.AddHandler<ClientHandler>();
+            peer2.AddHandler<ClientHandler>();
             Assert.Null(peer1.Peers);
             Assert.Null(peer2.Peers);
             Console.WriteLine("start peer 1");
