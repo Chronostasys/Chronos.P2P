@@ -9,11 +9,13 @@ namespace Chronos.P2P.Server
     /// </summary>
     public class ServerHandlers
     {
-        P2PServer server;
+        private P2PServer server;
+
         public ServerHandlers(P2PServer _server)
         {
             server = _server;
         }
+
         [Handler((int)CallMethods.Connect)]
         public void HandleConnect(UdpContext context)
         {

@@ -36,18 +36,6 @@ namespace Chronos.P2P.Client
             });
         }
 
-        [Handler((int)CallMethods.StreamHandShakeCallback)]
-        public void StreamHandShakeCallbackHandler(UdpContext context)
-        {
-            peer.OnStreamHandshakeResult(context);
-        }
-
-        [Handler((int)CallMethods.StreamHandShake)]
-        public void StreamHandShakeHandler(UdpContext context)
-        {
-            _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>().Data);
-        }
-
         [Handler((int)CallMethods.P2PPing)]
         public void PingHandeler(UdpContext context)
         {
@@ -59,6 +47,18 @@ namespace Chronos.P2P.Client
         {
             Console.WriteLine($"peer {peer.OuterEp?.ToIPEP()} punch data received");
             peer.PunchDataReceived(context);
+        }
+
+        [Handler((int)CallMethods.StreamHandShakeCallback)]
+        public void StreamHandShakeCallbackHandler(UdpContext context)
+        {
+            peer.OnStreamHandshakeResult(context);
+        }
+
+        [Handler((int)CallMethods.StreamHandShake)]
+        public void StreamHandShakeHandler(UdpContext context)
+        {
+            _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>().Data);
         }
     }
 }

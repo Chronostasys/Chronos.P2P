@@ -21,6 +21,15 @@ namespace Chronos.P2P.Client
             }
             return new IPAddress(broadcastAddress);
         }
+
+        public static bool IsInSameSubnet(this IPAddress address2, IPAddress address, IPAddress subnetMask)
+        {
+            IPAddress network1 = address.GetNetworkAddress(subnetMask);
+            IPAddress network2 = address2.GetNetworkAddress(subnetMask);
+
+            return network1.Equals(network2);
+        }
+
         public static Task StartQueuedTask<T>(MsgQueue<T> msgQueue, Func<T, Task> processor)
         {
             return Task.Run(async () =>
@@ -31,14 +40,6 @@ namespace Chronos.P2P.Client
                     await processor(msg);
                 }
             });
-        }
-
-        public static bool IsInSameSubnet(this IPAddress address2, IPAddress address, IPAddress subnetMask)
-        {
-            IPAddress network1 = address.GetNetworkAddress(subnetMask);
-            IPAddress network2 = address2.GetNetworkAddress(subnetMask);
-
-            return network1.Equals(network2);
         }
     }
 }

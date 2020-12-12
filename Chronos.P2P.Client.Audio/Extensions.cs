@@ -29,7 +29,7 @@ namespace Chronos.P2P.Client.Audio
             {
                 try
                 {
-                    wo.DesiredLatency = 100;
+                    wo.DesiredLatency = 400;
                     wo.Init(provider);
                     wo.Play();
                 }
@@ -51,7 +51,7 @@ namespace Chronos.P2P.Client.Audio
             _ = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
             var capture = new WaveInEvent();
             capture.WaveFormat = new WaveFormat();
-            capture.BufferMilliseconds = 25;
+            capture.BufferMilliseconds = 100;
             capture.DataAvailable += async (object sender, WaveInEventArgs e) =>
             {
                 await channel.Writer.WaitToWriteAsync();

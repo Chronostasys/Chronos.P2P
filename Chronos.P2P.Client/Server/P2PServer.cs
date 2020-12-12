@@ -20,8 +20,8 @@ namespace Chronos.P2P.Server
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
         private ServiceCollection services;
-        internal MsgQueue<UdpMsg> msgs = new();
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
+        internal MsgQueue<UdpMsg> msgs = new();
         internal Dictionary<int, TypeData> requestHandlers;
 
         public event EventHandler? AfterDataHandled;
