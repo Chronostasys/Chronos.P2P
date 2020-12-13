@@ -10,14 +10,14 @@ namespace Chronos.P2P.Client.Audio
     public class AudioLiveStreamHandler
     {
         static BufferedWaveProvider provider = new BufferedWaveProvider(new WaveFormat());
-        static WaveOutEvent wo = null;
+        static DirectSoundOut wo = null;
         static object key = new();
 
         public AudioLiveStreamHandler(Peer peer)
         {
             if (wo is null)
             {
-                wo = new WaveOutEvent();
+                wo = new DirectSoundOut(50);
             }
         }
         [Handler((int)CallMethods.AudioDataSlice)]
@@ -30,7 +30,6 @@ namespace Chronos.P2P.Client.Audio
                 provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
                 if (wo.PlaybackState is not PlaybackState.Playing)
                 {
-                    wo.DesiredLatency = 400;
                     wo.Init(provider);
                     wo.Play();
                 }
@@ -40,18 +39,17 @@ namespace Chronos.P2P.Client.Audio
     }
     public static class Extensions
     {
-        public static void StartSendLiveAudio(this Peer peer, string name)
+        public static async Task StartSendLiveAudio(this Peer peer, string name)
         {
             peer.AddHandler<AudioLiveStreamHandler>();
-            var channel = Channel.CreateUnbounded<(byte[], int)>();
-            _ = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
+            var channel = new DatasliceSender();
+            await peer.RequestSendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
             var capture = new WaveInEvent();
             capture.WaveFormat = new WaveFormat();
             capture.BufferMilliseconds = 100;
-            capture.DataAvailable += async (object sender, WaveInEventArgs e) =>
+            capture.DataAvailable +=  (object sender, WaveInEventArgs e) =>
             {
-                await channel.Writer.WaitToWriteAsync();
-                await channel.Writer.WriteAsync((e.Buffer, e.BytesRecorded));
+                channel.Send(e.Buffer, e.BytesRecorded);
             };
             capture.StartRecording();
         }
