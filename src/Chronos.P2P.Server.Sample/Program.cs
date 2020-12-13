@@ -28,8 +28,8 @@ namespace Chronos.P2P.Server.Sample
                 var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
                 peer.PeersDataReceived += Peer1_PeersDataReceived;
                 peer.PeerConnected += Peer1_PeerConnected;
-                peer.AddHandlers<ClientHandler>();
-                peer.AddHandlers<AudioLiveStreamHandler>();
+                peer.AddHandler<ClientHandler>();
+                peer.AddHandler<AudioLiveStreamHandler>();
                 _ = peer.StartPeer();
 
                 //peer1.StartPeer();

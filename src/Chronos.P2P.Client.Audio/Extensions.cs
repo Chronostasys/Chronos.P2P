@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client.Audio
     {
         public static void StartSendLiveAudio(this Peer peer, string name)
         {
-            peer.AddHandlers<AudioLiveStreamHandler>();
+            peer.AddHandler<AudioLiveStreamHandler>();
             var channel = Channel.CreateUnbounded<(byte[], int)>();
             _ = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
             var capture = new WaveInEvent();

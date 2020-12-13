@@ -1,9 +1,9 @@
 Test:
-  - Chronos.P2P.Test/**/*
+  - src/Chronos.P2P.Test/**/*
 
 Peer:
-  - Chronos.P2P.Client/Client/**/*
+  - src/Chronos.P2P.Client/Client/**/*
 
 
 Server:
-  - Chronos.P2P.Client/Server/**/*
+  - src/Chronos.P2P.Client/Server/**/*

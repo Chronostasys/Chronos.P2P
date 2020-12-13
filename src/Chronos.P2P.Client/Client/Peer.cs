@@ -18,7 +18,7 @@ using static Chronos.P2P.Client.Utils;
 
 namespace Chronos.P2P.Client
 {
-    public class Peer : IDisposable
+    public class Peer : IRequestHandlerCollection, IDisposable
     {
         #region Fields
 
@@ -80,10 +80,7 @@ namespace Chronos.P2P.Client
             LocalEP = GetEps();
             server = new P2PServer(udpClient);
             server.AddHandler<PeerDefaultHandlers>();
-            server.ConfigureServices(services =>
-            {
-                services.AddSingleton(this);
-            });
+            server.services.AddSingleton(this);
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
         }
@@ -648,7 +645,18 @@ namespace Chronos.P2P.Client
 
         #region User Interface
 
-        public void AddHandlers<T>() where T : class
+        public static Peer BuildWithStartUp<T>(int port, IPEndPoint serverEP, string? name = null)
+            where T : IStartUp, new()
+        {
+            var peer = new Peer(port, serverEP, name);
+            var startUp = new T();
+            startUp.Configure(peer);
+            peer.ConfigureServices(startUp.ConfigureServices);
+            return peer;
+        }
+        public void ConfigureServices(Action<ServiceCollection> configureAction)
+            => server.ConfigureServices(configureAction);
+        public void AddHandler<T>() where T : class
             => server.AddHandler<T>();
 
         public void Cancel()
