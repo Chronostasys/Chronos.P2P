@@ -1,6 +1,7 @@
 ﻿using Chronos.P2P.Server;
 using NAudio.Wave;
 using System;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -10,6 +11,7 @@ namespace Chronos.P2P.Client.Audio
     {
         static BufferedWaveProvider provider = new BufferedWaveProvider(new WaveFormat());
         static WaveOutEvent wo = null;
+        static object key = new();
 
         public AudioLiveStreamHandler(Peer peer)
         {
@@ -22,21 +24,15 @@ namespace Chronos.P2P.Client.Audio
         public void OnAudioDataSliceGet(UdpContext context)
         {
             var slice = context.GetData<DataSlice>().Data;
-            Console.WriteLine(slice.No);
             provider.DiscardOnBufferOverflow = true;
-            provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
-            if (wo.PlaybackState is not PlaybackState.Playing)
+            lock (key)
             {
-                try
+                provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
+                if (wo.PlaybackState is not PlaybackState.Playing)
                 {
                     wo.DesiredLatency = 400;
                     wo.Init(provider);
                     wo.Play();
-                }
-                catch (Exception)
-                {
-
-                    throw;
                 }
             }
             
