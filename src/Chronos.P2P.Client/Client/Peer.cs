@@ -18,6 +18,29 @@ using static Chronos.P2P.Client.Utils;
 
 namespace Chronos.P2P.Client
 {
+    public class DatasliceSender
+    {
+        Guid sessionId;
+        Action<DataSlice>? sendAction;
+        internal void SetUp(Action<DataSlice> action, Guid guid)
+        {
+            sendAction = action;
+            sessionId = guid;
+        }
+
+        public void Send(byte[] data, int len)
+        {
+            var slice = new DataSlice
+            {
+                No = -1,
+                Slice = data,
+                Len = len,
+                Last = false,
+                SessionId = sessionId
+            };
+            sendAction!(slice);
+        }
+    }
     public class Peer : IRequestHandlerCollection, IDisposable
     {
         #region Fields
@@ -359,7 +382,11 @@ namespace Chronos.P2P.Client
                 Name = Path.GetFileName(fs.Name),
                 SessionId = sessionId
             });
-            await FileAcceptTasks[sessionId].Task;
+            var acc = await FileAcceptTasks[sessionId].Task;
+            if (!acc)
+            {
+                throw new OperationCanceledException("Remote refused!");
+            }
             var cancelSource = new CancellationTokenSource();
             var total = fs.Length / bufferLen;
             Console.WriteLine($"Slice count: {total}");
@@ -406,9 +433,13 @@ namespace Chronos.P2P.Client
             Console.WriteLine($"Auto adjusted timeout: {sendTimeOut}ms");
         }
 
-        public async Task SendLiveStreamAsync(Channel<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
+        public async Task<bool> RequestSendLiveStreamAsync(DatasliceSender sender, string name, int callMethod, CancellationToken token = default)
         {
             var sessionId = Guid.NewGuid();
+            sender.SetUp(slice =>
+            {
+                SendDataToPeerAsync(callMethod, slice);
+            }, sessionId);
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
             {
@@ -416,24 +447,9 @@ namespace Chronos.P2P.Client
                 Name = name,
                 SessionId = sessionId
             });
-            await FileAcceptTasks[sessionId].Task;
-            var cancelSource = new CancellationTokenSource();
-            int no = 0;
-            while (await channel.Reader.WaitToReadAsync(token))
-            {
-                var (buffer, len) = await channel.Reader.ReadAsync(token);
-                var slice = new DataSlice
-                {
-                    No = no++,
-                    Slice = buffer,
-                    Len = len,
-                    Last = false,
-                    SessionId = sessionId
-                };
-                _ = SendDataToPeerAsync(callMethod, slice);
-            }
-            Console.WriteLine($"Send complete. Lost = {(1 - (double)successMsg / totalMsg) * 100}%");
-            Console.WriteLine($"Auto adjusted timeout: {sendTimeOut}ms");
+            return await FileAcceptTasks[sessionId].Task;
+
+
         }
 
         #endregion File Transfer
