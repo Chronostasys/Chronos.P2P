@@ -19,10 +19,11 @@ namespace Chronos.P2P.Server
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
-        internal ServiceCollection services;
+        internal ConcurrentDictionary<PeerEP, (PeerEP, DateTime)> connectionDic = new();
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         internal MsgQueue<UdpMsg> msgs = new();
         internal Dictionary<int, TypeData> requestHandlers;
+        internal ServiceCollection services;
 
         public event EventHandler? AfterDataHandled;
 
@@ -53,21 +54,6 @@ namespace Chronos.P2P.Server
             });
         }
 
-        public static P2PServer BuildWithStartUp<T>(int port = 5000)
-            where T : IStartUp, new()
-        {
-            return BuildWithStartUp<T>(new UdpClient(new IPEndPoint(IPAddress.Any, port)));
-        }
-        public static P2PServer BuildWithStartUp<T>(UdpClient client)
-            where T : IStartUp, new()
-        {
-            var server = new P2PServer(client);
-            var startUp = new T();
-            startUp.Configure(server);
-            server.ConfigureServices(startUp.ConfigureServices);
-            return server;
-        }
-
         /// <summary>
         /// 调用请求对应的处理函数
         /// </summary>
@@ -89,6 +75,7 @@ namespace Chronos.P2P.Server
         /// <returns></returns>
         internal object GetInstance(TypeData data)
         {
+            serviceProvider = serviceProvider ?? services.BuildServiceProvider();
             List<object> args = new List<object>();
             foreach (var item in data.Parameters)
             {
@@ -125,6 +112,22 @@ namespace Chronos.P2P.Server
             }
             CallHandler(td, new UdpContext(re.Buffer, peers, re.RemoteEndPoint, listener));
             AfterDataHandled?.Invoke(this, new());
+        }
+
+        public static P2PServer BuildWithStartUp<T>(int port = 5000)
+                                    where T : IStartUp, new()
+        {
+            return BuildWithStartUp<T>(new UdpClient(new IPEndPoint(IPAddress.Any, port)));
+        }
+
+        public static P2PServer BuildWithStartUp<T>(UdpClient client)
+            where T : IStartUp, new()
+        {
+            var server = new P2PServer(client);
+            var startUp = new T();
+            startUp.Configure(server);
+            server.ConfigureServices(startUp.ConfigureServices);
+            return server;
         }
 
         /// <summary>
@@ -195,6 +198,13 @@ namespace Chronos.P2P.Server
                         if ((DateTime.UtcNow - item.Value).TotalSeconds > 10)
                         {
                             guidDic.TryRemove(item);
+                        }
+                    }
+                    foreach (var item in connectionDic)
+                    {
+                        if ((DateTime.UtcNow - item.Value.Item2).TotalSeconds > 10)
+                        {
+                            connectionDic.TryRemove(item);
                         }
                     }
                 }
