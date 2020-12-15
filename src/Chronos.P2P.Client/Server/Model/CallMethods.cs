@@ -14,6 +14,11 @@
         DataSlice,
         StreamHandShake,
         StreamHandShakeCallback,
-        AudioDataSlice
+        AudioDataSlice,
+        ConnectionHandShake,
+        ConnectionHandShakeReply,
+        ConnectionRequestCallback,
+        PeerConnectionRequest,
+        StartPunching
     }
 }

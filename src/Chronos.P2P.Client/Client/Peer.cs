@@ -135,9 +135,22 @@ namespace Chronos.P2P.Client
                 }
             });
 
-        private Task StartHolePunching()
+        internal Task StartHolePunching()
             => Task.Run(async () =>
             {
+                if (peer!.OuterEP.IP == OuterEp!.IP)
+                {
+                    foreach (var item in LocalEP)
+                    {
+                        foreach (var item1 in peer.InnerEP)
+                        {
+                            if (item.IsInSameSubNet(item1))
+                            {
+                                peer.OuterEP = item1;
+                            }
+                        }
+                    }
+                }
                 while (true)
                 {
                     if (peer is not null)
@@ -234,7 +247,7 @@ namespace Chronos.P2P.Client
                         }
                         catch (Exception)
                         {
-                            continue;
+                            await server.ProcessRequestAsync(new UdpReceiveResult(re.Buffer, re.RemoteEndPoint));
                         }
                     }
                     else
@@ -455,6 +468,34 @@ namespace Chronos.P2P.Client
         #endregion File Transfer
 
         #region Handlers
+        internal void OnConnectionRequested(PeerInfo requester)
+        {
+            var re = OnPeerInvited?.Invoke(requester);
+            if (!re.HasValue||re.Value)
+            {
+                Console.WriteLine("accept!");
+                peer = requester;
+
+                _ = SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReply
+                {
+                    Ep = requester.OuterEP,
+                    Acc = true
+                }, serverEP);
+            }
+            else
+            {
+                _ = SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReply
+                {
+                    Ep = requester.OuterEP,
+                    Acc = false
+                }, serverEP);
+            }
+        }
+        public Func<PeerInfo, bool>? OnPeerInvited;
+        internal void OnConnectionCallback(bool acc)
+        {
+            connectionHandshakeTask.TrySetResult(acc);
+        }
 
         private void Server_OnError(object? sender, byte[] e)
         {
@@ -573,6 +614,10 @@ namespace Chronos.P2P.Client
 
         public Task SendDataToPeerAsync<T>(int method, T data)
         {
+            return SendDataAsync(method, data, peer!.OuterEP.ToIPEP());
+        }
+        public Task SendDataAsync<T>(int method, T data, IPEndPoint ep)
+        {
             var t = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
             {
@@ -582,18 +627,22 @@ namespace Chronos.P2P.Client
             msgs.Enqueue(new UdpMsg
             {
                 Data = bytes,
-                Ep = peer!.OuterEP.ToIPEP(),
+                Ep = ep,
                 SendTask = t
             });
             return t.Task;
         }
 
-        public virtual async Task<bool> SendDataToPeerReliableAsync<T>(T data, CancellationToken? token = null)
+        public virtual ValueTask<bool> SendDataToPeerReliableAsync<T>(T data, CancellationToken? token = null)
         {
-            return await SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, 3, token);
+            return SendDataToPeerReliableAsync((int)CallMethods.P2PDataTransfer, data, 3, token);
         }
 
-        public virtual async ValueTask<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 10, CancellationToken? token = null)
+        public virtual ValueTask<bool> SendDataToPeerReliableAsync<T>(int method, T data, int retry = 10, CancellationToken? token = null)
+        {
+            return SendDataReliableAsync(method, data, peer!.OuterEP.ToIPEP(), retry, token);
+        }
+        public virtual async ValueTask<bool> SendDataReliableAsync<T>(int method, T data, IPEndPoint ep, int retry = 10, CancellationToken? token = null)
         {
             Stopwatch? stopwatch = null;
             if (rtts.Count < avgNum)
@@ -616,7 +665,7 @@ namespace Chronos.P2P.Client
                 msgs.Enqueue(new UdpMsg
                 {
                     Data = bytes,
-                    Ep = peer!.OuterEP.ToIPEP(),
+                    Ep = ep,
                     SendTask = ts
                 });
                 await ts.Task;
@@ -685,13 +734,18 @@ namespace Chronos.P2P.Client
             udpClient.Dispose();
         }
 
-        public void SetPeer(Guid id, bool inSubNet = false)
+        public async ValueTask SetPeer(Guid id, bool inSubNet = false)
         {
             if (peer is not null)
             {
                 return;
             }
             peer = Peers![id];
+            await SendDataReliableAsync((int)CallMethods.ConnectionHandShake, new ConnectHandshakeDto
+            {
+                Ep = peer.OuterEP,
+                Info = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() }
+            }, serverEP);
             // 自动切换至局域网内连接
             if (peer.OuterEP.IP == OuterEp!.IP || inSubNet)
             {
@@ -706,17 +760,29 @@ namespace Chronos.P2P.Client
                     }
                 }
             }
+            await connectionHandshakeTask.Task;
             Console.WriteLine($"Trying remote ep: {peer.OuterEP}");
         }
-
+        TaskCompletionSource<bool> connectionHandshakeTask = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task StartPeer()
         {
             var t = StartReceiveData();
             StartBroadCast();
-            StartHolePunching();
+            //StartHolePunching();
             return t;
         }
 
         #endregion User Interface
+    }
+    internal struct ConnectionReply
+    {
+        public PeerEP Ep { get; set; }
+        public bool Acc { get; set; }
+
+    }
+    internal struct ConnectHandshakeDto
+    {
+        public PeerEP Ep { get; set; }
+        public PeerInfo Info { get; set; }
     }
 }

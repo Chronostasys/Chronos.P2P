@@ -23,6 +23,7 @@ namespace Chronos.P2P.Server
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         internal MsgQueue<UdpMsg> msgs = new();
         internal Dictionary<int, TypeData> requestHandlers;
+        internal ConcurrentDictionary<PeerEP, (PeerEP, DateTime)> connectionDic = new();
 
         public event EventHandler? AfterDataHandled;
 
@@ -89,6 +90,7 @@ namespace Chronos.P2P.Server
         /// <returns></returns>
         internal object GetInstance(TypeData data)
         {
+            serviceProvider = serviceProvider ?? services.BuildServiceProvider();
             List<object> args = new List<object>();
             foreach (var item in data.Parameters)
             {
@@ -195,6 +197,13 @@ namespace Chronos.P2P.Server
                         if ((DateTime.UtcNow - item.Value).TotalSeconds > 10)
                         {
                             guidDic.TryRemove(item);
+                        }
+                    }
+                    foreach (var item in connectionDic)
+                    {
+                        if ((DateTime.UtcNow - item.Value.Item2).TotalSeconds > 10)
+                        {
+                            connectionDic.TryRemove(item);
                         }
                     }
                 }
