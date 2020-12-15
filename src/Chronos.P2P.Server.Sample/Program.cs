@@ -25,7 +25,7 @@ namespace Chronos.P2P.Server.Sample
                 Console.WriteLine("enter your port:");
 
                 var p = int.Parse(Console.ReadLine());
-                var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000)); /*new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));*/
+                var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000)); /*new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));*/
                 peer.PeersDataReceived += Peer1_PeersDataReceived;
                 peer.PeerConnected += Peer1_PeerConnected;
                 peer.AddHandler<ClientHandler>();
@@ -51,7 +51,7 @@ namespace Chronos.P2P.Server.Sample
                     }
                     Console.WriteLine("Enter the peer id you would like to communicate to (press enter to see available peer list):");
                 }
-                await peer.SetPeer(id, true);
+                await peer.SetPeer(id);
                 Console.WriteLine("Waiting for connection to establish...");
                 await connectionCompletionSource.Task;
             connected:

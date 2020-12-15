@@ -151,8 +151,27 @@ namespace Chronos.P2P.Client
                         }
                     }
                 }
+                int i = 0;
                 while (true)
                 {
+                    if (i>5)
+                    {
+                        i = 0;
+                        foreach (var item in LocalEP)
+                        {
+                            foreach (var item1 in peer!.InnerEP)
+                            {
+                                if (item.IsInSameSubNet(item1))
+                                {
+                                    peer.OuterEP = item1;
+                                    peer.InnerEP.Remove(item1);
+                                    Console.WriteLine($"trying new ep {item1}");
+                                    goto punch;
+                                }
+                            }
+                        }
+                    }
+                punch:
                     if (peer is not null)
                     {
                         if (IsPeerConnected)
@@ -172,6 +191,7 @@ namespace Chronos.P2P.Client
                         {
                             Console.WriteLine($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
                             await SendDataToPeerAsync((int)CallMethods.PunchHole, "");
+                            i++;
                         }
                         await Task.Delay(500);
                     }
@@ -734,7 +754,7 @@ namespace Chronos.P2P.Client
             udpClient.Dispose();
         }
 
-        public async ValueTask SetPeer(Guid id, bool inSubNet = false)
+        public async ValueTask SetPeer(Guid id)
         {
             if (peer is not null)
             {
@@ -746,20 +766,6 @@ namespace Chronos.P2P.Client
                 Ep = peer.OuterEP,
                 Info = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() }
             }, serverEP);
-            // 自动切换至局域网内连接
-            if (peer.OuterEP.IP == OuterEp!.IP || inSubNet)
-            {
-                foreach (var item in LocalEP)
-                {
-                    foreach (var item1 in peer.InnerEP)
-                    {
-                        if (item.IsInSameSubNet(item1))
-                        {
-                            peer.OuterEP = item1;
-                        }
-                    }
-                }
-            }
             await connectionHandshakeTask.Task;
             Console.WriteLine($"Trying remote ep: {peer.OuterEP}");
         }
