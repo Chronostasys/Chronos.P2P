@@ -16,6 +16,26 @@ namespace Chronos.P2P.Server
             server = _server;
         }
 
+        [Handler((int)CallMethods.ConnectionHandShake)]
+        public void ConnectHandShake(UdpContext context)
+        {
+            var data = context.GetData<ConnectHandshakeDto>().Data!;
+            var ep = data.Ep;
+            data.Info.OuterEP = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
+            server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
+            {
+                Method = (int)CallMethods.PeerConnectionRequest,
+                Data = data.Info
+            });
+            server.msgs.Enqueue(new UdpMsg
+            {
+                Data = bytes,
+                Ep = ep.ToIPEP()
+            });
+            Console.WriteLine("send handshake data");
+        }
+
         [Handler((int)CallMethods.Connect)]
         public void HandleConnect(UdpContext context)
         {
@@ -42,29 +62,11 @@ namespace Chronos.P2P.Server
                 Ep = remote
             });
         }
-        [Handler((int)CallMethods.ConnectionHandShake)]
-        public void ConnectHandShake(UdpContext context)
-        {
-            var data = context.GetData<ConnectHandshakeDto>().Data!;
-            var ep = data.Ep;
-            data.Info.OuterEP = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
-            server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
-            {
-                Method = (int)CallMethods.PeerConnectionRequest,
-                Data = data.Info
-            });
-            server.msgs.Enqueue(new UdpMsg
-            {
-                Data = bytes,
-                Ep = ep.ToIPEP()
-            });
-            Console.WriteLine("send handshake data");
-        }
+
         [Handler((int)CallMethods.ConnectionHandShakeReply)]
         public void HolePunchRequest(UdpContext context)
         {
-            var reply = context.GetData<ConnectionReply>().Data!;
+            var reply = context.GetData<ConnectionReplyDto>().Data!;
             var ep = reply.Ep;
             var rep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             Console.WriteLine("handshake reply get");

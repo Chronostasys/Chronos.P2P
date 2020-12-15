@@ -27,6 +27,20 @@ namespace Chronos.P2P.Client
             peer.PeerConnectedReceived();
         }
 
+        [Handler((int)CallMethods.ConnectionRequestCallback)]
+        public void ConnectionRequestCallbackHandler(UdpContext context)
+        {
+            peer.OnConnectionCallback(context.GetData<bool>().Data!);
+            Console.WriteLine("received connection request callback!");
+        }
+
+        [Handler((int)CallMethods.PeerConnectionRequest)]
+        public void ConnectionRequestedHandler(UdpContext context)
+        {
+            Console.WriteLine("received connection request!");
+            peer.OnConnectionRequested(context.GetData<PeerInfo>().Data!);
+        }
+
         [Handler((int)CallMethods.DataSlice)]
         public void FileDataHandler(UdpContext context)
         {
@@ -49,6 +63,13 @@ namespace Chronos.P2P.Client
             peer.PunchDataReceived(context);
         }
 
+        [Handler((int)CallMethods.StartPunching)]
+        public void StartPunchingHandler(UdpContext context)
+        {
+            peer.StartHolePunching();
+            Console.WriteLine("punchong started");
+        }
+
         [Handler((int)CallMethods.StreamHandShakeCallback)]
         public void StreamHandShakeCallbackHandler(UdpContext context)
         {
@@ -59,24 +80,6 @@ namespace Chronos.P2P.Client
         public void StreamHandShakeHandler(UdpContext context)
         {
             _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>().Data);
-        }
-        [Handler((int)CallMethods.PeerConnectionRequest)]
-        public void ConnectionRequestedHandler(UdpContext context)
-        {
-            Console.WriteLine("received connection request!");
-            peer.OnConnectionRequested(context.GetData<PeerInfo>().Data!);
-        }
-        [Handler((int)CallMethods.ConnectionRequestCallback)]
-        public void ConnectionRequestCallbackHandler(UdpContext context)
-        {
-            peer.OnConnectionCallback(context.GetData<bool>().Data!);
-            Console.WriteLine("received connection request callback!");
-        }
-        [Handler((int)CallMethods.StartPunching)]
-        public void StartPunchingHandler(UdpContext context)
-        {
-            peer.StartHolePunching();
-            Console.WriteLine("punchong started");
         }
     }
 }
