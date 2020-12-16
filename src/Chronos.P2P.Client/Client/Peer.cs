@@ -368,7 +368,7 @@ namespace Chronos.P2P.Client
                         MsgQueue = queue,
                         IOTask = StartQueuedTask(queue, async fm =>
                         {
-                            await fs!.WriteAsync(fm.Slice, 0, fm.Len);
+                            await fs.WriteAsync(fm.Slice.AsMemory(0, fm.Len));
                             if (fm.Last)
                             {
                                 throw new OperationCanceledException();
@@ -400,7 +400,16 @@ namespace Chronos.P2P.Client
             });
             return await FileAcceptTasks[sessionId].Task;
         }
-
+        /// <summary>
+        /// Send file to a peer. 
+        /// This method is capable to handle large files
+        /// </summary>
+        /// <param name="location">Path of the file</param>
+        /// <param name="concurrentLevel">As it's name. However,
+        /// concurrent level doen't exactly mean thread nums.
+        /// And a higher concurrent level may result in higher packet loss rate. 
+        /// So adjust it carefully to fit your need.</param>
+        /// <returns></returns>
         public async Task SendFileAsync(string location, int concurrentLevel = 3)
         {
             using SemaphoreSlim semaphore = new(concurrentLevel);
@@ -423,16 +432,16 @@ namespace Chronos.P2P.Client
             Console.WriteLine($"Slice count: {total}");
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                var buffer = new byte[bufferLen];
+                Memory<byte> buffer = new byte[bufferLen];
                 await semaphore.WaitAsync();
-                var len = await fs.ReadAsync(buffer, 0, bufferLen);
+                var len = await fs.ReadAsync(buffer);
                 var l = i >= fs.Length - bufferLen;
                 cancelSource.Token.ThrowIfCancellationRequested();
                 var j1 = j;
                 var slice = new DataSlice
                 {
                     No = j1,
-                    Slice = buffer,
+                    Slice = buffer.ToArray(),
                     Len = len,
                     Last = l,
                     SessionId = sessionId
@@ -739,12 +748,17 @@ namespace Chronos.P2P.Client
         {
             udpClient.Dispose();
         }
-
-        public async ValueTask SetPeer(Guid id)
+        /// <summary>
+        /// Set target peer
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns>A task complete when another peer reply our connection request.
+        /// <see langword="false"/> when refused, <see langword="true"/> when accepted.</returns>
+        public async ValueTask<bool> SetPeer(Guid id)
         {
             if (peer is not null)
             {
-                return;
+                return true;
             }
             peer = Peers![id];
             await SendDataReliableAsync((int)CallMethods.ConnectionHandShake, new ConnectHandshakeDto
@@ -752,8 +766,8 @@ namespace Chronos.P2P.Client
                 Ep = peer.OuterEP,
                 Info = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() }
             }, serverEP);
-            await connectionHandshakeTask.Task;
-            Console.WriteLine($"Trying remote ep: {peer.OuterEP}");
+            var re = await connectionHandshakeTask.Task;
+            return re;
         }
 
         public Task StartPeer()
