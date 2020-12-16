@@ -82,6 +82,7 @@ namespace Chronos.P2P.Server.Sample
         private static void Peer1_PeerConnected(object sender, EventArgs e)
         {
             connectionCompletionSource.TrySetResult();
+            Console.WriteLine("Peer connected! Press enter to continue");
         }
 
         private static void Peer1_PeersDataReceived(object sender, EventArgs e)
