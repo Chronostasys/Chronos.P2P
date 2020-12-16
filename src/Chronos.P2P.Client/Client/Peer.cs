@@ -219,7 +219,7 @@ namespace Chronos.P2P.Client
                         }
                     }
                 }
-                int i = 0;
+                int i = 1;
                 while (true)
                 {
                     var prevEp = peer!.OuterEP;
