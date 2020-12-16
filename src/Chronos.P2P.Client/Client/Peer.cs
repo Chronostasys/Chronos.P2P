@@ -222,24 +222,36 @@ namespace Chronos.P2P.Client
                 int i = 0;
                 while (true)
                 {
-                    if (i > 5)
+                    var prevEp = peer!.OuterEP;
+                    if (i > 5 && !epConfirmed)
                     {
                         i = 0;
                         foreach (var item in LocalEP)
                         {
-                            foreach (var item1 in peer!.InnerEP)
+                            foreach (var item1 in peer.InnerEP)
                             {
-                                if (item.IsInSameSubNet(item1))
+                                try
                                 {
-                                    peer.OuterEP = item1;
-                                    peer.InnerEP.Remove(item1);
-                                    Console.WriteLine($"trying new ep {item1}");
-                                    goto punch;
+                                    if (item.IsInSameSubNet(item1))
+                                    {
+                                        peer.OuterEP = item1;
+                                        peer.InnerEP.Remove(item1);
+                                        Console.WriteLine($"trying new ep {item1}");
+                                        goto punch;
+                                    }
+                                }
+                                catch (Exception)
+                                {
                                 }
                             }
                         }
                     }
                 punch:
+                    if (!epConfirmed && prevEp==peer.OuterEP && i == 0)
+                    {
+                        peer.OuterEP = peer.InnerEP.First();
+                        peer.InnerEP.Remove(peer.InnerEP.First());
+                    }
                     if (peer is not null)
                     {
                         if (IsPeerConnected)
