@@ -52,7 +52,7 @@ namespace Chronos.P2P.Test
                 sources[p.ID].TrySetResult();
             }
         }
-        [Fact(DisplayName = "Set Up Test", Timeout = 10000)]
+        [Fact(DisplayName = "Set Up Test", Timeout = 20000)]
         private async Task SetUpPeers()
         {
             if (peer1 == null)
@@ -89,19 +89,14 @@ namespace Chronos.P2P.Test
             {
                 if (peer1.Peers.ContainsKey(peer2.ID))
                 {
-                    peer1.SetPeer(peer2.ID);
-                }
-                if (peer2.Peers.ContainsKey(peer1.ID))
-                {
-                    peer2.SetPeer(peer1.ID);
+                    await peer1.SetPeer(peer2.ID);
                 }
                 if (peer1.RmotePeer is not null && peer2.RmotePeer is not null)
                 {
                     break;
                 }
             }
-            peer1.SetPeer(peer2.ID);
-            peer2.SetPeer(peer1.ID);
+            await peer1.SetPeer(peer2.ID);
             Console.WriteLine("All peers set");
             await completionSource[peer1.ID].Task;
             await completionSource[peer2.ID].Task;
