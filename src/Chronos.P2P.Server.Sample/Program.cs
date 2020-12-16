@@ -15,7 +15,7 @@ namespace Chronos.P2P.Server.Sample
         private static async Task Main(string[] args)
         {
             bool server = false;
-            bool audio = false;
+            bool audio = true;
             if (server)
             {
                 await StartServerAsync();
