@@ -76,8 +76,18 @@ namespace Chronos.P2P.Client
     public class PeerInnerEP : PeerEP
     {
         [JsonIgnore]
-        public IPAddress SubnetMask
-            => Peer.GetSubnetMask(IPAddress.Parse(IP));
+        public IPAddress SubnetMask{ get 
+            {
+                try
+                {
+                    return Peer.GetSubnetMask(IPAddress.Parse(IP));
+                }
+                catch (System.Exception)
+                {
+
+                    return IPAddress.Parse("255.255.255.255");
+                }
+            } }
 
         public PeerInnerEP()
         {
