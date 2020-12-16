@@ -39,6 +39,9 @@ namespace Chronos.P2P.Client
         private UdpClient udpClient;
         private TaskCompletionSource<bool> connectionHandshakeTask 
             = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private volatile bool epConfirmed = false;
+        private DateTime lastConnectDataSentTime;
+        private DateTime lastPunchDataSentTime;
         internal const int bufferLen = 40000;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
@@ -87,6 +90,8 @@ namespace Chronos.P2P.Client
             server.services.AddSingleton(this);
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
+            lastPunchDataSentTime = DateTime.UtcNow;
+            lastConnectDataSentTime = DateTime.UtcNow;
         }
 
         #region Workers
@@ -195,7 +200,7 @@ namespace Chronos.P2P.Client
         internal Task StartHolePunching()
             => Task.Run(async () =>
             {
-                if (peer!.OuterEP.IP == OuterEp!.IP)
+                if (peer!.OuterEP.IP == OuterEp!.IP && !epConfirmed)
                 {
                     foreach (var item in LocalEP)
                     {
@@ -533,12 +538,13 @@ namespace Chronos.P2P.Client
                 }, serverEP);
             }
         }
-
         internal async void PeerConnectedReceived()
         {
-            if (IsPeerConnected)
+            if (IsPeerConnected 
+                && (DateTime.UtcNow - lastConnectDataSentTime).TotalMilliseconds > 500)
             {
                 await SendDataToPeerAsync((int)CallMethods.Connected, "");
+                lastConnectDataSentTime = DateTime.UtcNow;
                 return;
             }
             Console.WriteLine("Peer connected");
@@ -555,9 +561,12 @@ namespace Chronos.P2P.Client
             if (ep.IP == peer!.OuterEP.IP || peer.InnerEP.Contains(new PeerInnerEP(ep)))
             {
                 peer.OuterEP = ep;
+                epConfirmed = true;
             }
-            if (tokenSource.IsCancellationRequested)
+            if (tokenSource.IsCancellationRequested
+                && (DateTime.UtcNow-lastPunchDataSentTime).TotalMilliseconds>500)
             {
+                lastPunchDataSentTime = DateTime.UtcNow;
                 await SendDataToPeerAsync((int)CallMethods.PunchHole, "");
                 return;
             }
