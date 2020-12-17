@@ -111,7 +111,7 @@ namespace Chronos.P2P.Client
                 while (true)
                 {
                     tokenSource.Token.ThrowIfCancellationRequested();
-                    if (IsPeerConnected)
+                    if (IsPeerConnected|| peer is not null)
                     {
                         break;
                     }
