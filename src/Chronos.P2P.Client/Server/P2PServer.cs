@@ -23,7 +23,7 @@ namespace Chronos.P2P.Server
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
-        internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
+        internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks = new();
         internal readonly AutoTimeoutData timeoutData = new();
         internal ConcurrentDictionary<PeerEP, (PeerEP, DateTime)> connectionDic = new();
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
@@ -46,6 +46,12 @@ namespace Chronos.P2P.Server
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
             _ = StartSendTask();
+        }
+
+        public ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
+            IPEndPoint ep, int retry = 10, CancellationToken? token = null)
+        {
+            return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, retry, token);
         }
 
         public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,

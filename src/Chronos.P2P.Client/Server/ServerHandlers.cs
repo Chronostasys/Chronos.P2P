@@ -24,8 +24,17 @@ namespace Chronos.P2P.Server
             data.Info.OuterEP = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
             _ = P2PServer.SendDataReliableAsync((int)CallMethods.PeerConnectionRequest, data.Info,
-                ep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
+                ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
             Console.WriteLine("send handshake data");
+        }
+        [Handler((int)CallMethods.Ack)]
+        public void AckHandler(UdpContext context)
+        {
+            var id = context.GetData<Guid>().Data;
+            if (server.ackTasks.TryGetValue(id, out var src))
+            {
+                src.TrySetResult(true);
+            }
         }
 
         [Handler((int)CallMethods.Connect)]
@@ -66,13 +75,13 @@ namespace Chronos.P2P.Server
             if (c && t.Item1 == rep)
             {
                 _ = P2PServer.SendDataReliableAsync((int)CallMethods.ConnectionRequestCallback, reply.Acc,
-                    ep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
+                    ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
                 if (reply.Acc)
                 {
                     _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
-                        ep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
+                        ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
                     _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
-                        rep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
+                        rep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
                 }
             }
         }
