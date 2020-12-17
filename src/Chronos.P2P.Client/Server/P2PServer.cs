@@ -3,9 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Chronos.P2P.Server
@@ -16,9 +19,12 @@ namespace Chronos.P2P.Server
     public class P2PServer : IRequestHandlerCollection, IDisposable
     {
         private Type attribute = typeof(HandlerAttribute);
+        private const int avgNum = 1000;
         private UdpClient listener;
         private ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
+        internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> AckTasks = new();
+        internal readonly AutoTimeoutData timeoutData = new();
         internal ConcurrentDictionary<PeerEP, (PeerEP, DateTime)> connectionDic = new();
         internal ConcurrentDictionary<Guid, DateTime> guidDic = new();
         internal MsgQueue<UdpMsg> msgs = new();
@@ -40,6 +46,71 @@ namespace Chronos.P2P.Server
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
             _ = StartSendTask();
+        }
+
+        public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
+            IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
+            MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData,
+            int retry = 10, CancellationToken? token = null)
+        {
+            Stopwatch? stopwatch = null;
+            if (timeoutData.Rtts.Count < avgNum)
+            {
+                stopwatch = new();
+            }
+            var reqId = Guid.NewGuid();
+            ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
+            {
+                Method = method,
+                Data = data,
+                ReqId = reqId
+            });
+            for (int i = 0; i < retry; i++)
+            {
+                token?.ThrowIfCancellationRequested();
+                var ts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                msgs.Enqueue(new UdpMsg
+                {
+                    Data = bytes,
+                    Ep = ep,
+                    SendTask = ts
+                });
+                await ts.Task;
+                if (timeoutData.Rtts.Count < avgNum)
+                {
+                    if (stopwatch!.IsRunning)
+                    {
+                        stopwatch!.Restart();
+                    }
+                    else
+                    {
+                        stopwatch!.Start();
+                    }
+                }
+                var t = await await Task.WhenAny(ackTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
+                {
+                    await Task.Delay(timeoutData.SendTimeOut);
+                    return false;
+                }))());
+                if (t)
+                {
+                    if (timeoutData.Rtts.Count < avgNum)
+                    {
+                        timeoutData.Rtts.Enqueue(stopwatch!.ElapsedMilliseconds);
+                        if (timeoutData.Rtts.Count == avgNum)
+                        {
+                            timeoutData.SendTimeOut = (int)timeoutData.Rtts.OrderBy(i => i)
+                                .Take((int)(0.98 * timeoutData.Rtts.Count)).Max() * 2 + 1;
+                        }
+                    }
+                    ackTasks.TryRemove(reqId, out var completionSource);
+                    return true;
+                }
+            }
+
+            ackTasks.TryRemove(reqId, out var taskCompletionSource);
+            return false;
         }
 
         private Task StartSendTask()

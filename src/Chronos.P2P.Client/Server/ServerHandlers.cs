@@ -23,16 +23,8 @@ namespace Chronos.P2P.Server
             var ep = data.Ep;
             data.Info.OuterEP = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
-            {
-                Method = (int)CallMethods.PeerConnectionRequest,
-                Data = data.Info
-            });
-            server.msgs.Enqueue(new UdpMsg
-            {
-                Data = bytes,
-                Ep = ep.ToIPEP()
-            });
+            _ = P2PServer.SendDataReliableAsync((int)CallMethods.PeerConnectionRequest, data.Info,
+                ep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
             Console.WriteLine("send handshake data");
         }
 
@@ -73,34 +65,14 @@ namespace Chronos.P2P.Server
             var c = server.connectionDic.TryRemove(ep, out var t);
             if (c && t.Item1 == rep)
             {
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<bool>
-                {
-                    Method = (int)CallMethods.ConnectionRequestCallback,
-                    Data = reply.Acc
-                });
-                server.msgs.Enqueue(new UdpMsg
-                {
-                    Data = bytes,
-                    Ep = ep.ToIPEP()
-                });
+                _ = P2PServer.SendDataReliableAsync((int)CallMethods.ConnectionRequestCallback, reply.Acc,
+                    ep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
                 if (reply.Acc)
                 {
-                    bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<string>
-                    {
-                        Method = (int)CallMethods.StartPunching,
-                        Data = ""
-                    });
-                    server.msgs.Enqueue(new UdpMsg
-                    {
-                        Data = bytes,
-                        Ep = ep.ToIPEP()
-                    });
-
-                    server.msgs.Enqueue(new UdpMsg
-                    {
-                        Data = bytes,
-                        Ep = rep.ToIPEP()
-                    });
+                    _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
+                        ep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
+                    _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
+                        rep.ToIPEP(), server.AckTasks, server.msgs, server.timeoutData);
                 }
             }
         }

@@ -725,6 +725,7 @@ namespace Chronos.P2P.Client
             return false;
         }
 
+
         public Task SendDataToPeerAsync<T>(T data) where T : class
         {
             return SendDataToPeerAsync((int)CallMethods.P2PDataTransfer, data);
@@ -806,5 +807,10 @@ namespace Chronos.P2P.Client
         }
 
         #endregion User Interface
+    }
+    public class AutoTimeoutData
+    {
+        public ConcurrentQueue<long> Rtts { get; set; } = new ConcurrentQueue<long>();
+        public int SendTimeOut { get; set; } = 1000;
     }
 }
