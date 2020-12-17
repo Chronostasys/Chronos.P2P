@@ -28,7 +28,7 @@ namespace Chronos.P2P.Client.Audio
             provider.DiscardOnBufferOverflow = true;
             lock (key)
             {
-                if (provider.BufferedDuration.TotalMilliseconds > 100 && i < 3)
+                if (provider.BufferedDuration.TotalMilliseconds > 100 && i < 7)
                 {
                     Console.WriteLine("high latency detected, try to catch on the live audio stream...");
                     provider.ClearBuffer();
@@ -46,11 +46,11 @@ namespace Chronos.P2P.Client.Audio
     }
     public static class Extensions
     {
-        public static async Task StartSendLiveAudio(this Peer peer, string name)
+        public static Task StartSendLiveAudio(this Peer peer, string name)
         {
             peer.AddHandler<AudioLiveStreamHandler>();
             var channel = Channel.CreateUnbounded<(byte[], int)>();
-            _ = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
+            var t = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
             var capture = new WaveInEvent();
             capture.WaveFormat = new WaveFormat();
             capture.BufferMilliseconds = 100;
@@ -60,6 +60,7 @@ namespace Chronos.P2P.Client.Audio
                 await channel.Writer.WriteAsync((e.Buffer, e.BytesRecorded));
             };
             capture.StartRecording();
+            return t;
         }
 
     }
