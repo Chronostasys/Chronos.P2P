@@ -12,6 +12,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using static Chronos.P2P.Client.Utils;
 
@@ -410,13 +411,9 @@ namespace Chronos.P2P.Client
             });
         }
 
-        public async Task<bool> RequestSendLiveStreamAsync(DatasliceSender sender, string name, int callMethod, CancellationToken token = default)
+        public async Task SendLiveStreamAsync(Channel<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
         {
             var sessionId = Guid.NewGuid();
-            sender.SetUp(slice =>
-            {
-                SendDataToPeerAsync(callMethod, slice);
-            }, sessionId);
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
             {
@@ -424,7 +421,22 @@ namespace Chronos.P2P.Client
                 Name = name,
                 SessionId = sessionId
             });
-            return await FileAcceptTasks[sessionId].Task;
+            await FileAcceptTasks[sessionId].Task;
+            var cancelSource = new CancellationTokenSource();
+            int no = 0;
+            while (await channel.Reader.WaitToReadAsync(token))
+            {
+                var (buffer, len) = await channel.Reader.ReadAsync(token);
+                var slice = new DataSlice
+                {
+                    No = no++,
+                    Slice = buffer,
+                    Len = len,
+                    Last = false,
+                    SessionId = sessionId
+                };
+                _ = SendDataToPeerAsync(callMethod, slice);
+            }
         }
 
         /// <summary>
