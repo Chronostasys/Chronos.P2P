@@ -38,6 +38,7 @@ namespace Chronos.P2P.Client
         private DateTime lastPunchDataSentTime;
         private CancellationTokenSource lifeTokenSource = new();
         private PeerInfo? peer;
+        private readonly object epKey = new object();
         private int pingCount = 10;
         private P2PServer server;
         private IPEndPoint serverEP;
@@ -223,35 +224,38 @@ namespace Chronos.P2P.Client
                 int i = 1;
                 while (true)
                 {
-                    var prevEp = peer!.OuterEP;
-                    if (i > 5 && !epConfirmed)
+                    lock (epKey)
                     {
-                        i = 0;
-                        foreach (var item in LocalEP)
+                        var prevEp = peer!.OuterEP;
+                        if (i > 5 && !epConfirmed)
                         {
-                            foreach (var item1 in peer.InnerEP)
+                            i = 0;
+                            foreach (var item in LocalEP)
                             {
-                                try
+                                foreach (var item1 in peer.InnerEP)
                                 {
-                                    if (item.IsInSameSubNet(item1))
+                                    try
                                     {
-                                        peer.OuterEP = item1;
-                                        peer.InnerEP.Remove(item1);
-                                        Console.WriteLine($"trying new ep {item1}");
-                                        goto punch;
+                                        if (item.IsInSameSubNet(item1))
+                                        {
+                                            peer.OuterEP = item1;
+                                            peer.InnerEP.Remove(item1);
+                                            Console.WriteLine($"trying new ep {item1}");
+                                            goto punch;
+                                        }
                                     }
-                                }
-                                catch (Exception)
-                                {
+                                    catch (Exception)
+                                    {
+                                    }
                                 }
                             }
                         }
-                    }
-                punch:
-                    if (!epConfirmed && prevEp == peer.OuterEP && i == 0)
-                    {
-                        peer.OuterEP = peer.InnerEP.First();
-                        peer.InnerEP.Remove(peer.InnerEP.First());
+                    punch:
+                        if (!epConfirmed && prevEp == peer.OuterEP && i == 0)
+                        {
+                            peer.OuterEP = peer.InnerEP.First();
+                            peer.InnerEP.Remove(peer.InnerEP.First());
+                        }
                     }
                     if (peer is not null)
                     {
@@ -561,10 +565,13 @@ namespace Chronos.P2P.Client
         internal async void PunchDataReceived(UdpContext context)
         {
             var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
-            if (ep.IP == peer!.OuterEP.IP || peer.InnerEP.Contains(new PeerInnerEP(ep)))
+            lock (epKey)
             {
-                peer.OuterEP = ep;
-                epConfirmed = true;
+                if (ep.IP == peer!.OuterEP.IP || peer.InnerEP.Contains(new PeerInnerEP(ep)))
+                {
+                    peer.OuterEP = ep;
+                    epConfirmed = true;
+                }
             }
             if (tokenSource.IsCancellationRequested
                 && (DateTime.UtcNow - lastPunchDataSentTime).TotalMilliseconds > 500)
