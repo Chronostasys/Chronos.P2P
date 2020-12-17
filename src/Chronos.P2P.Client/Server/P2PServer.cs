@@ -248,8 +248,8 @@ namespace Chronos.P2P.Server
             listener?.Dispose();
         }
 
-        public ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
-                                                                                                    IPEndPoint ep, int retry = 10, CancellationToken? token = null)
+        public ValueTask<bool> SendDataReliableAsync<T>(int method, T data, 
+            IPEndPoint ep, int retry = 10, CancellationToken? token = null)
         {
             return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, retry, token);
         }
