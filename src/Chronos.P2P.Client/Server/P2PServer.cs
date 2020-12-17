@@ -42,6 +42,7 @@ namespace Chronos.P2P.Server
         public P2PServer(UdpClient client)
         {
             services = new ServiceCollection();
+            services.AddSingleton(this);
             listener = client;
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();
@@ -239,7 +240,6 @@ namespace Chronos.P2P.Server
         public void ConfigureServices(Action<ServiceCollection> configureAction)
         {
             configureAction(services);
-            services.AddSingleton(this);
             serviceProvider = services.BuildServiceProvider();
         }
 
