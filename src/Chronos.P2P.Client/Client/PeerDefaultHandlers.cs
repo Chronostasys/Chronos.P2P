@@ -13,13 +13,6 @@ namespace Chronos.P2P.Client
             this.peer = peer;
         }
 
-        [Handler((int)CallMethods.Ack)]
-        public void AckHandler(UdpContext context)
-        {
-            var id = context.GetData<Guid>();
-            peer.AckReturned(id.Data);
-        }
-
         [Handler((int)CallMethods.Connected)]
         public void ConnectedDataHandler(UdpContext context)
         {
