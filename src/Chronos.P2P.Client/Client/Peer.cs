@@ -17,13 +17,25 @@ using static Chronos.P2P.Client.Utils;
 
 namespace Chronos.P2P.Client
 {
+    public class AutoTimeoutData
+    {
+        public ConcurrentQueue<long> Rtts { get; set; } = new ConcurrentQueue<long>();
+        public int SendTimeOut { get; set; } = 1000;
+    }
 
     public class Peer : IRequestHandlerCollection, IDisposable
     {
         #region Fields
 
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
+
+        private TaskCompletionSource<bool> connectionHandshakeTask
+            = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private long currentHead = -1;
+        private volatile bool epConfirmed = false;
+        private DateTime lastConnectDataSentTime;
+        private DateTime lastPunchDataSentTime;
         private CancellationTokenSource lifeTokenSource = new();
         private PeerInfo? peer;
         private int pingCount = 10;
@@ -31,11 +43,6 @@ namespace Chronos.P2P.Client
         private IPEndPoint serverEP;
         private CancellationTokenSource tokenSource = new();
         private UdpClient udpClient;
-        private TaskCompletionSource<bool> connectionHandshakeTask 
-            = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private volatile bool epConfirmed = false;
-        private DateTime lastConnectDataSentTime;
-        private DateTime lastPunchDataSentTime;
         internal const int bufferLen = 40000;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
@@ -45,9 +52,8 @@ namespace Chronos.P2P.Client
 
         #region Delegates & Events
 
-        public Func<PeerInfo, bool>? OnPeerInvited;
-
         public Func<BasicFileInfo, Task<(bool receive, string savePath)>>? OnInitFileTransfer;
+        public Func<PeerInfo, bool>? OnPeerInvited;
 
         public event EventHandler? PeerConnected;
 
@@ -242,7 +248,7 @@ namespace Chronos.P2P.Client
                         }
                     }
                 punch:
-                    if (!epConfirmed && prevEp==peer.OuterEP && i == 0)
+                    if (!epConfirmed && prevEp == peer.OuterEP && i == 0)
                     {
                         peer.OuterEP = peer.InnerEP.First();
                         peer.InnerEP.Remove(peer.InnerEP.First());
@@ -416,14 +422,15 @@ namespace Chronos.P2P.Client
             });
             return await FileAcceptTasks[sessionId].Task;
         }
+
         /// <summary>
-        /// Send file to a peer. 
+        /// Send file to a peer.
         /// This method is capable to handle large files
         /// </summary>
         /// <param name="location">Path of the file</param>
         /// <param name="concurrentLevel">As it's name. However,
         /// concurrent level doen't exactly mean thread nums.
-        /// And a higher concurrent level may result in higher packet loss rate. 
+        /// And a higher concurrent level may result in higher packet loss rate.
         /// So adjust it carefully to fit your need.</param>
         /// <returns></returns>
         public async Task SendFileAsync(string location, int concurrentLevel = 3)
@@ -492,7 +499,6 @@ namespace Chronos.P2P.Client
 
         #region Handlers
 
-
         private void Server_OnError(object? sender, byte[] e)
         {
             var str = Encoding.Default.GetString(e);
@@ -534,9 +540,10 @@ namespace Chronos.P2P.Client
                 }, serverEP);
             }
         }
+
         internal async void PeerConnectedReceived()
         {
-            if (IsPeerConnected 
+            if (IsPeerConnected
                 && (DateTime.UtcNow - lastConnectDataSentTime).TotalMilliseconds > 500)
             {
                 await SendDataToPeerAsync((int)CallMethods.Connected, "");
@@ -560,7 +567,7 @@ namespace Chronos.P2P.Client
                 epConfirmed = true;
             }
             if (tokenSource.IsCancellationRequested
-                && (DateTime.UtcNow-lastPunchDataSentTime).TotalMilliseconds>500)
+                && (DateTime.UtcNow - lastPunchDataSentTime).TotalMilliseconds > 500)
             {
                 lastPunchDataSentTime = DateTime.UtcNow;
                 await SendDataToPeerAsync((int)CallMethods.PunchHole, "");
@@ -650,7 +657,6 @@ namespace Chronos.P2P.Client
             return server.SendDataReliableAsync(method, data, ep, retry, token);
         }
 
-
         public Task SendDataToPeerAsync<T>(T data) where T : class
         {
             return SendDataToPeerAsync((int)CallMethods.P2PDataTransfer, data);
@@ -674,7 +680,6 @@ namespace Chronos.P2P.Client
         #endregion Send Data
 
         #region User Interface
-
 
         public static Peer BuildWithStartUp<T>(int port, IPEndPoint serverEP, string? name = null)
                     where T : IStartUp, new()
@@ -701,6 +706,7 @@ namespace Chronos.P2P.Client
         {
             udpClient.Dispose();
         }
+
         /// <summary>
         /// Set target peer
         /// </summary>
@@ -732,10 +738,5 @@ namespace Chronos.P2P.Client
         }
 
         #endregion User Interface
-    }
-    public class AutoTimeoutData
-    {
-        public ConcurrentQueue<long> Rtts { get; set; } = new ConcurrentQueue<long>();
-        public int SendTimeOut { get; set; } = 1000;
     }
 }

@@ -16,6 +16,16 @@ namespace Chronos.P2P.Server
             server = _server;
         }
 
+        [Handler((int)CallMethods.Ack)]
+        public void AckHandler(UdpContext context)
+        {
+            var id = context.GetData<Guid>().Data;
+            if (server.ackTasks.TryGetValue(id, out var src))
+            {
+                src.TrySetResult(true);
+            }
+        }
+
         [Handler((int)CallMethods.ConnectionHandShake)]
         public void ConnectHandShake(UdpContext context)
         {
@@ -26,15 +36,6 @@ namespace Chronos.P2P.Server
             _ = P2PServer.SendDataReliableAsync((int)CallMethods.PeerConnectionRequest, data.Info,
                 ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
             Console.WriteLine("send handshake data");
-        }
-        [Handler((int)CallMethods.Ack)]
-        public void AckHandler(UdpContext context)
-        {
-            var id = context.GetData<Guid>().Data;
-            if (server.ackTasks.TryGetValue(id, out var src))
-            {
-                src.TrySetResult(true);
-            }
         }
 
         [Handler((int)CallMethods.Connect)]
