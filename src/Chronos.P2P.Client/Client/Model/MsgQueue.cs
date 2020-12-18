@@ -1,10 +1,11 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public class MsgQueue<T>
+    public class MsgQueue<T>: IAsyncEnumerable<T>
     {
         private ConcurrentQueue<T> queue = new();
         private SemaphoreSlim semaphore = new(0);
@@ -27,6 +28,20 @@ namespace Chronos.P2P.Client
         {
             semaphore.Release();
             queue.Enqueue(result);
+        }
+
+        /// <summary>
+        /// the enumerator returned bu this type is endless, unless you cancel the enumeration
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return await DequeueAsync();
+            }
         }
     }
 }
