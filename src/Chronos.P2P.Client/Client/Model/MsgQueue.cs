@@ -12,9 +12,9 @@ namespace Chronos.P2P.Client
 
         public int Count => queue.Count;
 
-        public async Task<T> DequeueAsync()
+        public async Task<T> DequeueAsync(CancellationToken cancellationToken = default)
         {
-            await semaphore.WaitAsync();
+            await semaphore.WaitAsync(cancellationToken);
             while (true)
             {
                 if (queue.TryDequeue(out var result))
@@ -40,7 +40,7 @@ namespace Chronos.P2P.Client
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                yield return await DequeueAsync();
+                yield return await DequeueAsync(cancellationToken);
             }
         }
     }
