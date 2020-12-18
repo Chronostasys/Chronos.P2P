@@ -52,7 +52,7 @@ namespace Chronos.P2P.Test
                 sources[p.ID].TrySetResult();
             }
         }
-        [Fact(DisplayName = "Set Up Test", Timeout = 20000)]
+        [Fact(Timeout = 20000)]
         private async Task SetUpPeers()
         {
             if (peer1 == null)
@@ -103,7 +103,7 @@ namespace Chronos.P2P.Test
             Console.WriteLine("all peers connected");
         }
 
-        [Fact(DisplayName = "File Transfer test", Timeout = 20000)]
+        [Fact(Timeout = 20000)]
         public async Task TestFileTransfer()
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
@@ -135,7 +135,7 @@ namespace Chronos.P2P.Test
             }
         }
 
-        [Fact(DisplayName = "Local Server Integration test", Timeout = 20000)]
+        [Fact(Timeout = 20000)]
         public async Task TestIntegration()
         {
             
@@ -174,7 +174,7 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(DisplayName = "Remote Server Integration test", Skip = "may fail on github action", Timeout = 20000)]
+        [Fact(Skip = "may fail on github action", Timeout = 20000)]
         public async Task TestRemoteIntegration()
         {
             peer1 = new Peer(29999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));

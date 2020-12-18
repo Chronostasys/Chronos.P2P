@@ -9,6 +9,8 @@ namespace Chronos.P2P.Client
         private ConcurrentQueue<T> queue = new();
         private SemaphoreSlim semaphore = new(0);
 
+        public int Count => queue.Count;
+
         public async Task<T> DequeueAsync()
         {
             await semaphore.WaitAsync();
@@ -25,11 +27,6 @@ namespace Chronos.P2P.Client
         {
             semaphore.Release();
             queue.Enqueue(result);
-        }
-
-        public Task WaitDataAsync()
-        {
-            return semaphore.WaitAsync();
         }
     }
 }

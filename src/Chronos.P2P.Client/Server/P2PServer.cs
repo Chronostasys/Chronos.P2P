@@ -7,10 +7,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 namespace Chronos.P2P.Server
 {
     /// <summary>
@@ -49,7 +51,7 @@ namespace Chronos.P2P.Server
             _ = StartSendTask();
         }
 
-        private Task StartSendTask()
+        internal virtual Task StartSendTask()
         {
             return Utils.StartQueuedTask(msgs, async msg =>
             {

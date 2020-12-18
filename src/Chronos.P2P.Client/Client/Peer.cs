@@ -426,13 +426,12 @@ namespace Chronos.P2P.Client
             });
             await FileAcceptTasks[sessionId].Task;
             var cancelSource = new CancellationTokenSource();
-            int no = 0;
             while (await channel.Reader.WaitToReadAsync(token))
             {
                 var (buffer, len) = await channel.Reader.ReadAsync(token);
                 var slice = new DataSlice
                 {
-                    No = no++,
+                    No = -1,
                     Slice = buffer,
                     Len = len,
                     Last = false,
@@ -722,7 +721,7 @@ namespace Chronos.P2P.Client
         }
 
         public void ConfigureServices(Action<ServiceCollection> configureAction)
-                            => server.ConfigureServices(configureAction);
+            => server.ConfigureServices(configureAction);
 
         public void Dispose()
         {
