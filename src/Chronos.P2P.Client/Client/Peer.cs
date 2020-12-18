@@ -203,21 +203,24 @@ namespace Chronos.P2P.Client
         internal Task StartHolePunching()
             => Task.Run(async () =>
             {
-                if (peer!.OuterEP.IP == OuterEp!.IP && !epConfirmed)
+                lock (epKey)
                 {
-                    foreach (var item in LocalEP)
+                    if (peer!.OuterEP.IP == OuterEp!.IP && !epConfirmed)
                     {
-                        foreach (var item1 in peer.InnerEP)
+                        foreach (var item in LocalEP)
                         {
-                            try
+                            foreach (var item1 in peer.InnerEP)
                             {
-                                if (item.IsInSameSubNet(item1))
+                                try
                                 {
-                                    peer.OuterEP = item1;
+                                    if (item.IsInSameSubNet(item1))
+                                    {
+                                        peer.OuterEP = item1;
+                                    }
                                 }
-                            }
-                            catch (Exception)
-                            {
+                                catch (Exception)
+                                {
+                                }
                             }
                         }
                     }
