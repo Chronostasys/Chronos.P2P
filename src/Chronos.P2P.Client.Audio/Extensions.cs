@@ -49,15 +49,14 @@ namespace Chronos.P2P.Client.Audio
         public static Task StartSendLiveAudio(this Peer peer, string name)
         {
             peer.AddHandler<AudioLiveStreamHandler>();
-            var channel = Channel.CreateUnbounded<(byte[], int)>();
+            var channel = new MsgQueue<(byte[], int)>();
             var t = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
             var capture = new WaveInEvent();
             capture.WaveFormat = new WaveFormat();
             capture.BufferMilliseconds = 100;
             capture.DataAvailable += async (object sender, WaveInEventArgs e) =>
             {
-                await channel.Writer.WaitToWriteAsync();
-                await channel.Writer.WriteAsync((e.Buffer, e.BytesRecorded));
+                channel.Enqueue((e.Buffer, e.BytesRecorded));
             };
             capture.StartRecording();
             return t;
