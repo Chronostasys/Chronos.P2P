@@ -47,7 +47,7 @@ namespace Chronos.P2P.Test
             });
             queue.Enqueue(50);
             queue.Enqueue(60);
-            await Task.Delay(1);
+            await Task.Delay(100);
             Assert.Equal(110, num);
         }
         [Fact(Timeout = 2000)]
