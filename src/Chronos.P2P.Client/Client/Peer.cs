@@ -414,7 +414,7 @@ namespace Chronos.P2P.Client
             });
         }
 
-        public async Task SendLiveStreamAsync(Channel<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
+        public async Task SendLiveStreamAsync(MsgQueue<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
         {
             var sessionId = Guid.NewGuid();
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -426,9 +426,8 @@ namespace Chronos.P2P.Client
             });
             await FileAcceptTasks[sessionId].Task;
             var cancelSource = new CancellationTokenSource();
-            while (await channel.Reader.WaitToReadAsync(token))
+            await foreach (var (buffer, len) in channel)
             {
-                var (buffer, len) = await channel.Reader.ReadAsync(token);
                 var slice = new DataSlice
                 {
                     No = -1,

@@ -174,22 +174,5 @@ namespace Chronos.P2P.Test
             server.Dispose();
         }
 
-        [Fact(Skip = "may fail on github action", Timeout = 20000)]
-        public async Task TestRemoteIntegration()
-        {
-            peer1 = new Peer(29999, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            peer2 = new Peer(39901, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-            data[peer2.ID] = null;
-
-            await SetUpPeers();
-            Assert.Null(data[peer2.ID]);
-            var greetingString = "Hi";
-            var hello = new Hello { HelloString = greetingString };
-            await peer1.SendDataToPeerReliableAsync(greetingString);
-            await Task.Delay(1000);
-            Assert.Equal(hello.HelloString, data[peer2.ID]);
-            peer1.Dispose();
-            peer2.Dispose();
-        }
     }
 }
