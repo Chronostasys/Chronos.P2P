@@ -34,10 +34,9 @@ namespace Chronos.P2P.Client
         {
             return Task.Run(async () =>
             {
-                while (true)
+                await foreach (var item in msgQueue)
                 {
-                    var msg = await msgQueue.DequeueAsync();
-                    await processor(msg);
+                    await processor(item);
                 }
             });
         }
