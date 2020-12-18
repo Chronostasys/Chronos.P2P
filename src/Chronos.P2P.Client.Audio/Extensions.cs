@@ -11,7 +11,6 @@ namespace Chronos.P2P.Client.Audio
     {
         static BufferedWaveProvider provider = new BufferedWaveProvider(new WaveFormat());
         static DirectSoundOut wo = null;
-        static volatile int i = 0;
         static object key = new();
 
         public AudioLiveStreamHandler(Peer peer)
@@ -28,11 +27,10 @@ namespace Chronos.P2P.Client.Audio
             provider.DiscardOnBufferOverflow = true;
             lock (key)
             {
-                if (provider.BufferedDuration.TotalMilliseconds > 100 && i < 7)
+                if (provider.BufferedDuration.TotalMilliseconds > 60)
                 {
                     Console.WriteLine("high latency detected, try to catch on the live audio stream...");
                     provider.ClearBuffer();
-                    i++;
                 }
                 provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
                 if (wo.PlaybackState is not PlaybackState.Playing)
@@ -53,8 +51,8 @@ namespace Chronos.P2P.Client.Audio
             var t = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
             var capture = new WaveInEvent();
             capture.WaveFormat = new WaveFormat();
-            capture.BufferMilliseconds = 100;
-            capture.DataAvailable += async (object sender, WaveInEventArgs e) =>
+            capture.BufferMilliseconds = 50;
+            capture.DataAvailable += (object sender, WaveInEventArgs e) =>
             {
                 channel.Enqueue((e.Buffer, e.BytesRecorded));
             };
