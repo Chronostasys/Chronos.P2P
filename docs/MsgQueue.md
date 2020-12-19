@@ -1,4 +1,4 @@
-# MsgQueue\<T\>
+# MsgQueue
 
 `MsgQueue<T>`，一个class，对`ConcurrentQueue<T>`进行了封装。它是线程安全的，而且实现了`IAsyncEnumerable`接口。  
 [源代码](../src/chronos.P2P.client/Client/Model/MsgQueue.cs)  
