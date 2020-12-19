@@ -7,3 +7,6 @@ Peer:
 
 Server:
   - src/Chronos.P2P.Client/Server/**/*
+  
+docs:
+  - docs/**/*
