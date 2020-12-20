@@ -23,7 +23,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.ConnectionRequestCallback)]
         public void ConnectionRequestCallbackHandler(UdpContext context)
         {
-            peer.OnConnectionCallback(context.GetData<bool>().Data!);
+            peer.OnConnectionCallback(context.GetData<bool>());
             Console.WriteLine("received connection request callback!");
         }
 
@@ -31,7 +31,7 @@ namespace Chronos.P2P.Client
         public void ConnectionRequestedHandler(UdpContext context)
         {
             Console.WriteLine("received connection request!");
-            peer.OnConnectionRequested(context.GetData<PeerInfo>().Data!);
+            peer.OnConnectionRequested(context.GetData<PeerInfo>()!);
         }
 
         [Handler((int)CallMethods.DataSlice)]
@@ -39,7 +39,7 @@ namespace Chronos.P2P.Client
         {
             Task.Run(() =>
             {
-                _ = peer.FileDataReceived(context.GetData<DataSlice>().Data);
+                _ = peer.FileDataReceived(context.GetData<DataSlice>());
             });
         }
 
@@ -60,7 +60,7 @@ namespace Chronos.P2P.Client
         public void StartPunchingHandler(UdpContext context)
         {
             peer.StartHolePunching();
-            Console.WriteLine("punchong started");
+            Console.WriteLine("punching started");
         }
 
         [Handler((int)CallMethods.StreamHandShakeCallback)]
@@ -72,7 +72,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.StreamHandShake)]
         public void StreamHandShakeHandler(UdpContext context)
         {
-            _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>().Data);
+            _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>());
         }
     }
 }

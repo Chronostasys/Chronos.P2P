@@ -93,34 +93,55 @@ namespace Chronos.P2P.Server
             return Activator.CreateInstance(data.GenericType, args.ToArray())!;
         }
 
+        internal static byte[] CreateUdpRequestBuffer(int callMethod, Guid reqId, byte[]? data = null)
+        {
+            var mthd = BitConverter.GetBytes(callMethod);
+            var id = reqId.ToByteArray();
+            if (data is null)
+            {
+                data = new byte[0];
+            }
+            var req = new byte[mthd.Length+id.Length+data.Length];
+            Buffer.BlockCopy(mthd, 0, req, 0, mthd.Length);
+            Buffer.BlockCopy(id, 0, req, 4, id.Length);
+            Buffer.BlockCopy(data, 0, req, 20, data.Length);
+            return req;
+        }
+        internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
+        {
+            
+            return CreateUdpRequestBuffer(callMethod, reqId, JsonSerializer.SerializeToUtf8Bytes(data));
+        }
+
         internal async Task ProcessRequestAsync(UdpReceiveResult re)
         {
             await Task.Yield();
-            var dto = JsonSerializer.Deserialize<UdpRequest>(re.Buffer)!;
-            var td = requestHandlers[dto.Method];
+            var mem = new Memory<byte>(re.Buffer);
+
+            var method = mem.Slice(0, 4);
+            var reqId = new Guid(mem.Slice(4, 16).ToArray());
+            var data = mem.Slice(20);
+            var td = requestHandlers[BitConverter.ToInt32(method.ToArray())];
             // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
-            if (dto.ReqId != Guid.Empty)
+            if (reqId != Guid.Empty)
             {
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Guid>
-                {
-                    Method = (int)CallMethods.Ack,
-                    Data = dto.ReqId
-                });
+                var bytes = CreateUdpRequestBuffer((int)CallMethods.Ack, Guid.Empty, reqId);
                 msgs.Enqueue(new UdpMsg
                 {
                     Data = bytes,
                     Ep = re.RemoteEndPoint
                 });
-                if (guidDic.ContainsKey(dto.ReqId))
+                if (guidDic.ContainsKey(reqId))
                 {
                     // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
                     // 所以这里直接返回ack而不处理
                     return;
                 }
-                guidDic[dto.ReqId] = DateTime.UtcNow;
+                guidDic[reqId] = DateTime.UtcNow;
             }
-            CallHandler(td, new UdpContext(re.Buffer, peers, re.RemoteEndPoint, listener));
+            CallHandler(td, new UdpContext(data.ToArray(), peers, re.RemoteEndPoint, listener));
             AfterDataHandled?.Invoke(this, new());
+
         }
 
         public static P2PServer BuildWithStartUp<T>(int port = 5000)
@@ -151,12 +172,8 @@ namespace Chronos.P2P.Server
             }
             var reqId = Guid.NewGuid();
             ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
-            {
-                Method = method,
-                Data = data,
-                ReqId = reqId
-            });
+            var dbytes = JsonSerializer.SerializeToUtf8Bytes(data);
+            var bytes = CreateUdpRequestBuffer(method, reqId, dbytes);
             for (int i = 0; i < retry; i++)
             {
                 token?.ThrowIfCancellationRequested();

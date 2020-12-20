@@ -32,9 +32,13 @@ namespace Chronos.P2P.Server
         /// </summary>
         /// <typeparam name="T">数据类型</typeparam>
         /// <returns></returns>
-        public CallServerDto<T> GetData<T>()
+        public T? GetData<T>()
         {
-            return JsonSerializer.Deserialize<CallServerDto<T>>(data)!;
+            if (data.Length == 0)
+            {
+                return default;
+            }
+            return JsonSerializer.Deserialize<T>(data)!;
         }
     }
 }

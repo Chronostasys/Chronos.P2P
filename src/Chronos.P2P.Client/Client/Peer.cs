@@ -103,11 +103,7 @@ namespace Chronos.P2P.Client
             => Task.Run(async () =>
             {
                 var peerInfo = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() };
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<PeerInfo>
-                {
-                    Method = (int)CallMethods.Connect,
-                    Data = peerInfo,
-                });
+                var bytes = P2PServer.CreateUdpRequestBuffer((int)CallMethods.Connect, Guid.Empty, peerInfo);
                 while (true)
                 {
                     tokenSource.Token.ThrowIfCancellationRequested();
@@ -336,7 +332,7 @@ namespace Chronos.P2P.Client
 
         internal void OnStreamHandshakeResult(UdpContext context)
         {
-            var data = context.GetData<FileTransferHandShakeResult>().Data;
+            var data = context.GetData<FileTransferHandShakeResult>();
             server.timeoutData.SendTimeOut = 1000;
             server.timeoutData.Rtts.Clear();
             FileAcceptTasks[data.SessionId].SetResult(data.Accept);
@@ -658,11 +654,7 @@ namespace Chronos.P2P.Client
         public Task SendDataAsync<T>(int method, T data, IPEndPoint ep)
         {
             var t = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<T>
-            {
-                Method = method,
-                Data = data,
-            });
+            var bytes = P2PServer.CreateUdpRequestBuffer(method, Guid.Empty, data);
             msgs.Enqueue(new UdpMsg
             {
                 Data = bytes,

@@ -19,7 +19,7 @@ namespace Chronos.P2P.Server
         [Handler((int)CallMethods.Ack)]
         public void AckHandler(UdpContext context)
         {
-            var id = context.GetData<Guid>().Data;
+            var id = context.GetData<Guid>();
             if (server.ackTasks.TryGetValue(id, out var src))
             {
                 src.TrySetResult(true);
@@ -29,7 +29,7 @@ namespace Chronos.P2P.Server
         [Handler((int)CallMethods.ConnectionHandShake)]
         public void ConnectHandShake(UdpContext context)
         {
-            var data = context.GetData<ConnectHandshakeDto>().Data!;
+            var data = context.GetData<ConnectHandshakeDto>();
             var ep = data.Ep;
             data.Info.OuterEP = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
@@ -41,7 +41,7 @@ namespace Chronos.P2P.Server
         [Handler((int)CallMethods.Connect)]
         public void HandleConnect(UdpContext context)
         {
-            var peer = context.GetData<PeerInfo>().Data!;
+            var peer = context.GetData<PeerInfo>()!;
 
             var remote = context.RemoteEndPoint;
             var peers = context.Peers;
@@ -68,7 +68,7 @@ namespace Chronos.P2P.Server
         [Handler((int)CallMethods.ConnectionHandShakeReply)]
         public void HolePunchRequest(UdpContext context)
         {
-            var reply = context.GetData<ConnectionReplyDto>().Data!;
+            var reply = context.GetData<ConnectionReplyDto>()!;
             var ep = reply.Ep;
             var rep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             Console.WriteLine("handshake reply get");
