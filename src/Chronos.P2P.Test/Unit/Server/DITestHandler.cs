@@ -17,7 +17,7 @@ namespace Chronos.P2P.Test
         [Handler(1)]
         public void TestHandler(UdpContext udpContext)
         {
-            hello = udpContext.GetData<Hello>().Data;
+            hello = udpContext.GetData<Hello>();
             if (hello.HelloString == "re")
             {
                 UdpServerTest.ackNums++;

@@ -16,12 +16,8 @@ namespace Chronos.P2P.Test
         private const string s = "hello";
         private static Guid id = Guid.NewGuid();
 
-        private byte[] callBytes = JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Hello>
-        {
-            Method = 1,
-            ReqId = id,
-            Data = new Hello { HelloString = "re" }
-        });
+        private byte[] callBytes
+            = P2PServer.CreateUdpRequestBuffer(1, id, new Hello { HelloString = "re" });
 
         private IPEndPoint ep = new(1000, 1000);
         private P2PServer server;
@@ -55,11 +51,8 @@ namespace Chronos.P2P.Test
         {
             SetUpTest();
             var hello = new Hello { HelloString = s };
-            server.CallHandler(server.requestHandlers[1], new UdpContext(JsonSerializer.SerializeToUtf8Bytes(new CallServerDto<Hello>
-            {
-                Method = 1,
-                Data = hello
-            }), new(), new(1000, 1000), new()));
+            server.CallHandler(server.requestHandlers[1], new UdpContext(
+                callBytes, new(), new(1000, 1000), new()));
             server.Dispose();
         }
 

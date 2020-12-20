@@ -105,7 +105,7 @@ namespace Chronos.P2P.Server.Sample
         [Handler((int)CallMethods.P2PDataTransfer)]
         public void OnReceiveData(UdpContext udpContext)
         {
-            var d = udpContext.GetData<string>().Data;
+            var d = udpContext.GetData<string>();
             if (d == "test")
             {
                 Program.nums++;

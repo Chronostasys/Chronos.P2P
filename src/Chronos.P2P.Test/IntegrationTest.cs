@@ -22,7 +22,7 @@ namespace Chronos.P2P.Test
         [Handler((int)CallMethods.P2PDataTransfer)]
         public void OnReceiveData(UdpContext udpContext)
         {
-            IntegrationTest.data[peer.ID] = udpContext.GetData<string>().Data;
+            IntegrationTest.data[peer.ID] = udpContext.GetData<string>();
             if (IntegrationTest.data[peer.ID] is "test")
             {
                 Interlocked.Increment(ref IntegrationTest.nums);
@@ -103,7 +103,7 @@ namespace Chronos.P2P.Test
             Console.WriteLine("all peers connected");
         }
 
-        [Fact(Timeout = 20000)]
+        [Fact(Timeout = 200000)]
         public async Task TestFileTransfer()
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";

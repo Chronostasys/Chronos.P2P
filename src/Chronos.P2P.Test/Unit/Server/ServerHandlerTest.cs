@@ -20,15 +20,13 @@ namespace Chronos.P2P.Test.Unit.Server
             var obj = moq.Object;
             var msgs = obj.msgs;
             var handler = new ServerHandlers(obj);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes<CallServerDto<ConnectionReplyDto>>(new CallServerDto<ConnectionReplyDto>
+            var bytes = P2PServer.CreateUdpRequestBuffer(0, Guid.Empty, new ConnectionReplyDto
             {
-                Data = new ConnectionReplyDto
-                {
-                    Acc = true,
-                    Ep = PeerEP.ParsePeerEPFromIPEP(new System.Net.IPEndPoint(100,100))
-                },
+                Acc = true,
+                Ep = PeerEP.ParsePeerEPFromIPEP(new System.Net.IPEndPoint(100, 100))
             });
-            handler.HolePunchRequest(new UdpContext(bytes, new(), 
+
+            handler.HolePunchRequest(new UdpContext(bytes.AsMemory().Slice(20).ToArray(), new(), 
                 new System.Net.IPEndPoint(100,100), null));
             Assert.Equal(0,msgs.Count);
         }
@@ -43,15 +41,12 @@ namespace Chronos.P2P.Test.Unit.Server
             obj.connectionDic[pep] = (pep, DateTime.UtcNow);
             var msgs = obj.msgs;
             var handler = new ServerHandlers(obj);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes<CallServerDto<ConnectionReplyDto>>(new CallServerDto<ConnectionReplyDto>
+            var bytes = P2PServer.CreateUdpRequestBuffer(0, Guid.Empty, new ConnectionReplyDto
             {
-                Data = new ConnectionReplyDto
-                {
-                    Acc = true,
-                    Ep = pep
-                },
+                Acc = true,
+                Ep = pep
             });
-            handler.HolePunchRequest(new UdpContext(bytes, new(),
+            handler.HolePunchRequest(new UdpContext(bytes.AsMemory().Slice(20).ToArray(), new(),
                 ep, null));
             Assert.Equal(3, msgs.Count);
         }
