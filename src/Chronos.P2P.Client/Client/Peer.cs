@@ -432,7 +432,7 @@ namespace Chronos.P2P.Client
                     Last = false,
                     SessionId = sessionId
                 };
-                _ = SendDataToPeerAsync(callMethod, slice);
+                _ = SendDataToPeerAsync(callMethod, slice.ToBytes());
             }
         }
 
@@ -485,7 +485,7 @@ namespace Chronos.P2P.Client
 
                 if (l)
                 {
-                    var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 30, cancelSource.Token);
+                    var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice.ToBytes(), 30, cancelSource.Token);
                     semaphore.Release();
                     if (!excr)
                     {
@@ -496,7 +496,7 @@ namespace Chronos.P2P.Client
                 {
                     _ = Task.Run(async () =>
                     {
-                        var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice, 30, cancelSource.Token);
+                        var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, slice.ToBytes(), 30, cancelSource.Token);
                         semaphore.Release();
                         if (!excr)
                         {
