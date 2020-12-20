@@ -39,7 +39,7 @@ namespace Chronos.P2P.Client
         {
             Task.Run(() =>
             {
-                _ = peer.FileDataReceived(context.GetData<DataSlice>());
+                _ = peer.FileDataReceived(DataSlice.FromBytes(context.data));
             });
         }
 

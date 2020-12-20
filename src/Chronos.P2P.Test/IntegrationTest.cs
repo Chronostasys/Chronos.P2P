@@ -103,7 +103,7 @@ namespace Chronos.P2P.Test
             Console.WriteLine("all peers connected");
         }
 
-        [Fact(Timeout = 200000)]
+        [Fact(Timeout = 20000)]
         public async Task TestFileTransfer()
         {
             var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";

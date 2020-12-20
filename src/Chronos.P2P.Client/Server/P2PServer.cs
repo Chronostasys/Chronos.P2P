@@ -109,8 +109,7 @@ namespace Chronos.P2P.Server
         }
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
         {
-            
-            return CreateUdpRequestBuffer(callMethod, reqId, JsonSerializer.SerializeToUtf8Bytes(data));
+            return CreateUdpRequestBuffer(callMethod, reqId, data is byte[]? data as byte[]: JsonSerializer.SerializeToUtf8Bytes(data));
         }
 
         internal async Task ProcessRequestAsync(UdpReceiveResult re)
@@ -172,7 +171,7 @@ namespace Chronos.P2P.Server
             }
             var reqId = Guid.NewGuid();
             ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var dbytes = JsonSerializer.SerializeToUtf8Bytes(data);
+            var dbytes = (data is byte[])?(data as byte[]): JsonSerializer.SerializeToUtf8Bytes(data);
             var bytes = CreateUdpRequestBuffer(method, reqId, dbytes);
             for (int i = 0; i < retry; i++)
             {

@@ -24,7 +24,7 @@ namespace Chronos.P2P.Client.Audio
         [Handler((int)CallMethods.AudioDataSlice)]
         public void OnAudioDataSliceGet(UdpContext context)
         {
-            var slice = context.GetData<DataSlice>();
+            var slice = DataSlice.FromBytes(context.data);
             provider.DiscardOnBufferOverflow = true;
             lock (key)
             {
