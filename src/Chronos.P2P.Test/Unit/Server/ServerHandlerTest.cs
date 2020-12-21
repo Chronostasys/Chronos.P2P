@@ -35,7 +35,7 @@ namespace Chronos.P2P.Test.Unit.Server
         {
             var ep = new System.Net.IPEndPoint(100, 1000);
             var pep = PeerEP.ParsePeerEPFromIPEP(ep);
-            var moq = new Mock<P2PServer>(() => new P2PServer(50500));
+            var moq = new Mock<P2PServer>(() => new P2PServer(10500));
             moq.Setup(s => s.StartSendTask()).Returns(Task.CompletedTask);
             var obj = moq.Object;
             obj.connectionDic[pep] = (pep, DateTime.UtcNow);
