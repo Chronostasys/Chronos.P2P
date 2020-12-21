@@ -4,7 +4,7 @@ using Chronos.P2P.Client;
 using Xunit;
 using System.Linq;
 
-namespace Chronos.P2P.Test.Unit.Util
+namespace Chronos.P2P.Test
 {
     public class UtilTest
     {
