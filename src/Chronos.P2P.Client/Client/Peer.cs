@@ -500,17 +500,14 @@ namespace Chronos.P2P.Client
         }
         public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, byte[] slice)
         {
-            unsafe
-            {
-                Span<byte> dataSpan = stackalloc byte[bufferLen + 29];
-                MemoryMarshal.Write(dataSpan, ref last);
-                MemoryMarshal.Write(dataSpan[1..], ref len);
-                MemoryMarshal.Write(dataSpan[5..], ref no);
-                MemoryMarshal.Write(dataSpan[13..], ref sessionId);
-                var bytes = dataSpan.ToArray();
-                Buffer.BlockCopy(slice, 0, bytes, 29, slice.Length);
-                return bytes;
-            }
+            var bytes = new byte[bufferLen + 29];
+            Span<byte> dataSpan = bytes;
+            MemoryMarshal.Write(dataSpan, ref last);
+            MemoryMarshal.Write(dataSpan[1..], ref len);
+            MemoryMarshal.Write(dataSpan[5..], ref no);
+            MemoryMarshal.Write(dataSpan[13..], ref sessionId);
+            Buffer.BlockCopy(slice, 0, bytes, 29, slice.Length);
+            return bytes;
         }
         #endregion File Transfer
 

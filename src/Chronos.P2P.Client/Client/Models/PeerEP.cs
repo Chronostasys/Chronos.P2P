@@ -5,6 +5,7 @@ namespace Chronos.P2P.Client
 {
     public class PeerEP
     {
+        private IPEndPoint? ep = null;
         public string IP { get; init; }
         public int Port { get; init; }
 
@@ -64,7 +65,11 @@ namespace Chronos.P2P.Client
 
         public IPEndPoint ToIPEP()
         {
-            return new IPEndPoint(IPAddress.Parse(IP), Port);
+            if (ep is null)
+            {
+                ep = new IPEndPoint(IPAddress.Parse(IP), Port);
+            }
+            return ep!;
         }
 
         public override string ToString()

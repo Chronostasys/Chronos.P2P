@@ -101,15 +101,12 @@ namespace Chronos.P2P.Server
             {
                 data = Array.Empty<byte>();
             }
-            unsafe
-            {
-                Span<byte> reqSpan = stackalloc byte[20 + data.Length];
-                MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
-                MemoryMarshal.Write(reqSpan[4..20], ref reqId);
-                var req = reqSpan.ToArray();
-                Buffer.BlockCopy(data, 0, req, 20, data.Length);
-                return req;
-            }
+            byte[] req = new byte[20 + data.Length];
+            Span<byte> reqSpan = req;
+            MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
+            MemoryMarshal.Write(reqSpan[4..20], ref reqId);
+            Buffer.BlockCopy(data, 0, req, 20, data.Length);
+            return req;
         }
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
         {
