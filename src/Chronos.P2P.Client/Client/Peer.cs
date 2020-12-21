@@ -123,6 +123,7 @@ namespace Chronos.P2P.Client
                 {
                     if (!IsPeerConnected)
                     {
+                        await Task.Delay(1000);
                         continue;
                     }
                     await Task.Delay(7000, lifeTokenSource.Token);
@@ -139,6 +140,7 @@ namespace Chronos.P2P.Client
                 {
                     if (!IsPeerConnected)
                     {
+                        await Task.Delay(1000);
                         continue;
                     }
                     await Task.Delay(1000);
