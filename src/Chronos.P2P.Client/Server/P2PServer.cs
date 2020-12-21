@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,17 +97,19 @@ namespace Chronos.P2P.Server
 
         internal static byte[] CreateUdpRequestBuffer(int callMethod, Guid reqId, byte[]? data = null)
         {
-            var mthd = BitConverter.GetBytes(callMethod);
-            var id = reqId.ToByteArray();
             if (data is null)
             {
                 data = Array.Empty<byte>();
             }
-            var req = new byte[mthd.Length+id.Length+data.Length];
-            Buffer.BlockCopy(mthd, 0, req, 0, mthd.Length);
-            Buffer.BlockCopy(id, 0, req, 4, id.Length);
-            Buffer.BlockCopy(data, 0, req, 20, data.Length);
-            return req;
+            unsafe
+            {
+                Span<byte> reqSpan = stackalloc byte[20 + data.Length];
+                MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
+                MemoryMarshal.Write(reqSpan[4..20], ref reqId);
+                var req = reqSpan.ToArray();
+                Buffer.BlockCopy(data, 0, req, 20, data.Length);
+                return req;
+            }
         }
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
         {
@@ -118,7 +122,7 @@ namespace Chronos.P2P.Server
             var mem = new Memory<byte>(re.Buffer);
 
             var method = mem.Slice(0, 4);
-            var reqId = new Guid(mem.Slice(4, 16).ToArray());
+            var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
             var data = mem[20..];
             var td = requestHandlers[BitConverter.ToInt32(method.ToArray())];
             // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
