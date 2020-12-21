@@ -496,6 +496,10 @@ namespace Chronos.P2P.Client
                 }
             }
             Console.WriteLine($"Auto adjusted timeout: {server.timeoutData.SendTimeOut}ms");
+            if (semaphore.CurrentCount == concurrentLevel)
+            {
+                semaphore.Release();
+            }
         }
         public byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, byte[] slice)
         {
