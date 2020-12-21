@@ -39,7 +39,7 @@ namespace Chronos.P2P.Client
                 return true;
             }
 
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return false;
             }
@@ -118,7 +118,7 @@ namespace Chronos.P2P.Client
                 return true;
             }
 
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return false;
             }

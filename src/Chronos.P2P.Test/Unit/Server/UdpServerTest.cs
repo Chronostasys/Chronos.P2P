@@ -16,10 +16,10 @@ namespace Chronos.P2P.Test
         private const string s = "hello";
         private static Guid id = Guid.NewGuid();
 
-        private byte[] callBytes
+        private readonly byte[] callBytes
             = P2PServer.CreateUdpRequestBuffer(1, id, new Hello { HelloString = "re" });
 
-        private IPEndPoint ep = new(1000, 1000);
+        private readonly IPEndPoint ep = new(1000, 1000);
         private P2PServer server;
         internal static int ackNums = 0;
 

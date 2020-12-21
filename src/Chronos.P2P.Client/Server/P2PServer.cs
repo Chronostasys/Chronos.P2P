@@ -21,9 +21,9 @@ namespace Chronos.P2P.Server
     public class P2PServer : IRequestHandlerCollection, IDisposable
     {
         private const int avgNum = 1000;
-        private Type attribute = typeof(HandlerAttribute);
-        private UdpClient listener;
-        private ConcurrentDictionary<Guid, PeerInfo> peers;
+        private readonly Type attribute = typeof(HandlerAttribute);
+        private readonly UdpClient listener;
+        private readonly ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
         internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks = new();
         internal readonly AutoTimeoutData timeoutData = new();
@@ -84,8 +84,8 @@ namespace Chronos.P2P.Server
         /// <returns></returns>
         internal object GetInstance(TypeData data)
         {
-            serviceProvider = serviceProvider ?? services.BuildServiceProvider();
-            List<object> args = new List<object>();
+            serviceProvider ??= services.BuildServiceProvider();
+            List<object> args = new();
             foreach (var item in data.Parameters)
             {
                 args.Add(serviceProvider!.GetRequiredService(item.ParameterType));
@@ -99,7 +99,7 @@ namespace Chronos.P2P.Server
             var id = reqId.ToByteArray();
             if (data is null)
             {
-                data = new byte[0];
+                data = Array.Empty<byte>();
             }
             var req = new byte[mthd.Length+id.Length+data.Length];
             Buffer.BlockCopy(mthd, 0, req, 0, mthd.Length);
@@ -119,7 +119,7 @@ namespace Chronos.P2P.Server
 
             var method = mem.Slice(0, 4);
             var reqId = new Guid(mem.Slice(4, 16).ToArray());
-            var data = mem.Slice(20);
+            var data = mem[20..];
             var td = requestHandlers[BitConverter.ToInt32(method.ToArray())];
             // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
             if (reqId != Guid.Empty)
@@ -242,8 +242,7 @@ namespace Chronos.P2P.Server
             var methods = type.GetMethods();
             foreach (var item in methods)
             {
-                var attr = Attribute.GetCustomAttribute(item, attribute) as HandlerAttribute;
-                if (attr != null)
+                if (Attribute.GetCustomAttribute(item, attribute) is HandlerAttribute attr)
                 {
                     requestHandlers[attr.Method] = td with { Method = item };
                 }
@@ -263,6 +262,7 @@ namespace Chronos.P2P.Server
 
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             listener?.Dispose();
         }
 

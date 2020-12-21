@@ -18,16 +18,16 @@ namespace Chronos.P2P.Client
             slice.Len = MemoryMarshal.Read<int>(span.Slice(1, 4));
             slice.No = MemoryMarshal.Read<long>(span.Slice(5, 8));
             slice.SessionId = MemoryMarshal.Read<Guid>(span.Slice(13, 16));
-            slice.Slice = span.Slice(29).ToArray();
+            slice.Slice = span[29..].ToArray();
             return slice;
         }
         public byte[] ToBytes()
         {
             var dataSpan = new Span<byte>(new byte[Peer.bufferLen+29]);
             MemoryMarshal.Write(dataSpan, ref Last);
-            MemoryMarshal.Write(dataSpan.Slice(1), ref Len);
-            MemoryMarshal.Write(dataSpan.Slice(5), ref No);
-            MemoryMarshal.Write(dataSpan.Slice(13), ref SessionId);
+            MemoryMarshal.Write(dataSpan[1..], ref Len);
+            MemoryMarshal.Write(dataSpan[5..], ref No);
+            MemoryMarshal.Write(dataSpan[13..], ref SessionId);
             var bytes = dataSpan.ToArray();
             Buffer.BlockCopy(Slice,0, bytes,29,Slice.Length);
             return bytes;

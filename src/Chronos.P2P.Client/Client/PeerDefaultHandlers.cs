@@ -6,7 +6,7 @@ namespace Chronos.P2P.Client
 {
     public class PeerDefaultHandlers
     {
-        private Peer peer;
+        private readonly Peer peer;
 
         public PeerDefaultHandlers(Peer peer)
         {
@@ -31,7 +31,7 @@ namespace Chronos.P2P.Client
         public void ConnectionRequestedHandler(UdpContext context)
         {
             Console.WriteLine("received connection request!");
-            peer.OnConnectionRequested(context.GetData<PeerInfo>()!);
+            _ = peer.OnConnectionRequested(context.GetData<PeerInfo>()!);
         }
 
         [Handler((int)CallMethods.DataSlice)]

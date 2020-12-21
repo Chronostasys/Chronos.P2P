@@ -8,8 +8,8 @@ namespace Chronos.P2P.Server.Sample
 {
     internal class Program
     {
-        private static TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private static TaskCompletionSource connectionCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private static readonly TaskCompletionSource completionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private static readonly TaskCompletionSource connectionCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public static int nums;
 
         private static async Task Main(string[] args)
@@ -87,7 +87,7 @@ namespace Chronos.P2P.Server.Sample
 
         private static void Peer1_PeersDataReceived(object sender, EventArgs e)
         {
-            var a = completionSource.TrySetResult();
+            completionSource.TrySetResult();
 
             return;
         }

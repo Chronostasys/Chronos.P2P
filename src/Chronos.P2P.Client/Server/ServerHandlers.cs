@@ -9,7 +9,7 @@ namespace Chronos.P2P.Server
     /// </summary>
     public class ServerHandlers
     {
-        private P2PServer server;
+        private readonly P2PServer server;
 
         public ServerHandlers(P2PServer _server)
         {

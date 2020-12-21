@@ -7,8 +7,8 @@ namespace Chronos.P2P.Client
 {
     public class MsgQueue<T>: IAsyncEnumerable<T>
     {
-        private ConcurrentQueue<T> queue = new();
-        private SemaphoreSlim semaphore = new(0);
+        private readonly ConcurrentQueue<T> queue = new();
+        private readonly SemaphoreSlim semaphore = new(0);
 
         public int Count => queue.Count;
 

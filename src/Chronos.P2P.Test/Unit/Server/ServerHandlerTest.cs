@@ -26,7 +26,7 @@ namespace Chronos.P2P.Test.Unit.Server
                 Ep = PeerEP.ParsePeerEPFromIPEP(new System.Net.IPEndPoint(100, 100))
             });
 
-            handler.HolePunchRequest(new UdpContext(bytes.AsMemory().Slice(20).ToArray(), new(), 
+            handler.HolePunchRequest(new UdpContext(bytes.AsMemory()[20..].ToArray(), new(), 
                 new System.Net.IPEndPoint(100,100), null));
             Assert.Equal(0,msgs.Count);
         }
@@ -46,7 +46,7 @@ namespace Chronos.P2P.Test.Unit.Server
                 Acc = true,
                 Ep = pep
             });
-            handler.HolePunchRequest(new UdpContext(bytes.AsMemory().Slice(20).ToArray(), new(),
+            handler.HolePunchRequest(new UdpContext(bytes.AsMemory()[20..].ToArray(), new(),
                 ep, null));
             Assert.Equal(3, msgs.Count);
         }

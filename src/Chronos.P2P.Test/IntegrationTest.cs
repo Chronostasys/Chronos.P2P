@@ -14,7 +14,7 @@ namespace Chronos.P2P.Test
 {
     public class ClientHandler
     {
-        Peer peer;
+        readonly Peer peer;
         public ClientHandler(Peer p)
         {
             peer = p;
@@ -32,8 +32,8 @@ namespace Chronos.P2P.Test
     [Collection("Integration")]
     public class IntegrationTest
     {
-        ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
-        ConcurrentDictionary<Guid, TaskCompletionSource> completionSource = new();
+        readonly ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
+        readonly ConcurrentDictionary<Guid, TaskCompletionSource> completionSource = new();
         internal static ConcurrentDictionary<Guid, string> data = new();
         internal static int nums = 0;
         Peer peer1;
@@ -125,14 +125,12 @@ namespace Chronos.P2P.Test
             await Task.Delay(1000);
             await peer1.SendFileAsync(src);
             await Task.Delay(5000);
-            using (var md5 = MD5.Create())
-            using (var fs1 = File.OpenRead(src))
-            using (var fs2 = File.OpenRead(dst))
-            {
-                var hash1 = await md5.ComputeHashAsync(fs1);
-                var hash2 = await md5.ComputeHashAsync(fs2);
-                Assert.True(hash1.SequenceEqual(hash2));
-            }
+            using var md5 = MD5.Create();
+            using var fs1 = File.OpenRead(src);
+            using var fs2 = File.OpenRead(dst);
+            var hash1 = await md5.ComputeHashAsync(fs1);
+            var hash2 = await md5.ComputeHashAsync(fs2);
+            Assert.True(hash1.SequenceEqual(hash2));
         }
 
         [Fact(Timeout = 20000)]

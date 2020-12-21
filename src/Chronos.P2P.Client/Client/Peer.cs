@@ -31,21 +31,21 @@ namespace Chronos.P2P.Client
 
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
 
-        private TaskCompletionSource<bool> connectionHandshakeTask
+        private readonly TaskCompletionSource<bool> connectionHandshakeTask
             = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private long currentHead = -1;
         private volatile bool epConfirmed = false;
         private DateTime lastConnectDataSentTime;
         private DateTime lastPunchDataSentTime;
-        private CancellationTokenSource lifeTokenSource = new();
+        private readonly CancellationTokenSource lifeTokenSource = new();
         private PeerInfo? peer;
-        private readonly object epKey = new object();
+        private readonly object epKey = new();
         private int pingCount = 10;
-        private P2PServer server;
-        private IPEndPoint serverEP;
-        private CancellationTokenSource tokenSource = new();
-        private UdpClient udpClient;
+        private readonly P2PServer server;
+        private readonly IPEndPoint serverEP;
+        private readonly CancellationTokenSource tokenSource = new();
+        private readonly UdpClient udpClient;
         internal const int bufferLen = 60000;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
@@ -71,7 +71,7 @@ namespace Chronos.P2P.Client
         public Guid ID { get; }
         public bool IsPeerConnected { get; private set; } = false;
         public IEnumerable<PeerInnerEP> LocalEP { get; }
-        private MsgQueue<UdpMsg> msgs => server.msgs;
+        private MsgQueue<UdpMsg> Msgs => server.msgs;
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo>? Peers { get; private set; }
@@ -112,7 +112,7 @@ namespace Chronos.P2P.Client
                     {
                         break;
                     }
-                    msgs.Enqueue(new UdpMsg
+                    Msgs.Enqueue(new UdpMsg
                     {
                         Data = bytes,
                         Ep = serverEP
@@ -422,9 +422,9 @@ namespace Chronos.P2P.Client
                 SessionId = sessionId
             });
             await FileAcceptTasks[sessionId].Task;
-            var cancelSource = new CancellationTokenSource();
             await foreach (var (buffer, len) in channel)
             {
+                token.ThrowIfCancellationRequested();
                 _ = SendDataToPeerAsync(callMethod, SliceToBytes(false,len,-1,sessionId,buffer));
             }
         }
@@ -471,7 +471,7 @@ namespace Chronos.P2P.Client
 
                 if (l)
                 {
-                    var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice, 
+                    var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
                         SliceToBytes(l,len, j1, sessionId, buffer.ToArray()),
                         30, cancelSource.Token);
                     semaphore.Release();
@@ -501,13 +501,13 @@ namespace Chronos.P2P.Client
                 semaphore.Release();
             }
         }
-        public byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, byte[] slice)
+        public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, byte[] slice)
         {
             var dataSpan = new Span<byte>(new byte[Peer.bufferLen + 29]);
             MemoryMarshal.Write(dataSpan, ref last);
-            MemoryMarshal.Write(dataSpan.Slice(1), ref len);
-            MemoryMarshal.Write(dataSpan.Slice(5), ref no);
-            MemoryMarshal.Write(dataSpan.Slice(13), ref sessionId);
+            MemoryMarshal.Write(dataSpan[1..], ref len);
+            MemoryMarshal.Write(dataSpan[5..], ref no);
+            MemoryMarshal.Write(dataSpan[13..], ref sessionId);
             var bytes = dataSpan.ToArray();
             Buffer.BlockCopy(slice, 0, bytes, 29, slice.Length);
             return bytes;
@@ -521,7 +521,7 @@ namespace Chronos.P2P.Client
             var str = Encoding.Default.GetString(e);
             if (str == "Connected\n")
             {
-                msgs.Enqueue(new UdpMsg
+                Msgs.Enqueue(new UdpMsg
                 {
                     Data = e,
                     Ep = peer!.OuterEP.ToIPEP()
@@ -534,7 +534,7 @@ namespace Chronos.P2P.Client
             connectionHandshakeTask.TrySetResult(acc);
         }
 
-        internal void OnConnectionRequested(PeerInfo requester)
+        internal async Task OnConnectionRequested(PeerInfo requester)
         {
             var re = OnPeerInvited?.Invoke(requester);
             if (!re.HasValue || re.Value)
@@ -542,7 +542,7 @@ namespace Chronos.P2P.Client
                 Console.WriteLine("accept!");
                 peer = requester;
 
-                _ = SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReplyDto
+                await SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReplyDto
                 {
                     Ep = requester.OuterEP,
                     Acc = true
@@ -550,7 +550,7 @@ namespace Chronos.P2P.Client
             }
             else
             {
-                _ = SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReplyDto
+                await SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReplyDto
                 {
                     Ep = requester.OuterEP,
                     Acc = false
@@ -659,7 +659,7 @@ namespace Chronos.P2P.Client
         {
             var t = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = P2PServer.CreateUdpRequestBuffer(method, Guid.Empty, data);
-            msgs.Enqueue(new UdpMsg
+            Msgs.Enqueue(new UdpMsg
             {
                 Data = bytes,
                 Ep = ep,
@@ -720,6 +720,7 @@ namespace Chronos.P2P.Client
 
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             udpClient.Dispose();
         }
 

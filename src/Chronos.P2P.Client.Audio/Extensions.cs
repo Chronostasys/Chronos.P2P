@@ -9,9 +9,9 @@ namespace Chronos.P2P.Client.Audio
 {
     public class AudioLiveStreamHandler
     {
-        static BufferedWaveProvider provider = new BufferedWaveProvider(new WaveFormat());
+        static readonly BufferedWaveProvider provider = new(new WaveFormat());
         static DirectSoundOut wo = null;
-        static object key = new();
+        static readonly object key = new();
         static int i = 0;
 
         public AudioLiveStreamHandler(Peer peer)
@@ -56,9 +56,11 @@ namespace Chronos.P2P.Client.Audio
             peer.AddHandler<AudioLiveStreamHandler>();
             var channel = new MsgQueue<(byte[], int)>();
             var t = peer.SendLiveStreamAsync(channel, name, (int)CallMethods.AudioDataSlice);
-            var capture = new WaveInEvent();
-            capture.WaveFormat = new WaveFormat();
-            capture.BufferMilliseconds = 100;
+            var capture = new WaveInEvent
+            {
+                WaveFormat = new WaveFormat(),
+                BufferMilliseconds = 100
+            };
             capture.DataAvailable += (object sender, WaveInEventArgs e) =>
             {
                 channel.Enqueue((e.Buffer, e.BytesRecorded));
