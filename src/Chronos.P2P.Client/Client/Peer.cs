@@ -11,10 +11,11 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
+
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using MessagePack;
 using static Chronos.P2P.Client.Utils;
 
 namespace Chronos.P2P.Client
@@ -166,7 +167,8 @@ namespace Chronos.P2P.Client
                     {
                         try
                         {
-                            Peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
+                            Peers = MessagePackSerializer
+                                .Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer);
                             foreach (var item in Peers)
                             {
                                 if (item.Key == ID)

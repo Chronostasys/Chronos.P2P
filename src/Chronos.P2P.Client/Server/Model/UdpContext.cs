@@ -3,7 +3,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using System.Text.Json;
+
+using MessagePack;
 
 namespace Chronos.P2P.Server
 {
@@ -38,7 +39,7 @@ namespace Chronos.P2P.Server
             {
                 return default;
             }
-            return JsonSerializer.Deserialize<T>(data)!;
+            return MessagePackSerializer.Deserialize<T>(data)!;
         }
     }
 }

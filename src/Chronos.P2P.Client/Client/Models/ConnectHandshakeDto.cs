@@ -1,8 +1,12 @@
-﻿namespace Chronos.P2P.Client
+﻿using MessagePack;
+namespace Chronos.P2P.Client
 {
-    internal struct ConnectHandshakeDto
+    [MessagePackObject]
+    public struct ConnectHandshakeDto
     {
+        [Key(0)]
         public PeerEP Ep { get; set; }
+        [Key(1)]
         public PeerInfo Info { get; set; }
     }
 }

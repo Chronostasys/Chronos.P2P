@@ -1,8 +1,12 @@
-﻿namespace Chronos.P2P.Client
+﻿using MessagePack;
+namespace Chronos.P2P.Client
 {
-    internal struct ConnectionReplyDto
+    [MessagePackObject]
+    public struct ConnectionReplyDto
     {
+        [Key(0)]
         public bool Acc { get; set; }
+        [Key(1)]
         public PeerEP Ep { get; set; }
     }
 }

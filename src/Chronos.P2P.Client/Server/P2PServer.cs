@@ -10,9 +10,10 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text.Json;
+
 using System.Threading;
 using System.Threading.Tasks;
+using MessagePack;
 
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 namespace Chronos.P2P.Server
@@ -45,6 +46,7 @@ namespace Chronos.P2P.Server
 
         public P2PServer(UdpClient client)
         {
+            MessagePackSerializer.DefaultOptions.WithSecurity(MessagePackSecurity.UntrustedData);
             services = new ServiceCollection();
             services.AddSingleton(this);
             listener = client;
@@ -110,7 +112,7 @@ namespace Chronos.P2P.Server
         }
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
         {
-            return CreateUdpRequestBuffer(callMethod, reqId, data is byte[]? data as byte[]: JsonSerializer.SerializeToUtf8Bytes(data));
+            return CreateUdpRequestBuffer(callMethod, reqId, data is byte[]? data as byte[]: MessagePackSerializer.Serialize(data));
         }
 
         internal async Task ProcessRequestAsync(UdpReceiveResult re)
@@ -172,7 +174,7 @@ namespace Chronos.P2P.Server
             }
             var reqId = Guid.NewGuid();
             ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var dbytes = (data is byte[])?(data as byte[]): JsonSerializer.SerializeToUtf8Bytes(data);
+            var dbytes = (data is byte[])?(data as byte[]): MessagePackSerializer.Serialize(data);
             var bytes = CreateUdpRequestBuffer(method, reqId, dbytes);
             for (int i = 0; i < retry; i++)
             {
