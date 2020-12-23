@@ -11,10 +11,11 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
+
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using MessagePack;
 using static Chronos.P2P.Client.Utils;
 
 namespace Chronos.P2P.Client
@@ -41,7 +42,7 @@ namespace Chronos.P2P.Client
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
-        internal const int bufferLen = 60000;
+        internal const int bufferLen = 65400;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
@@ -166,7 +167,8 @@ namespace Chronos.P2P.Client
                     {
                         try
                         {
-                            Peers = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer)!;
+                            Peers = MessagePackSerializer
+                                .Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer);
                             foreach (var item in Peers)
                             {
                                 if (item.Key == ID)

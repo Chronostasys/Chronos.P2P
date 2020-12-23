@@ -1,12 +1,16 @@
 ﻿using System.Net;
-using System.Text.Json.Serialization;
+using MessagePack;
 
 namespace Chronos.P2P.Client
 {
+    [MessagePackObject]
     public class PeerEP
     {
+        [IgnoreMember]
         private IPEndPoint? ep = null;
+        [Key(0)]
         public string IP { get; init; }
+        [Key(1)]
         public int Port { get; init; }
 
         public PeerEP()
@@ -77,10 +81,10 @@ namespace Chronos.P2P.Client
             return $"{IP}:{Port}";
         }
     }
-
+    [MessagePackObject]
     public class PeerInnerEP : PeerEP
     {
-        [JsonIgnore]
+        [IgnoreMember]
         public IPAddress SubnetMask
         {
             get

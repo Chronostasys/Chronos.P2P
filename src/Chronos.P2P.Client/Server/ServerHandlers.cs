@@ -1,6 +1,7 @@
 ﻿using Chronos.P2P.Client;
 using System;
-using System.Text.Json;
+
+using MessagePack;
 
 namespace Chronos.P2P.Server
 {
@@ -57,7 +58,7 @@ namespace Chronos.P2P.Server
 
             Console.WriteLine($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
 
-            var sendbytes = JsonSerializer.SerializeToUtf8Bytes(peers);
+            var sendbytes = MessagePackSerializer.Serialize(peers);
             server.msgs.Enqueue(new UdpMsg
             {
                 Data = sendbytes,
