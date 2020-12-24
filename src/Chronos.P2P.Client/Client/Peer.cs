@@ -43,7 +43,7 @@ namespace Chronos.P2P.Client
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
-        internal const int bufferLen = 450;
+        internal const int bufferLen = 65400;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
