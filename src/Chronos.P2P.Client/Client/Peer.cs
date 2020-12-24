@@ -199,26 +199,38 @@ namespace Chronos.P2P.Client
         internal Task StartHolePunching()
             => Task.Run(async () =>
             {
-                lock (epKey)
+                List<PeerEP> eps = new();
+                foreach (var item in LocalEP)
                 {
-                    if (peer!.OuterEP.IP == OuterEp!.IP && !epConfirmed)
+                    foreach (var item1 in peer!.InnerEP)
                     {
-                        foreach (var item in LocalEP)
+                        try
                         {
-                            foreach (var item1 in peer.InnerEP)
+                            if (item.IsInSameSubNet(item1))
                             {
-                                try
-                                {
-                                    if (item.IsInSameSubNet(item1))
-                                    {
-                                        peer.OuterEP = item1;
-                                    }
-                                }
-                                catch (Exception)
-                                {
-                                }
+                                eps.Add(item1);
                             }
                         }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                }
+                lock (epKey)
+                {
+                    if (peer!.OuterEP.IP == OuterEp!.IP && !epConfirmed&& eps.Count!=0)
+                    {
+                        try
+                        {
+                            peer.OuterEP = eps.Where(ep => ep.IP.StartsWith("192")).First();
+                            eps.Remove(peer.OuterEP);
+                        }
+                        catch (Exception)
+                        {
+                            peer.OuterEP = eps[0];
+                            eps.Remove(peer.OuterEP);
+                        }
+                        
                     }
                 }
                 int i = 1;
@@ -227,28 +239,20 @@ namespace Chronos.P2P.Client
                     lock (epKey)
                     {
                         var prevEp = peer!.OuterEP;
-                        if (i > 5 && !epConfirmed)
+                        if (i > 5 && !epConfirmed&&eps.Count!=0)
                         {
                             i = 0;
-                            foreach (var item in LocalEP)
+                            try
                             {
-                                foreach (var item1 in peer.InnerEP)
-                                {
-                                    try
-                                    {
-                                        if (item.IsInSameSubNet(item1))
-                                        {
-                                            peer.OuterEP = item1;
-                                            peer.InnerEP.Remove(item1);
-                                            Console.WriteLine($"trying new ep {item1}");
-                                            goto punch;
-                                        }
-                                    }
-                                    catch (Exception)
-                                    {
-                                    }
-                                }
+                                peer.OuterEP = eps.Where(ep => ep.IP.StartsWith("192")).First();
+                                eps.Remove(peer.OuterEP);
                             }
+                            catch (Exception)
+                            {
+                                peer.OuterEP = eps[0];
+                                eps.Remove(peer.OuterEP);
+                            }
+                            goto punch;
                         }
                     punch:
                         if (!epConfirmed && prevEp == peer.OuterEP && i == 0)
@@ -256,6 +260,7 @@ namespace Chronos.P2P.Client
                             peer.OuterEP = peer.InnerEP.First();
                             peer.InnerEP.Remove(peer.InnerEP.First());
                         }
+                        Console.WriteLine($"trying new ep {peer.OuterEP}");
                     }
                     if (peer is not null)
                     {

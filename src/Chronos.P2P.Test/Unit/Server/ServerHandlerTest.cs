@@ -7,7 +7,7 @@ using Moq;
 using Chronos.P2P.Client;
 
 
-namespace Chronos.P2P.Test.Unit.Server
+namespace Chronos.P2P.Test
 {
     public class ServerHandlerTest
     {
