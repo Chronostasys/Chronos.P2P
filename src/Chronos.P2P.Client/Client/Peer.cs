@@ -31,6 +31,7 @@ namespace Chronos.P2P.Client
             = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private long currentHead = -1;
+        private volatile bool isInSameSubNet = false;
         private volatile bool epConfirmed = false;
         private DateTime lastConnectDataSentTime;
         private DateTime lastPunchDataSentTime;
@@ -42,7 +43,7 @@ namespace Chronos.P2P.Client
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
-        internal const int bufferLen = 65400;
+        internal const int bufferLen = 450;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
@@ -218,7 +219,7 @@ namespace Chronos.P2P.Client
                 }
                 lock (epKey)
                 {
-                    if (peer!.OuterEP.IP == OuterEp!.IP && !epConfirmed&& eps.Count!=0)
+                    if ((peer!.OuterEP.IP == OuterEp!.IP|| isInSameSubNet) && !epConfirmed&& eps.Count!=0)
                     {
                         try
                         {
@@ -734,8 +735,9 @@ namespace Chronos.P2P.Client
         /// <param name="id"></param>
         /// <returns>A task complete when another peer reply our connection request.
         /// <see langword="false"/> when refused, <see langword="true"/> when accepted.</returns>
-        public async ValueTask<bool> SetPeer(Guid id)
+        public async ValueTask<bool> SetPeer(Guid id, bool isInSameNet = false)
         {
+            isInSameSubNet = isInSameNet;
             if (peer is not null)
             {
                 return true;
