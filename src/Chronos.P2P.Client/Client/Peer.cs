@@ -237,6 +237,10 @@ namespace Chronos.P2P.Client
                 int i = 1;
                 while (true)
                 {
+                    if (epConfirmed)
+                    {
+                        break;
+                    }
                     lock (epKey)
                     {
                         var prevEp = peer!.OuterEP;
@@ -585,11 +589,13 @@ namespace Chronos.P2P.Client
             var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             lock (epKey)
             {
-                if (ep.IP == peer!.OuterEP.IP || peer.InnerEP.Contains(new PeerInnerEP(ep)))
-                {
-                    peer.OuterEP = ep;
-                    epConfirmed = true;
-                }
+                //if (ep.IP == peer!.OuterEP.IP || peer.InnerEP.Contains(new PeerInnerEP(ep)))
+                //{
+                //    peer.OuterEP = ep;
+                //    epConfirmed = true;
+                //}
+                peer!.OuterEP = ep;
+                epConfirmed = true;
             }
             if (tokenSource.IsCancellationRequested
                 && (DateTime.UtcNow - lastPunchDataSentTime).TotalMilliseconds > 500)
