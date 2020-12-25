@@ -32,20 +32,20 @@ namespace Chronos.P2P.Client
 
         private long currentHead = -1;
         private volatile bool isInSameSubNet = false;
-        private volatile bool epConfirmed = false;
         private DateTime lastConnectDataSentTime;
         private DateTime lastPunchDataSentTime;
         private readonly CancellationTokenSource lifeTokenSource = new();
-        private PeerInfo? peer;
         private readonly object epKey = new();
         private int pingCount = 10;
         private readonly P2PServer server;
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
+        internal volatile bool epConfirmed = false;
         internal const int bufferLen = 65400;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
+        internal PeerInfo? peer;
         internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
 
         #endregion Fields
@@ -237,10 +237,6 @@ namespace Chronos.P2P.Client
                 int i = 1;
                 while (true)
                 {
-                    if (epConfirmed)
-                    {
-                        break;
-                    }
                     lock (epKey)
                     {
                         var prevEp = peer!.OuterEP;
@@ -596,6 +592,7 @@ namespace Chronos.P2P.Client
                 //}
                 peer!.OuterEP = ep;
                 epConfirmed = true;
+                Console.WriteLine($"Peer punch data received, set remote ep to {peer.OuterEP}");
             }
             if (tokenSource.IsCancellationRequested
                 && (DateTime.UtcNow - lastPunchDataSentTime).TotalMilliseconds > 500)
