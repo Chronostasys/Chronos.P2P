@@ -51,7 +51,7 @@ namespace Chronos.P2P.Server.Sample
                     }
                     Console.WriteLine("Enter the peer id you would like to communicate to (press enter to see available peer list):");
                 }
-                await peer.SetPeer(id, true);
+                await peer.SetPeer(id);
                 Console.WriteLine("Waiting for connection to establish...");
                 await connectionCompletionSource.Task;
             connected:
