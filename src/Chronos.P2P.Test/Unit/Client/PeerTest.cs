@@ -20,7 +20,7 @@ namespace Chronos.P2P.Test
 
         private void SetUp()
         {
-            var mock = new Mock<Peer>(() => new Peer(Guid.NewGuid().GetHashCode() % 500 + 1000, new(1000, Guid.NewGuid().GetHashCode() % 500 + 1000), ""));
+            var mock = new Mock<Peer>(() => new Peer(Guid.NewGuid().GetHashCode() % 500 + 9000, new(1000, Guid.NewGuid().GetHashCode() % 500 + 8000), ""));
             mock.Setup(p => p.SendDataToPeerReliableAsync(It.IsAny<int>(), It.IsAny<FileTransferHandShakeResult>(),
                     It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(ValueTask.FromResult(true));
