@@ -1,4 +1,5 @@
-﻿using Chronos.P2P.Client;
+﻿using System.Net;
+using Chronos.P2P.Client;
 using Moq;
 using System;
 using System.Threading;
@@ -19,7 +20,7 @@ namespace Chronos.P2P.Test
 
         private void SetUp()
         {
-            var mock = new Mock<Peer>(() => new Peer(9000, new(1000, 1000), ""));
+            var mock = new Mock<Peer>(() => new Peer(Guid.NewGuid().GetHashCode() % 500 + 9000, new(1000, Guid.NewGuid().GetHashCode() % 500 + 8000), ""));
             mock.Setup(p => p.SendDataToPeerReliableAsync(It.IsAny<int>(), It.IsAny<FileTransferHandShakeResult>(),
                     It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(ValueTask.FromResult(true));
@@ -58,6 +59,29 @@ namespace Chronos.P2P.Test
             });
             Assert.True(peer.FileRecvDic.ContainsKey(id));
             peer.Dispose();
+        }
+        [Theory]
+        [InlineData("192.168.1.211")]
+        [InlineData("192.168.1.5")]
+        [InlineData("192.168.2.211")]
+        [InlineData("192.18.1.211")]
+        public void TestPeerEpAutoSwitch(string ip)
+        {
+            peer.peer = new PeerInfo();
+            try
+            {
+                peer.PunchDataReceived(new Server.UdpContext(
+                    null, null, new IPEndPoint(IPAddress.Parse(ip), 999), null));
+            }
+            catch (System.Exception)
+            {
+            }
+            Assert.True(peer.epConfirmed);
+            Assert.Equal(new PeerEP{
+                IP = ip,
+                Port = 999
+            }, peer.RmotePeer.OuterEP);
+            
         }
     }
 }
