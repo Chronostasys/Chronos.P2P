@@ -23,7 +23,7 @@ namespace Chronos.P2P.Server
     /// </summary>
     public class P2PServer : IRequestHandlerCollection, IDisposable
     {
-        private const int avgNum = 1000;
+        private const int avgNum = 100;
         private readonly Type attribute = typeof(HandlerAttribute);
         private readonly UdpClient listener;
         private readonly ConcurrentDictionary<Guid, PeerInfo> peers;
