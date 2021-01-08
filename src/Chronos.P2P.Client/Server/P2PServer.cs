@@ -204,7 +204,7 @@ namespace Chronos.P2P.Server
                         }
                         else
                         {
-                            var val = Peer.bufferLen + 1;
+                            var val = Peer.bufferLen + 10;
                             Peer.bufferLen = val > Peer.maxBufferLen ? Peer.maxBufferLen : val;
                         }
                         var sampleRtt = timer.Elapsed.TotalMilliseconds;
