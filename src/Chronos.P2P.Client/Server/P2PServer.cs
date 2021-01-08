@@ -195,7 +195,16 @@ namespace Chronos.P2P.Server
                 success = await await Task.WhenAny(ackTasks[reqId].Task, waitAsync(timeoutData.SendTimeOut));
                 if (success)
                 {
-
+                    if (Peer.bufferLen<Peer.threhold)
+                    {
+                        var val = Peer.bufferLen*2;
+                        Peer.bufferLen = val>Peer.threhold?Peer.threhold:val;
+                    }
+                    else
+                    {
+                        var val = Peer.bufferLen+1;
+                        Peer.bufferLen = val > Peer.maxBufferLen ? Peer.maxBufferLen : val;
+                    }
                     var sampleRtt = timer.Elapsed.TotalMilliseconds;
                     lock (rttLock)
                     {
@@ -213,6 +222,11 @@ namespace Chronos.P2P.Server
                         }
                     }
                     break;
+                }
+                else
+                {
+                    Peer.threhold = Math.Max(512,(int)(Peer.bufferLen*0.75));
+                    Peer.bufferLen = Peer.threhold;
                 }
             }
 
