@@ -339,8 +339,6 @@ namespace Chronos.P2P.Client
         internal void OnStreamHandshakeResult(UdpContext context)
         {
             var data = context.GetData<FileTransferHandShakeResult>();
-            server.timeoutData.SendTimeOut = 1000;
-            server.timeoutData.Rtts.Clear();
             FileAcceptTasks[data.SessionId].SetResult(data.Accept);
         }
 

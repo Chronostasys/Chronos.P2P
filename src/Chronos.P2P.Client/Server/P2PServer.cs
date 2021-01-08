@@ -10,7 +10,7 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
+using Microsoft.Extensions.ObjectPool;
 using System.Threading;
 using System.Threading.Tasks;
 using MessagePack;
@@ -28,6 +28,7 @@ namespace Chronos.P2P.Server
         private readonly UdpClient listener;
         private readonly ConcurrentDictionary<Guid, PeerInfo> peers;
         private ServiceProvider? serviceProvider;
+        private static readonly ObjectPool<Stopwatch> timerPool = ObjectPool.Create<Stopwatch>();
         internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks = new();
         internal readonly AutoTimeoutData timeoutData = new();
         internal ConcurrentDictionary<PeerEP, (PeerEP, DateTime)> connectionDic = new();
@@ -161,21 +162,23 @@ namespace Chronos.P2P.Server
             server.ConfigureServices(startUp.ConfigureServices);
             return server;
         }
-
+        static async Task<bool> waitAsync(int timeOut)
+        {
+            await Task.Delay(timeOut);
+            return false;
+        }
+        private static readonly object rttLock = new();
         public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
             IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
             MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData,
             int retry = 10, CancellationToken? token = null)
         {
-            Stopwatch? stopwatch = null;
-            if (timeoutData.Rtts.Count < avgNum)
-            {
-                stopwatch = new();
-            }
+            var timer = timerPool.Get();
             var reqId = Guid.NewGuid();
             ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var dbytes = (data is byte[])?(data as byte[]): MessagePackSerializer.Serialize(data);
             var bytes = CreateUdpRequestBuffer(method, reqId, dbytes);
+            bool success = false;
             for (int i = 0; i < retry; i++)
             {
                 token?.ThrowIfCancellationRequested();
@@ -187,40 +190,36 @@ namespace Chronos.P2P.Server
                     SendTask = ts
                 });
                 await ts.Task;
-                if (timeoutData.Rtts.Count < avgNum)
+                if (i==0) timer.Start();
+                else timer.Restart();
+                success = await await Task.WhenAny(ackTasks[reqId].Task, waitAsync(timeoutData.SendTimeOut));
+                if (success)
                 {
-                    if (stopwatch!.IsRunning)
+
+                    var sampleRtt = timer.Elapsed.TotalMilliseconds;
+                    lock (rttLock)
                     {
-                        stopwatch!.Restart();
-                    }
-                    else
-                    {
-                        stopwatch!.Start();
-                    }
-                }
-                var t = await await Task.WhenAny(ackTasks[reqId].Task, ((Func<Task<bool>>)(async () =>
-                {
-                    await Task.Delay(timeoutData.SendTimeOut);
-                    return false;
-                }))());
-                if (t)
-                {
-                    if (timeoutData.Rtts.Count < avgNum)
-                    {
-                        timeoutData.Rtts.Enqueue(stopwatch!.ElapsedMilliseconds);
-                        if (timeoutData.Rtts.Count == avgNum)
+                        if (timeoutData.EstimateRtt<0)
                         {
-                            timeoutData.SendTimeOut = (int)timeoutData.Rtts.OrderBy(i => i)
-                                .Take((int)(0.98 * timeoutData.Rtts.Count)).Max() * 2 + 1;
+                            timeoutData.EstimateRtt = (int)sampleRtt+1;
+                            timeoutData.DevRtt = (int)sampleRtt/2+1;
+                        }
+                        else
+                        {
+                            timeoutData.DevRtt = (int)Math.Round(0.75*timeoutData.DevRtt
+                                +0.25*Math.Abs(timeoutData.EstimateRtt-sampleRtt));
+                            timeoutData.EstimateRtt = 
+                                (int)Math.Round(0.875*timeoutData.EstimateRtt+0.125*sampleRtt);
                         }
                     }
-                    ackTasks.TryRemove(reqId, out var completionSource);
-                    return true;
+                    break;
                 }
             }
 
-            ackTasks.TryRemove(reqId, out var taskCompletionSource);
-            return false;
+            ackTasks.TryRemove(reqId, out var completionSource);
+            timer.Reset();
+            timerPool.Return(timer);
+            return success;
         }
 
         /// <summary>

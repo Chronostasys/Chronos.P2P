@@ -1,10 +1,14 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace Chronos.P2P.Client
 {
     public class AutoTimeoutData
     {
-        public ConcurrentQueue<long> Rtts { get; set; } = new ConcurrentQueue<long>();
-        public int SendTimeOut { get; set; } = 5000;
+        public int SendTimeOut => EstimateRtt > 0 ? EstimateRtt + 4 * Math.Max(15, DevRtt) : 5000;
+        public int DevRtt { get; set; } = -1;
+        public int EstimateRtt { get; set; } = -1;
+
     }
 }
