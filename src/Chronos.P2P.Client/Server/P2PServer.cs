@@ -224,7 +224,7 @@ namespace Chronos.P2P.Server
                     }
                     else
                     {
-                        Peer.threhold = Math.Max(512, (int)(Peer.bufferLen * 0.75));
+                        Peer.threhold = Math.Max(512, (int)(Peer.bufferLen * 0.5));
                         Peer.bufferLen = Peer.threhold;
                     }
                 }
