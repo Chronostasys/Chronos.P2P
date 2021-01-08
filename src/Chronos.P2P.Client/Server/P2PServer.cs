@@ -193,40 +193,40 @@ namespace Chronos.P2P.Server
                 if (i==0) timer.Start();
                 else timer.Restart();
                 success = await await Task.WhenAny(ackTasks[reqId].Task, waitAsync(timeoutData.SendTimeOut));
-                if (success)
+                lock (rttLock)
                 {
-                    if (Peer.bufferLen<Peer.threhold)
+                    if (success)
                     {
-                        var val = Peer.bufferLen*2;
-                        Peer.bufferLen = val>Peer.threhold?Peer.threhold:val;
-                    }
-                    else
-                    {
-                        var val = Peer.bufferLen+1;
-                        Peer.bufferLen = val > Peer.maxBufferLen ? Peer.maxBufferLen : val;
-                    }
-                    var sampleRtt = timer.Elapsed.TotalMilliseconds;
-                    lock (rttLock)
-                    {
-                        if (timeoutData.EstimateRtt<0)
+                        if (Peer.bufferLen < Peer.threhold)
                         {
-                            timeoutData.EstimateRtt = (int)sampleRtt+1;
-                            timeoutData.DevRtt = (int)sampleRtt/2+1;
+                            var val = Peer.bufferLen * 2;
+                            Peer.bufferLen = val > Peer.threhold ? Peer.threhold : val;
                         }
                         else
                         {
-                            timeoutData.DevRtt = (int)Math.Round(0.75*timeoutData.DevRtt
-                                +0.25*Math.Abs(timeoutData.EstimateRtt-sampleRtt));
-                            timeoutData.EstimateRtt = 
-                                (int)Math.Round(0.875*timeoutData.EstimateRtt+0.125*sampleRtt);
+                            var val = Peer.bufferLen + 1;
+                            Peer.bufferLen = val > Peer.maxBufferLen ? Peer.maxBufferLen : val;
                         }
+                        var sampleRtt = timer.Elapsed.TotalMilliseconds;
+                        if (timeoutData.EstimateRtt < 0)
+                        {
+                            timeoutData.EstimateRtt = (int)sampleRtt + 1;
+                            timeoutData.DevRtt = (int)sampleRtt / 2 + 1;
+                        }
+                        else
+                        {
+                            timeoutData.DevRtt = (int)Math.Round(0.75 * timeoutData.DevRtt
+                                + 0.25 * Math.Abs(timeoutData.EstimateRtt - sampleRtt));
+                            timeoutData.EstimateRtt =
+                                (int)Math.Round(0.875 * timeoutData.EstimateRtt + 0.125 * sampleRtt);
+                        }
+                        break;
                     }
-                    break;
-                }
-                else
-                {
-                    Peer.threhold = Math.Max(512,(int)(Peer.bufferLen*0.75));
-                    Peer.bufferLen = Peer.threhold;
+                    else
+                    {
+                        Peer.threhold = Math.Max(512, (int)(Peer.bufferLen * 0.75));
+                        Peer.bufferLen = Peer.threhold;
+                    }
                 }
             }
 
