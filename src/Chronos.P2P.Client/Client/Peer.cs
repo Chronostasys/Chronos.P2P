@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
         internal const int maxBufferLen = 65400;
-        internal static int threhold = 65400;
+        internal static int threhold = 512;
         internal volatile bool epConfirmed = false;
         internal static int bufferLen = 512;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
@@ -508,7 +508,7 @@ namespace Chronos.P2P.Client
         }
         public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, byte[] slice)
         {
-            var bytes = new byte[bufferLen + 29];
+            var bytes = new byte[slice.Length + 29];
             Span<byte> dataSpan = bytes;
             MemoryMarshal.Write(dataSpan, ref last);
             MemoryMarshal.Write(dataSpan[1..], ref len);
