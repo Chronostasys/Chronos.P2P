@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
         internal const int maxBufferLen = 65400;
-        internal static int threhold = 512;
+        internal static int threhold = 65400;
         internal volatile bool epConfirmed = false;
         internal static int bufferLen = 512;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
