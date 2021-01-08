@@ -353,7 +353,7 @@ namespace Chronos.P2P.Client
                 FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
                 if (slice.No % 1000 == 0)
                 {
-                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100),5}%");
+                    Console.WriteLine($"data transfered: No {slice.No}");
                 }
                 if (slice.Last)
                 {
@@ -462,14 +462,13 @@ namespace Chronos.P2P.Client
                 throw new OperationCanceledException("Remote refused!");
             }
             var cancelSource = new CancellationTokenSource();
-            var total = fs.Length / bufferLen;
-            Console.WriteLine($"Slice count: {total}");
-            for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
+            for (long i = 0, j = 0; i < fs.Length; j++)
             {
                 Memory<byte> buffer = new byte[bufferLen];
+                i += buffer.Length;
                 await semaphore.WaitAsync();
                 var len = await fs.ReadAsync(buffer);
-                var l = i >= fs.Length - bufferLen;
+                var l = i >= fs.Length - buffer.Length;
                 cancelSource.Token.ThrowIfCancellationRequested();
                 var j1 = j;
 
