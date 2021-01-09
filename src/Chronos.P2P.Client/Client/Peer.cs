@@ -434,7 +434,9 @@ namespace Chronos.P2P.Client
                 for (int i = 0; i < len / bufferLen + 1; i++)
                 {
                     var left = len - i * bufferLen;
-                    _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, ((left < bufferLen) ? left : bufferLen), -1, sessionId, buffer));
+                    var sendLen = ((left < bufferLen) ? left : bufferLen);
+                    _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, sendLen,
+                        -1, sessionId, mem[(i*bufferLen)..(i*bufferLen+sendLen)]));
                 }
                 
             }
