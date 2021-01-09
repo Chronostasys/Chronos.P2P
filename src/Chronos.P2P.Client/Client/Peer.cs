@@ -434,7 +434,7 @@ namespace Chronos.P2P.Client
                 for (int i = 0; i < len / bufferLen + 1; i++)
                 {
                     var left = len - i * bufferLen;
-                    _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, left < bufferLen ? left : bufferLen, -1, sessionId, buffer));
+                    _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, ((left < bufferLen) ? left : bufferLen), -1, sessionId, buffer));
                 }
                 
             }
@@ -526,15 +526,14 @@ namespace Chronos.P2P.Client
         }
         public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, Memory<byte> slice)
         {
-            var bytes = new byte[bufferLen + 29];
+            var bytes = new byte[len + 29];
             Span<byte> dataSpan = bytes;
             MemoryMarshal.Write(dataSpan, ref last);
             MemoryMarshal.Write(dataSpan[1..], ref len);
             MemoryMarshal.Write(dataSpan[5..], ref no);
             MemoryMarshal.Write(dataSpan[13..], ref sessionId);
             Memory<byte> mem = bytes;
-            slice.CopyTo(mem[29..]);
-            //Buffer.BlockCopy(slice, 0, bytes, 29, len);
+            slice[0..len].CopyTo(mem[29..]);
             return bytes;
         }
         #endregion File Transfer
