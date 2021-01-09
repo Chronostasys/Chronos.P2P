@@ -44,7 +44,7 @@ namespace Chronos.P2P.Client
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
         internal volatile bool epConfirmed = false;
-        internal const int bufferLen = 1440;
+        internal const int bufferLen = 1400;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal PeerInfo? peer;
@@ -436,8 +436,8 @@ namespace Chronos.P2P.Client
                 {
                     var left = len - i * bufferLen;
                     var sendLen = ((left < bufferLen) ? left : bufferLen);
-                    _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, sendLen,
-                        no++, sessionId, mem[(i*bufferLen)..(i*bufferLen+sendLen)]));
+                    _ = SendDataReliableAsync(callMethod, SliceToBytes(false, sendLen,
+                        no++, sessionId, mem[(i * bufferLen)..(i * bufferLen + sendLen)]), peer!.OuterEP.ToIPEP());
                 }
                 
             }
