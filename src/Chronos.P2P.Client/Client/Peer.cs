@@ -430,7 +430,13 @@ namespace Chronos.P2P.Client
             await foreach (var (buffer, len) in channel)
             {
                 token.ThrowIfCancellationRequested();
-                _ = SendDataToPeerAsync(callMethod, SliceToBytes(false,len,-1,sessionId,buffer));
+                Memory<byte> mem = buffer;
+                for (int i = 0; i < len / bufferLen + 1; i++)
+                {
+                    var left = len - i * bufferLen;
+                    _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, left < bufferLen ? left : bufferLen, -1, sessionId, buffer));
+                }
+                
             }
         }
         /// <summary>
