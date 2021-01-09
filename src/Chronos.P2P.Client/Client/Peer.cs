@@ -17,6 +17,8 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using MessagePack;
 using static Chronos.P2P.Client.Utils;
+using Microsoft.Extensions.ObjectPool;
+using System.Buffers;
 
 namespace Chronos.P2P.Client
 {
@@ -41,6 +43,7 @@ namespace Chronos.P2P.Client
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
+        private readonly ArrayPool<byte> sendBufferPool = ArrayPool<byte>.Shared;
         internal volatile bool epConfirmed = false;
         internal const int bufferLen = 1440;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
@@ -431,7 +434,6 @@ namespace Chronos.P2P.Client
                 _ = SendDataToPeerAsync(callMethod, SliceToBytes(false,len,-1,sessionId,buffer));
             }
         }
-
         /// <summary>
         /// Send file to a peer.
         /// This method is capable to handle large files
@@ -464,9 +466,10 @@ namespace Chronos.P2P.Client
             Console.WriteLine($"Slice count: {total}");
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                Memory<byte> buffer = new byte[bufferLen];
+                
+                byte[] buffer = sendBufferPool.Rent(bufferLen);
                 await semaphore.WaitAsync();
-                var len = await fs.ReadAsync(buffer);
+                var len = await fs.ReadAsync(buffer, 0, bufferLen);
                 var l = i >= fs.Length - bufferLen;
                 cancelSource.Token.ThrowIfCancellationRequested();
                 var j1 = j;
@@ -475,9 +478,10 @@ namespace Chronos.P2P.Client
                 if (l)
                 {
                     var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                        SliceToBytes(l,len, j1, sessionId, buffer.ToArray()),
+                        SliceToBytes(l,len, j1, sessionId, buffer),
                         30, cancelSource.Token);
                     semaphore.Release();
+                    sendBufferPool.Return(buffer);
                     if (!excr)
                     {
                         cancelSource.Cancel();
@@ -488,8 +492,9 @@ namespace Chronos.P2P.Client
                     _ = Task.Run(async () =>
                     {
                         var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                            SliceToBytes(l, len, j1, sessionId, buffer.ToArray()),
+                            SliceToBytes(l, len, j1, sessionId, buffer),
                             30, cancelSource.Token);
+                        sendBufferPool.Return(buffer);
                         semaphore.Release();
                         if (!excr)
                         {
@@ -512,7 +517,7 @@ namespace Chronos.P2P.Client
             MemoryMarshal.Write(dataSpan[1..], ref len);
             MemoryMarshal.Write(dataSpan[5..], ref no);
             MemoryMarshal.Write(dataSpan[13..], ref sessionId);
-            Buffer.BlockCopy(slice, 0, bytes, 29, slice.Length);
+            Buffer.BlockCopy(slice, 0, bytes, 29, len);
             return bytes;
         }
         #endregion File Transfer
