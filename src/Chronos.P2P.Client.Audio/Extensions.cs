@@ -1,6 +1,8 @@
 ﻿using Chronos.P2P.Server;
 using NAudio.Wave;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -11,6 +13,8 @@ namespace Chronos.P2P.Client.Audio
     {
         static readonly BufferedWaveProvider provider = new(new WaveFormat());
         static DirectSoundOut wo = null;
+        static Dictionary<long, DataSlice> audioSlices = new();
+        static long current = 0;
         static readonly object key = new();
         static int i = 0;
 
@@ -26,8 +30,23 @@ namespace Chronos.P2P.Client.Audio
         {
             var slice = DataSlice.FromBytes(context.data);
             provider.DiscardOnBufferOverflow = true;
+            
             lock (key)
             {
+                if (slice.No == current)
+                {
+                    provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
+                    current++;
+                    while (audioSlices.Remove(current, out slice))
+                    {
+                        provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
+                        current++;
+                    }
+                }
+                else
+                {
+                    audioSlices[slice.No] = slice;
+                }
                 if (provider.BufferedDuration.TotalMilliseconds > 120)
                 {
                     if (i > 10)
@@ -39,7 +58,6 @@ namespace Chronos.P2P.Client.Audio
                     else i++;
                 }
                 else i = 0;
-                provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
                 if (wo.PlaybackState is not PlaybackState.Playing)
                 {
                     wo.Init(provider);
