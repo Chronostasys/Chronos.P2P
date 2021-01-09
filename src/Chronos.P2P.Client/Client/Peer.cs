@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
         internal const int maxBufferLen = 65400;
-        internal static int threhold = 10240;
+        internal static int threhold = 512;
         internal volatile bool epConfirmed = false;
         internal static int bufferLen = 512;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
@@ -477,7 +477,7 @@ namespace Chronos.P2P.Client
                 {
                     var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
                         SliceToBytes(l,len, j1, sessionId, buffer.ToArray()),
-                        30, cancelSource.Token);
+                        100, cancelSource.Token);
                     semaphore.Release();
                     if (!excr)
                     {
@@ -490,7 +490,7 @@ namespace Chronos.P2P.Client
                     {
                         var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
                             SliceToBytes(l, len, j1, sessionId, buffer.ToArray()),
-                            30, cancelSource.Token);
+                            100, cancelSource.Token);
                         semaphore.Release();
                         if (!excr)
                         {
