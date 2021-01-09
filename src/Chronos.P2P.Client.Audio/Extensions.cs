@@ -14,9 +14,9 @@ namespace Chronos.P2P.Client.Audio
         static readonly BufferedWaveProvider provider = new(new WaveFormat());
         static DirectSoundOut wo = null;
         static Dictionary<long, DataSlice> audioSlices = new();
-        static long current = 0;
         static readonly object key = new();
         static int i = 0;
+        static volatile int current = 0;
 
         public AudioLiveStreamHandler(Peer peer)
         {
@@ -33,11 +33,11 @@ namespace Chronos.P2P.Client.Audio
             
             lock (key)
             {
-                if (slice.No == current)
+                if (slice.No==current)
                 {
                     provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
                     current++;
-                    while (audioSlices.Remove(current, out slice))
+                    while (audioSlices.Remove(current,out slice))
                     {
                         provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
                         current++;
@@ -47,7 +47,7 @@ namespace Chronos.P2P.Client.Audio
                 {
                     audioSlices[slice.No] = slice;
                 }
-                if (provider.BufferedDuration.TotalMilliseconds > 120)
+                if (provider.BufferedDuration.TotalMilliseconds > 320)
                 {
                     if (i > 10)
                     {
