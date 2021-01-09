@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
         internal volatile bool epConfirmed = false;
-        internal const int bufferLen = 65400;
+        internal static int bufferLen = 65400;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal PeerInfo? peer;
@@ -79,6 +79,13 @@ namespace Chronos.P2P.Client
 
         public Peer(int port, IPEndPoint serverEP, string? name = null)
         {
+            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
+                {
+                    bufferLen = ni.GetIPProperties().GetIPv4Properties().Mtu - 60;
+                }
+            }
             Name = name;
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
@@ -349,7 +356,7 @@ namespace Chronos.P2P.Client
             {
                 currentHead = slice.No;
                 FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
-                if (slice.No % 1000 == 0)
+                if (slice.No % 100000 == 0)
                 {
                     Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100),5}%");
                 }
