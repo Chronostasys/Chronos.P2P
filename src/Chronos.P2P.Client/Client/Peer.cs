@@ -426,6 +426,7 @@ namespace Chronos.P2P.Client
                 Name = name,
                 SessionId = sessionId
             });
+            long no = 0;
             await FileAcceptTasks[sessionId].Task;
             await foreach (var (buffer, len) in channel)
             {
@@ -436,7 +437,7 @@ namespace Chronos.P2P.Client
                     var left = len - i * bufferLen;
                     var sendLen = ((left < bufferLen) ? left : bufferLen);
                     _ = SendDataToPeerAsync(callMethod, SliceToBytes(false, sendLen,
-                        -1, sessionId, mem[(i*bufferLen)..(i*bufferLen+sendLen)]));
+                        no++, sessionId, mem[(i*bufferLen)..(i*bufferLen+sendLen)]));
                 }
                 
             }
