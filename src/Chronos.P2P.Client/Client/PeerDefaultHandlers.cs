@@ -37,10 +37,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.DataSlice)]
         public void FileDataHandler(UdpContext context)
         {
-            Task.Run(() =>
-            {
-                _ = peer.FileDataReceived(DataSlice.FromBytes(context.data));
-            });
+            _ = peer.FileDataReceived(DataSlice.FromBytes(context.data));
         }
 
         [Handler((int)CallMethods.P2PPing)]
