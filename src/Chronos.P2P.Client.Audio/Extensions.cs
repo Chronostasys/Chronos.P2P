@@ -17,6 +17,7 @@ namespace Chronos.P2P.Client.Audio
         static readonly object key = new();
         static int i = 0;
         static volatile int current = 0;
+        static volatile bool first = true;
 
         public AudioLiveStreamHandler(Peer peer)
         {
@@ -60,9 +61,13 @@ namespace Chronos.P2P.Client.Audio
                 else i = 0;
                 if (wo.PlaybackState is not PlaybackState.Playing)
                 {
-                    current++;
+                    if (!first)
+                    {
+                        current++;
+                    }
                     wo.Init(provider);
                     wo.Play();
+                    first = false;
                 }
             }
             
