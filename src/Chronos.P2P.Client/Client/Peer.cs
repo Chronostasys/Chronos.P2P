@@ -19,6 +19,7 @@ using MessagePack;
 using static Chronos.P2P.Client.Utils;
 using Microsoft.Extensions.ObjectPool;
 using System.Buffers;
+using System.IO.MemoryMappedFiles;
 
 namespace Chronos.P2P.Client
 {
@@ -320,12 +321,15 @@ namespace Chronos.P2P.Client
                 Console.WriteLine("\nWaiting for io to complete...");
                 try
                 {
-                    await FileRecvDic[dataSlice.SessionId].IOTask;
+                    FileRecvDic[dataSlice.SessionId].Accessor.Dispose();
+                    FileRecvDic[dataSlice.SessionId].Mmf.Dispose();
+                    await FileRecvDic[dataSlice.SessionId].FS.DisposeAsync();
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    Console.WriteLine(e);
                 }
-                await fs!.DisposeAsync();
+                count = 0;
                 fs = null;
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
                 val.Semaphore.Dispose();
@@ -346,39 +350,14 @@ namespace Chronos.P2P.Client
 
         internal async Task ProcessDataSliceAsync(DataSlice dataSlice, Func<Task> cleanUpAsync)
         {
-            var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
-            async Task ProcessSliceAsync(DataSlice slice)
+            var data = FileRecvDic[dataSlice.SessionId];
+            data.Accessor.WriteArray(dataSlice.No * bufferLen, dataSlice.Slice, 0, dataSlice.Len);
+            if (Interlocked.Increment(ref count)==data.Total)
             {
-                currentHead = slice.No;
-                FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
-                if (slice.No % 100000 == 0)
-                {
-                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100),5}%");
-                }
-                if (slice.Last)
-                {
-                    await cleanUpAsync();
-                }
+                await cleanUpAsync();
             }
-            await semaphoreSlim.WaitAsync();
-            var sliceInfo = new DataSliceInfo { SessionId = dataSlice.SessionId };
-            if (currentHead == dataSlice.No - 1)
-            {
-                await ProcessSliceAsync(dataSlice);
-                sliceInfo.No = ++dataSlice.No;
-                while (slices.TryRemove(sliceInfo,
-                    out var slice))
-                {
-                    await ProcessSliceAsync(slice);
-                    sliceInfo.No++;
-                }
-            }
-            else
-            {
-                slices[new DataSliceInfo { No = dataSlice.No, SessionId = dataSlice.SessionId }] = dataSlice;
-            }
-            semaphoreSlim.Release();
         }
+        long count = 0;
 
         internal async Task StreamTransferRequested(BasicFileInfo data)
         {
@@ -387,26 +366,24 @@ namespace Chronos.P2P.Client
             var sessionId = data.SessionId;
             if (recv)
             {
-                MsgQueue<DataSlice> queue = new();
                 if (data.Length > 0)
                 {
-                    fs = File.Create(savepath);
+                    var mfs = File.Create(savepath);
+                    mfs.SetLength(data.Length);
+                    var mmf = MemoryMappedFile.CreateFromFile(mfs, null,
+                        0, MemoryMappedFileAccess.ReadWrite, HandleInheritability.Inheritable, false);
                     FileRecvDic[sessionId] = new FileRecvDicData
                     {
                         SavePath = savepath,
                         Semaphore = new SemaphoreSlim(1),
                         Length = data.Length,
                         Watch = new Stopwatch(),
-                        MsgQueue = queue,
-                        IOTask = StartQueuedTask(queue, async fm =>
-                        {
-                            await fs.WriteAsync(fm.Slice.AsMemory(0, fm.Len));
-                            if (fm.Last)
-                            {
-                                throw new OperationCanceledException();
-                            }
-                        })
+                        Mmf = mmf,
+                        Accessor = mmf.CreateViewAccessor(),
+                        FS = mfs,
+                        Total = data.Length / bufferLen + 1
                     };
+                    count = 0;
                 }
             }
             await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShakeCallback, new FileTransferHandShakeResult

@@ -34,7 +34,7 @@ namespace Chronos.P2P.Test
             const int testlen = 10;
             for (int i = 0; i < testlen; i++)
             {
-                await peer.ProcessDataSliceAsync(new DataSlice
+                peer.ProcessDataSliceAsync(new DataSlice
                 {
                     No = testlen - i - 1,
                     Len = Peer.bufferLen,
