@@ -352,6 +352,11 @@ namespace Chronos.P2P.Client
         {
             var data = FileRecvDic[dataSlice.SessionId];
             data.Accessor.WriteArray(dataSlice.No * bufferLen, dataSlice.Slice, 0, dataSlice.Len);
+            if (dataSlice.No%(10240)==0)
+            {
+                data.Accessor.Flush();
+                Console.WriteLine($"data slice no: {dataSlice.No}");
+            }
             if (Interlocked.Increment(ref count)==data.Total)
             {
                 await cleanUpAsync();
