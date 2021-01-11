@@ -454,11 +454,11 @@ namespace Chronos.P2P.Client
             var cancelSource = new CancellationTokenSource();
             var total = fs.Length / bufferLen;
             Console.WriteLine($"Slice count: {total}");
-            Memory<byte> fileReadBuffer = new byte[3640 * bufferLen];
+            Memory<byte> fileReadBuffer = new byte[10240 * bufferLen];
             int readLen = 0;
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                int n = (int)(j % 3640);
+                int n = (int)(j % 10240);
                 if (n==0)
                 {
                     var rt = fs.ReadAsync(fileReadBuffer);
