@@ -67,7 +67,7 @@ namespace Chronos.P2P.Server
                 }
             });
         }
-
+        Type handlerType = typeof(Action<UdpContext>);
         /// <summary>
         /// 调用请求对应的处理函数
         /// </summary>
@@ -76,9 +76,11 @@ namespace Chronos.P2P.Server
         internal void CallHandler(TypeData data, UdpContext param)
         {
             var handler = GetInstance(data);
+            var d = (Delegate.CreateDelegate(handlerType, handler, data.Method!) as Action<UdpContext>)!;
+            
             Task.Run(() =>
             {
-                data.Method!.Invoke(handler, new[] { param });
+                d(param);
             });
         }
 
