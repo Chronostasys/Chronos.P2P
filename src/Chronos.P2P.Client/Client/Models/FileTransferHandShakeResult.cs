@@ -1,5 +1,5 @@
-﻿using System;
-using MessagePack;
+﻿using MessagePack;
+using System;
 
 namespace Chronos.P2P.Client
 {
@@ -8,6 +8,7 @@ namespace Chronos.P2P.Client
     {
         [Key(0)]
         public bool Accept { get; set; }
+
         [Key(1)]
         public Guid SessionId { get; set; }
     }

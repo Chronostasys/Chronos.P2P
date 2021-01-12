@@ -1,9 +1,8 @@
-﻿using System.Runtime.InteropServices;
-using System;
+﻿using System;
+using System.Runtime.InteropServices;
 
 namespace Chronos.P2P.Client
 {
-
     public struct DataSlice
     {
         public bool Last;
@@ -11,6 +10,7 @@ namespace Chronos.P2P.Client
         public long No;
         public Guid SessionId;
         public byte[] Slice;
+
         public static DataSlice FromBytes(byte[] bytes)
         {
             var slice = new DataSlice();

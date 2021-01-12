@@ -1,4 +1,3 @@
-using Chronos.P2P.Client;
 using Chronos.P2P.Server;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -7,7 +6,6 @@ using System.Net.Sockets;
 
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Chronos.P2P.Test
 {
@@ -26,7 +24,7 @@ namespace Chronos.P2P.Test
         [Fact]
         private void SetUpTest()
         {
-            server = new P2PServer(Guid.NewGuid().GetHashCode()%5000+15000);
+            server = new P2PServer(Guid.NewGuid().GetHashCode() % 5000 + 15000);
             server.AddHandler<DITestHandler>();
 
             server.ConfigureServices(services =>
@@ -57,6 +55,13 @@ namespace Chronos.P2P.Test
         }
 
         [Fact]
+        public void TestProcessRequestCreateNewThread()
+        {
+            SetUpTest();
+            _ = server.ProcessRequestAsync(new UdpReceiveResult());
+        }
+
+        [Fact]
         public async Task TestReliableRequest()
         {
             SetUpTest();
@@ -73,12 +78,5 @@ namespace Chronos.P2P.Test
             Assert.True(server.guidDic.ContainsKey(id));
             server.Dispose();
         }
-        [Fact]
-        public void TestProcessRequestCreateNewThread()
-        {
-            SetUpTest();
-            _ = server.ProcessRequestAsync(new UdpReceiveResult());
-        }
-
     }
 }

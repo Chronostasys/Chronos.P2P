@@ -1,6 +1,5 @@
 ﻿using Chronos.P2P.Server;
 using System;
-using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {

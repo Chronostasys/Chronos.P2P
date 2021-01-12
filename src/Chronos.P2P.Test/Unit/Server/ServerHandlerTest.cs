@@ -1,11 +1,9 @@
+using Chronos.P2P.Client;
+using Chronos.P2P.Server;
+using Moq;
 using System;
 using System.Threading.Tasks;
-using System.Reflection.Metadata;
-using Chronos.P2P.Server;
 using Xunit;
-using Moq;
-using Chronos.P2P.Client;
-
 
 namespace Chronos.P2P.Test
 {
@@ -14,8 +12,7 @@ namespace Chronos.P2P.Test
         [Fact(Timeout = 2000)]
         public void TestIllegalConnectionHandshake()
         {
-            
-            var moq = new Mock<P2PServer>(()=>new P2PServer(5500));
+            var moq = new Mock<P2PServer>(() => new P2PServer(5500));
             moq.Setup(s => s.StartSendTask()).Returns(Task.CompletedTask);
             var obj = moq.Object;
             var msgs = obj.msgs;
@@ -26,10 +23,11 @@ namespace Chronos.P2P.Test
                 Ep = PeerEP.ParsePeerEPFromIPEP(new System.Net.IPEndPoint(100, 100))
             });
 
-            handler.HolePunchRequest(new UdpContext(bytes.AsMemory()[20..].ToArray(), new(), 
-                new System.Net.IPEndPoint(100,100), null));
-            Assert.Equal(0,msgs.Count);
+            handler.HolePunchRequest(new UdpContext(bytes.AsMemory()[20..].ToArray(), new(),
+                new System.Net.IPEndPoint(100, 100), null));
+            Assert.Equal(0, msgs.Count);
         }
+
         [Fact(Timeout = 2000)]
         public void TestLegalConnectionHandshake()
         {

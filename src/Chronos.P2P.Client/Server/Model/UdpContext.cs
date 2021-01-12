@@ -1,10 +1,9 @@
 ﻿using Chronos.P2P.Client;
+using MessagePack;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-
-using MessagePack;
 
 namespace Chronos.P2P.Server
 {

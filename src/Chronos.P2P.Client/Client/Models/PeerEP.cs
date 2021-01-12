@@ -1,5 +1,5 @@
-﻿using System.Net;
-using MessagePack;
+﻿using MessagePack;
+using System.Net;
 
 namespace Chronos.P2P.Client
 {
@@ -8,8 +8,10 @@ namespace Chronos.P2P.Client
     {
         [IgnoreMember]
         private IPEndPoint? ep = null;
+
         [Key(0)]
         public string IP { get; init; }
+
         [Key(1)]
         public int Port { get; init; }
 
@@ -81,6 +83,7 @@ namespace Chronos.P2P.Client
             return $"{IP}:{Port}";
         }
     }
+
     [MessagePackObject]
     public class PeerInnerEP : PeerEP
     {

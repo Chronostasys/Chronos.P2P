@@ -1,4 +1,5 @@
 ﻿using MessagePack;
+
 namespace Chronos.P2P.Test
 {
     [MessagePackObject]

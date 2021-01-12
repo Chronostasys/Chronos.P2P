@@ -1,7 +1,6 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Client.Audio;
 using System;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -48,7 +47,7 @@ namespace Chronos.P2P.Server.Sample
                     }
                     foreach (var item in peer.Peers)
                     {
-                        Console.WriteLine($"peer id: {item.Key}, \ninnerip: {string.Join("/n", item.Value.InnerEP)}, \nouterip: {item.Value.OuterEP}");
+                        Console.WriteLine($"peer id: {item.Key}, \ninnerip: {string.Join("\n", item.Value.InnerEP)}, \nouterip: {item.Value.OuterEP}");
                     }
                     Console.WriteLine("Enter the peer id you would like to communicate to (press enter to see available peer list):");
                 }

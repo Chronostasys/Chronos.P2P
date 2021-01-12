@@ -1,7 +1,7 @@
-﻿using System.Net;
-using Chronos.P2P.Client;
+﻿using Chronos.P2P.Client;
 using Moq;
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -25,6 +25,30 @@ namespace Chronos.P2P.Test
                     It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(ValueTask.FromResult(true));
             peer = mock.Object;
+        }
+
+        [Theory]
+        [InlineData("192.168.1.211")]
+        [InlineData("192.168.1.5")]
+        [InlineData("192.168.2.211")]
+        [InlineData("192.18.1.211")]
+        public void TestPeerEpAutoSwitch(string ip)
+        {
+            peer.peer = new PeerInfo();
+            try
+            {
+                peer.PunchDataReceived(new Server.UdpContext(
+                    null, null, new IPEndPoint(IPAddress.Parse(ip), 999), null));
+            }
+            catch (System.Exception)
+            {
+            }
+            Assert.True(peer.epConfirmed);
+            Assert.Equal(new PeerEP
+            {
+                IP = ip,
+                Port = 999
+            }, peer.RmotePeer.OuterEP);
         }
 
         [Fact]
@@ -59,29 +83,6 @@ namespace Chronos.P2P.Test
             });
             Assert.True(peer.FileRecvDic.ContainsKey(id));
             peer.Dispose();
-        }
-        [Theory]
-        [InlineData("192.168.1.211")]
-        [InlineData("192.168.1.5")]
-        [InlineData("192.168.2.211")]
-        [InlineData("192.18.1.211")]
-        public void TestPeerEpAutoSwitch(string ip)
-        {
-            peer.peer = new PeerInfo();
-            try
-            {
-                peer.PunchDataReceived(new Server.UdpContext(
-                    null, null, new IPEndPoint(IPAddress.Parse(ip), 999), null));
-            }
-            catch (System.Exception)
-            {
-            }
-            Assert.True(peer.epConfirmed);
-            Assert.Equal(new PeerEP{
-                IP = ip,
-                Port = 999
-            }, peer.RmotePeer.OuterEP);
-            
         }
     }
 }
