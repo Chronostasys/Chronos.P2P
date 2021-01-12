@@ -9,16 +9,20 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace Chronos.P2P.Test
 {
     public class ClientHandler
     {
-        readonly Peer peer;
+        private readonly Peer peer;
+
         public ClientHandler(Peer p)
         {
             peer = p;
         }
+
         [Handler((int)CallMethods.P2PDataTransfer)]
         public void OnReceiveData(UdpContext udpContext)
         {
@@ -29,15 +33,17 @@ namespace Chronos.P2P.Test
             }
         }
     }
+
     [Collection("Integration")]
     public class IntegrationTest
     {
-        readonly ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
-        readonly ConcurrentDictionary<Guid, TaskCompletionSource> completionSource = new();
+        private readonly ConcurrentDictionary<Guid, TaskCompletionSource> completionSource = new();
+        private readonly ConcurrentDictionary<Guid, TaskCompletionSource> sources = new();
+        private Peer peer1;
+        private Peer peer2;
         internal static ConcurrentDictionary<Guid, string> data = new();
         internal static int nums = 0;
-        Peer peer1;
-        Peer peer2;
+
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
             var p = sender as Peer;
@@ -52,6 +58,7 @@ namespace Chronos.P2P.Test
                 sources[p.ID].TrySetResult();
             }
         }
+
         [Fact(Timeout = 20000)]
         private async Task SetUpPeers()
         {
@@ -136,7 +143,6 @@ namespace Chronos.P2P.Test
         [Fact(Timeout = 20000)]
         public async Task TestIntegration()
         {
-            
             peer1 = new Peer(9888, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             peer2 = new Peer(9800, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             nums = 0;
@@ -171,6 +177,5 @@ namespace Chronos.P2P.Test
 
             server.Dispose();
         }
-
     }
 }

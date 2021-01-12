@@ -1,6 +1,6 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 using System.Collections.Generic;
-using MessagePack;
 
 namespace Chronos.P2P.Client
 {
@@ -9,10 +9,13 @@ namespace Chronos.P2P.Client
     {
         [Key(0)]
         public DateTime CreateTime { get; }
+
         [Key(1)]
         public Guid Id { get; set; }
+
         [Key(2)]
         public List<PeerInnerEP> InnerEP { get; set; }
+
         [Key(3)]
         public PeerEP OuterEP { get; set; }
 

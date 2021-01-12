@@ -1,7 +1,6 @@
 ﻿using Chronos.P2P.Client;
-using System;
-
 using MessagePack;
+using System;
 
 namespace Chronos.P2P.Server
 {

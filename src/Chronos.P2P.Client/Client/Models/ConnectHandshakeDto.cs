@@ -1,4 +1,5 @@
 ﻿using MessagePack;
+
 namespace Chronos.P2P.Client
 {
     [MessagePackObject]
@@ -6,6 +7,7 @@ namespace Chronos.P2P.Client
     {
         [Key(0)]
         public PeerEP Ep { get; set; }
+
         [Key(1)]
         public PeerInfo Info { get; set; }
     }

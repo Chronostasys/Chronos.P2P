@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Server;
+using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
@@ -11,11 +12,8 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
-using MessagePack;
 using static Chronos.P2P.Client.Utils;
 using Microsoft.Extensions.ObjectPool;
 using System.Buffers;
@@ -23,29 +21,27 @@ using System.IO.MemoryMappedFiles;
 
 namespace Chronos.P2P.Client
 {
-
     public class Peer : IRequestHandlerCollection, IDisposable
     {
         #region Fields
 
-        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
-
         private readonly TaskCompletionSource<bool> connectionHandshakeTask
             = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private long currentHead = -1;
-        private volatile bool isInSameSubNet = false;
-        private DateTime lastConnectDataSentTime;
-        private DateTime lastPunchDataSentTime;
-        private readonly CancellationTokenSource lifeTokenSource = new();
         private readonly object epKey = new();
-        private int pingCount = 10;
+        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
+        private readonly CancellationTokenSource lifeTokenSource = new();
         private readonly P2PServer server;
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
         private readonly UdpClient udpClient;
-        internal volatile bool epConfirmed = false;
+        private long currentHead = -1;
+        private volatile bool isInSameSubNet = false;
+        private DateTime lastConnectDataSentTime;
+        private DateTime lastPunchDataSentTime;
+        private int pingCount = 10;
         internal const int bufferLen = 1400;
+        internal volatile bool epConfirmed = false;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal PeerInfo? peer;
@@ -68,10 +64,10 @@ namespace Chronos.P2P.Client
 
         #region Properties
 
+        private MsgQueue<UdpMsg> Msgs => server.msgs;
         public Guid ID { get; }
         public bool IsPeerConnected { get; private set; } = false;
         public IEnumerable<PeerInnerEP> LocalEP { get; }
-        private MsgQueue<UdpMsg> Msgs => server.msgs;
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
         public ConcurrentDictionary<Guid, PeerInfo>? Peers { get; private set; }
@@ -108,7 +104,7 @@ namespace Chronos.P2P.Client
                 while (true)
                 {
                     tokenSource.Token.ThrowIfCancellationRequested();
-                    if (IsPeerConnected|| peer is not null)
+                    if (IsPeerConnected || peer is not null)
                     {
                         break;
                     }
@@ -222,7 +218,7 @@ namespace Chronos.P2P.Client
                 }
                 lock (epKey)
                 {
-                    if ((peer!.OuterEP.IP == OuterEp!.IP|| isInSameSubNet) && !epConfirmed&& eps.Count!=0)
+                    if ((peer!.OuterEP.IP == OuterEp!.IP || isInSameSubNet) && !epConfirmed && eps.Count != 0)
                     {
                         try
                         {
@@ -234,7 +230,6 @@ namespace Chronos.P2P.Client
                             peer.OuterEP = eps[0];
                             eps.Remove(peer.OuterEP);
                         }
-                        
                     }
                 }
                 int i = 1;
@@ -243,7 +238,7 @@ namespace Chronos.P2P.Client
                     lock (epKey)
                     {
                         var prevEp = peer!.OuterEP;
-                        if (i > 5 && !epConfirmed&&eps.Count!=0)
+                        if (i > 5 && !epConfirmed && eps.Count != 0)
                         {
                             i = 0;
                             try
@@ -398,32 +393,19 @@ namespace Chronos.P2P.Client
             });
         }
 
-        public async Task SendLiveStreamAsync(MsgQueue<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
+        public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, Memory<byte> slice)
         {
-            var sessionId = Guid.NewGuid();
-            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
-            {
-                Length = -1,
-                Name = name,
-                SessionId = sessionId
-            });
-            long no = 0;
-            await FileAcceptTasks[sessionId].Task;
-            await foreach (var (buffer, len) in channel)
-            {
-                token.ThrowIfCancellationRequested();
-                Memory<byte> mem = buffer;
-                for (int i = 0; i < len / bufferLen + 1; i++)
-                {
-                    var left = len - i * bufferLen;
-                    var sendLen = ((left < bufferLen) ? left : bufferLen);
-                    _ = SendDataReliableAsync(callMethod, SliceToBytes(false, sendLen,
-                        no++, sessionId, mem[(i * bufferLen)..(i * bufferLen + sendLen)]), peer!.OuterEP.ToIPEP());
-                }
-                
-            }
+            var bytes = new byte[len + 29];
+            Span<byte> dataSpan = bytes;
+            MemoryMarshal.Write(dataSpan, ref last);
+            MemoryMarshal.Write(dataSpan[1..], ref len);
+            MemoryMarshal.Write(dataSpan[5..], ref no);
+            MemoryMarshal.Write(dataSpan[13..], ref sessionId);
+            Memory<byte> mem = bytes;
+            slice[0..len].CopyTo(mem[29..]);
+            return bytes;
         }
+
         /// <summary>
         /// Send file to a peer.
         /// This method is capable to handle large files
@@ -470,17 +452,16 @@ namespace Chronos.P2P.Client
                     await semaphore.WaitAsync();
                 }
                 var buffer = fileReadBuffer[(n * bufferLen)..((n + 1) * bufferLen)];
-                
+
                 var l = i >= fs.Length - bufferLen;
                 var len = l ? (readLen - n * bufferLen) : bufferLen;
                 cancelSource.Token.ThrowIfCancellationRequested();
                 var j1 = j;
 
-
                 if (l)
                 {
                     var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                        SliceToBytes(l,len, j1, sessionId, buffer),
+                        SliceToBytes(l, len, j1, sessionId, buffer),
                         30, cancelSource.Token);
                     semaphore.Release();
                     if (!excr)
@@ -509,18 +490,33 @@ namespace Chronos.P2P.Client
                 semaphore.Release();
             }
         }
-        public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, Memory<byte> slice)
+
+        public async Task SendLiveStreamAsync(MsgQueue<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
         {
-            var bytes = new byte[len + 29];
-            Span<byte> dataSpan = bytes;
-            MemoryMarshal.Write(dataSpan, ref last);
-            MemoryMarshal.Write(dataSpan[1..], ref len);
-            MemoryMarshal.Write(dataSpan[5..], ref no);
-            MemoryMarshal.Write(dataSpan[13..], ref sessionId);
-            Memory<byte> mem = bytes;
-            slice[0..len].CopyTo(mem[29..]);
-            return bytes;
+            var sessionId = Guid.NewGuid();
+            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
+            {
+                Length = -1,
+                Name = name,
+                SessionId = sessionId
+            });
+            long no = 0;
+            await FileAcceptTasks[sessionId].Task;
+            await foreach (var (buffer, len) in channel)
+            {
+                token.ThrowIfCancellationRequested();
+                Memory<byte> mem = buffer;
+                for (int i = 0; i < len / bufferLen + 1; i++)
+                {
+                    var left = len - i * bufferLen;
+                    var sendLen = ((left < bufferLen) ? left : bufferLen);
+                    _ = SendDataReliableAsync(callMethod, SliceToBytes(false, sendLen,
+                        no++, sessionId, mem[(i * bufferLen)..(i * bufferLen + sendLen)]), peer!.OuterEP.ToIPEP());
+                }
+            }
         }
+
         #endregion File Transfer
 
         #region Handlers
@@ -589,11 +585,6 @@ namespace Chronos.P2P.Client
             var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             lock (epKey)
             {
-                //if (ep.IP == peer!.OuterEP.IP || peer.InnerEP.Contains(new PeerInnerEP(ep)))
-                //{
-                //    peer.OuterEP = ep;
-                //    epConfirmed = true;
-                //}
                 peer!.OuterEP = ep;
                 epConfirmed = true;
                 Console.WriteLine($"Peer punch data received, set remote ep to {peer.OuterEP}");
@@ -763,7 +754,6 @@ namespace Chronos.P2P.Client
         {
             var t = StartReceiveData();
             StartBroadCast();
-            //StartHolePunching();
             return t;
         }
 

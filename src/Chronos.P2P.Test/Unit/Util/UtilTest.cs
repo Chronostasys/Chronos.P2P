@@ -1,8 +1,8 @@
+using Chronos.P2P.Client;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Chronos.P2P.Client;
 using Xunit;
-using System.Linq;
 
 namespace Chronos.P2P.Test
 {
@@ -16,9 +16,10 @@ namespace Chronos.P2P.Test
         public void TestIsInSubnet(string address, bool actual)
         {
             var isInSubNet = Utils.IsInSameSubnet(IPAddress.Parse("192.168.1.123"),
-                IPAddress.Parse(address),IPAddress.Parse("255.255.255.0"));
+                IPAddress.Parse(address), IPAddress.Parse("255.255.255.0"));
             Assert.Equal(actual, isInSubNet);
         }
+
         [Theory]
         [InlineData(100, 200, 300)]
         [InlineData(1, 290, 810)]
@@ -38,8 +39,6 @@ namespace Chronos.P2P.Test
             }
             await Task.Delay(100);
             Assert.Equal(nums.Sum(), num);
-
-
         }
     }
 }

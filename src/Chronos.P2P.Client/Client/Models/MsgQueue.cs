@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Chronos.P2P.Client
 {
-    public class MsgQueue<T>: IAsyncEnumerable<T>
+    public class MsgQueue<T> : IAsyncEnumerable<T>
     {
         private readonly ConcurrentQueue<T> queue = new();
         private readonly SemaphoreSlim semaphore = new(0);
