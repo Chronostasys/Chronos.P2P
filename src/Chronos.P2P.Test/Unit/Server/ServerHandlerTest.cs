@@ -1,5 +1,7 @@
+using Castle.Core.Logging;
 using Chronos.P2P.Client;
 using Chronos.P2P.Server;
+using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Threading.Tasks;
@@ -16,7 +18,7 @@ namespace Chronos.P2P.Test
             moq.Setup(s => s.StartSendTask()).Returns(Task.CompletedTask);
             var obj = moq.Object;
             var msgs = obj.msgs;
-            var handler = new ServerHandlers(obj);
+            var handler = new ServerHandlers(obj, new Logger<ServerHandlers>(LoggerFactory.Create(b=>b.AddConsole())));
             var bytes = P2PServer.CreateUdpRequestBuffer(0, Guid.Empty, new ConnectionReplyDto
             {
                 Acc = true,
@@ -38,7 +40,7 @@ namespace Chronos.P2P.Test
             var obj = moq.Object;
             obj.connectionDic[pep] = (pep, DateTime.UtcNow);
             var msgs = obj.msgs;
-            var handler = new ServerHandlers(obj);
+            var handler = new ServerHandlers(obj, new Logger<ServerHandlers>(LoggerFactory.Create(b => b.AddConsole())));
             var bytes = P2PServer.CreateUdpRequestBuffer(0, Guid.Empty, new ConnectionReplyDto
             {
                 Acc = true,
