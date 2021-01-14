@@ -1,5 +1,6 @@
 ﻿using Chronos.P2P.Client;
 using MessagePack;
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace Chronos.P2P.Server
@@ -10,10 +11,11 @@ namespace Chronos.P2P.Server
     public class ServerHandlers
     {
         private readonly P2PServer server;
-
-        public ServerHandlers(P2PServer _server)
+        private ILogger<ServerHandlers> _logger;
+        public ServerHandlers(P2PServer _server, ILogger<ServerHandlers> logger)
         {
             server = _server;
+            _logger = logger;
         }
 
         [Handler((int)CallMethods.Ack)]
@@ -35,7 +37,7 @@ namespace Chronos.P2P.Server
             server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
             _ = P2PServer.SendDataReliableAsync((int)CallMethods.PeerConnectionRequest, data.Info,
                 ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
-            Console.WriteLine("send handshake data");
+            _logger.LogInformation("send handshake data");
         }
 
         [Handler((int)CallMethods.Connect)]
@@ -55,7 +57,7 @@ namespace Chronos.P2P.Server
             peers[peer.Id] = peer;
             peer.OuterEP = PeerEP.ParsePeerEPFromIPEP(remote);
 
-            Console.WriteLine($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
+            _logger.LogInformation($"receive peer {peer.Id} from {peer.OuterEP.ToIPEP()}");
 
             var sendbytes = MessagePackSerializer.Serialize(peers);
             server.msgs.Enqueue(new UdpMsg
@@ -71,7 +73,7 @@ namespace Chronos.P2P.Server
             var reply = context.GetData<ConnectionReplyDto>()!;
             var ep = reply.Ep;
             var rep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
-            Console.WriteLine("handshake reply get");
+            _logger.LogInformation("handshake reply get");
             var c = server.connectionDic.TryRemove(ep, out var t);
             if (c && t.Item1 == rep)
             {

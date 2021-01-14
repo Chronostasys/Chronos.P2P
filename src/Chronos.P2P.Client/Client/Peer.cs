@@ -15,6 +15,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using static Chronos.P2P.Client.Utils;
+using Microsoft.Extensions.ObjectPool;
+using System.Buffers;
+using System.IO.MemoryMappedFiles;
+using Microsoft.Extensions.Logging;
 
 namespace Chronos.P2P.Client
 {
@@ -37,6 +41,7 @@ namespace Chronos.P2P.Client
         private DateTime lastConnectDataSentTime;
         private DateTime lastPunchDataSentTime;
         private int pingCount = 10;
+        private ILogger<Peer> _logger;
         internal const int bufferLen = 1400;
         internal volatile bool epConfirmed = false;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
@@ -87,6 +92,8 @@ namespace Chronos.P2P.Client
             server.services.AddSingleton(this);
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
+            using var p = server.services.BuildServiceProvider();
+            _logger = p.GetRequiredService<ILogger<Peer>>();
             lastPunchDataSentTime = DateTime.UtcNow;
             lastConnectDataSentTime = DateTime.UtcNow;
         }
@@ -146,8 +153,7 @@ namespace Chronos.P2P.Client
 
                     if (pingCount == 0)
                     {
-                        Console.WriteLine("connection lost!");
-                        Console.WriteLine($"{ID}");
+                        _logger.LogWarning($"Connection lost!");
                         PeerConnectionLost?.Invoke(this, new());
                         peer = null;
                     }
@@ -256,7 +262,7 @@ namespace Chronos.P2P.Client
                             peer.OuterEP = peer.InnerEP.First();
                             peer.InnerEP.Remove(peer.InnerEP.First());
                         }
-                        Console.WriteLine($"trying new ep {peer.OuterEP}");
+                        _logger.LogInformation($"trying new ep {peer.OuterEP}");
                     }
                     if (peer is not null)
                     {
@@ -266,7 +272,7 @@ namespace Chronos.P2P.Client
                         }
                         if (tokenSource.IsCancellationRequested)
                         {
-                            Console.WriteLine($"Connected data sent to peer {peer.OuterEP.ToIPEP()}");
+                            _logger.LogInformation($"Connected data sent to peer {peer.OuterEP.ToIPEP()}");
                             await SendDataToPeerAsync((int)CallMethods.Connected, "");
                             if (IsPeerConnected)
                             {
@@ -275,7 +281,7 @@ namespace Chronos.P2P.Client
                         }
                         else
                         {
-                            Console.WriteLine($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
+                            _logger.LogInformation($"Punching data sent to peer {peer.OuterEP.ToIPEP()}");
                             await SendDataToPeerAsync((int)CallMethods.PunchHole, "");
                             i++;
                         }
@@ -310,7 +316,7 @@ namespace Chronos.P2P.Client
             {
                 slices.Clear();
                 currentHead = -1;
-                Console.WriteLine("\nWaiting for io to complete...");
+                _logger.LogInformation("Waiting for io to complete...");
                 try
                 {
                     await FileRecvDic[dataSlice.SessionId].IOTask;
@@ -323,10 +329,10 @@ namespace Chronos.P2P.Client
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
                 val.Semaphore.Dispose();
                 semaphoreSlim = null;
-                Console.WriteLine("transfer done!");
+                _logger.LogInformation("transfer done!");
                 val.Watch.Stop();
-                Console.WriteLine($"Time eplased: {val.Watch.Elapsed.TotalSeconds}s");
-                Console.WriteLine($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
+                _logger.LogInformation($"Time eplased: {val.Watch.Elapsed.TotalSeconds}s");
+                _logger.LogInformation($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
             }
             await ProcessDataSliceAsync(dataSlice, CleanUpAsync);
         }
@@ -346,7 +352,7 @@ namespace Chronos.P2P.Client
                 FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
                 if (slice.No % 100000 == 0)
                 {
-                    Console.WriteLine($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100),5}%");
+                    _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString("0.00"),5}%");
                 }
                 if (slice.Last)
                 {
@@ -451,7 +457,7 @@ namespace Chronos.P2P.Client
             }
             var cancelSource = new CancellationTokenSource();
             var total = fs.Length / bufferLen;
-            Console.WriteLine($"Slice count: {total}");
+            _logger.LogInformation($"Slice count: {total}");
             Memory<byte> fileReadBuffer = new byte[3640 * bufferLen];
             int readLen = 0;
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
@@ -500,7 +506,7 @@ namespace Chronos.P2P.Client
                     });
                 }
             }
-            Console.WriteLine($"Auto adjusted timeout: {server.timeoutData.SendTimeOut}ms");
+            _logger.LogInformation($"Auto adjusted timeout: {server.timeoutData.SendTimeOut}ms");
             if (semaphore.CurrentCount == concurrentLevel)
             {
                 semaphore.Release();
@@ -560,7 +566,7 @@ namespace Chronos.P2P.Client
             var re = OnPeerInvited?.Invoke(requester);
             if (!re.HasValue || re.Value)
             {
-                Console.WriteLine("accept!");
+                _logger.LogInformation("accept!");
                 peer = requester;
 
                 await SendDataReliableAsync((int)CallMethods.ConnectionHandShakeReply, new ConnectionReplyDto
@@ -588,7 +594,7 @@ namespace Chronos.P2P.Client
                 lastConnectDataSentTime = DateTime.UtcNow;
                 return;
             }
-            Console.WriteLine("Peer connected");
+            _logger.LogInformation("Peer connected");
             IsPeerConnected = true;
             _ = Task.Run(() =>
             {
@@ -603,7 +609,7 @@ namespace Chronos.P2P.Client
             {
                 peer!.OuterEP = ep;
                 epConfirmed = true;
-                Console.WriteLine($"Peer punch data received, set remote ep to {peer.OuterEP}");
+                _logger.LogInformation($"Peer punch data received, set remote ep to {peer.OuterEP}");
             }
             if (tokenSource.IsCancellationRequested
                 && (DateTime.UtcNow - lastPunchDataSentTime).TotalMilliseconds > 500)
@@ -613,7 +619,7 @@ namespace Chronos.P2P.Client
                 return;
             }
             tokenSource.Cancel();
-            Console.WriteLine("Connected!");
+            _logger.LogInformation("Connected!");
         }
 
         internal void ResetPingCount()

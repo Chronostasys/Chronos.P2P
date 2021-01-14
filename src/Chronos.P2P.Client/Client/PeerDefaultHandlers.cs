@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Server;
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace Chronos.P2P.Client
@@ -6,16 +7,18 @@ namespace Chronos.P2P.Client
     public class PeerDefaultHandlers
     {
         private readonly Peer peer;
+        ILogger<PeerDefaultHandlers> _logger;
 
-        public PeerDefaultHandlers(Peer peer)
+        public PeerDefaultHandlers(Peer peer, ILogger<PeerDefaultHandlers> logger)
         {
             this.peer = peer;
+            _logger = logger;
         }
 
         [Handler((int)CallMethods.Connected)]
         public void ConnectedDataHandler(UdpContext context)
         {
-            Console.WriteLine($"peer {peer.OuterEp?.ToIPEP()} connect data received");
+            _logger.LogInformation($"peer {peer.OuterEp?.ToIPEP()} connect data received");
             peer.PeerConnectedReceived();
         }
 
@@ -23,13 +26,13 @@ namespace Chronos.P2P.Client
         public void ConnectionRequestCallbackHandler(UdpContext context)
         {
             peer.OnConnectionCallback(context.GetData<bool>());
-            Console.WriteLine("received connection request callback!");
+            _logger.LogInformation("received connection request callback!");
         }
 
         [Handler((int)CallMethods.PeerConnectionRequest)]
         public void ConnectionRequestedHandler(UdpContext context)
         {
-            Console.WriteLine("received connection request!");
+            _logger.LogInformation("received connection request!");
             _ = peer.OnConnectionRequested(context.GetData<PeerInfo>()!);
         }
 
@@ -48,7 +51,7 @@ namespace Chronos.P2P.Client
         [Handler((int)CallMethods.PunchHole)]
         public void PunchingDataHandler(UdpContext context)
         {
-            Console.WriteLine($"peer {peer.OuterEp?.ToIPEP()} punch data received");
+            _logger.LogInformation($"peer {peer.OuterEp?.ToIPEP()} punch data received");
             peer.PunchDataReceived(context);
         }
 
@@ -56,7 +59,7 @@ namespace Chronos.P2P.Client
         public void StartPunchingHandler(UdpContext context)
         {
             peer.StartHolePunching();
-            Console.WriteLine("punching started");
+            _logger.LogInformation("punching started");
         }
 
         [Handler((int)CallMethods.StreamHandShakeCallback)]

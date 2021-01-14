@@ -1,6 +1,7 @@
 ﻿using Chronos.P2P.Client;
 using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Collections.Concurrent;
@@ -28,7 +29,7 @@ namespace Chronos.P2P.Server
         private readonly Type attribute = typeof(HandlerAttribute);
         private readonly UdpClient listener;
         private readonly ConcurrentDictionary<Guid, PeerInfo> peers;
-        private ServiceProvider? serviceProvider;
+        internal ServiceProvider? serviceProvider;
         internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks = new();
         internal readonly AutoTimeoutData timeoutData = new();
         internal ConcurrentDictionary<PeerEP, (PeerEP, DateTime)> connectionDic = new();
@@ -36,6 +37,15 @@ namespace Chronos.P2P.Server
         internal MsgQueue<UdpMsg> msgs = new();
         internal Dictionary<int, TypeData> requestHandlers;
         internal ServiceCollection services;
+        ILogger<P2PServer> _logger { get
+            {
+                if (logger is null)
+                {
+                    logger = serviceProvider!.GetRequiredService<ILogger<P2PServer>>();
+                }
+                return logger;
+            } }
+        ILogger<P2PServer>? logger = null;
 
         public event EventHandler? AfterDataHandled;
 
@@ -50,6 +60,11 @@ namespace Chronos.P2P.Server
             MessagePackSerializer.DefaultOptions.WithSecurity(MessagePackSecurity.UntrustedData);
             services = new ServiceCollection();
             services.AddSingleton(this);
+            services.AddLogging(builder =>
+            {
+                builder.ClearProviders();
+                builder.AddConsole();
+            });
             listener = client;
             peers = new ConcurrentDictionary<Guid, PeerInfo>();
             requestHandlers = new Dictionary<int, TypeData>();

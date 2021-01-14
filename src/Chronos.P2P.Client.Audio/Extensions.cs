@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Server;
+using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
@@ -36,9 +37,11 @@ namespace Chronos.P2P.Client.Audio
         private static volatile bool first = true;
         private static int i = 0;
         private static DirectSoundOut wo = null;
+        private ILogger<AudioLiveStreamHandler> _logger;
 
-        public AudioLiveStreamHandler(Peer peer)
+        public AudioLiveStreamHandler(Peer peer, ILogger<AudioLiveStreamHandler> logger)
         {
+            _logger = logger;
             if (wo is null)
             {
                 wo = new DirectSoundOut(50);
@@ -71,7 +74,7 @@ namespace Chronos.P2P.Client.Audio
                 {
                     if (i > 10)
                     {
-                        Console.WriteLine($"high latency detected({provider.BufferedDuration.TotalMilliseconds}ms), try to catch on the live audio stream...");
+                        _logger.LogInformation($"high latency detected({provider.BufferedDuration.TotalMilliseconds}ms), try to catch on the live audio stream...");
                         provider.ClearBuffer();
                         i = 0;
                     }
