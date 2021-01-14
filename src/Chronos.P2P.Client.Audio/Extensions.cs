@@ -74,7 +74,7 @@ namespace Chronos.P2P.Client.Audio
                 {
                     if (i > 10)
                     {
-                        _logger.LogInformation($"high latency detected({provider.BufferedDuration.TotalMilliseconds}ms), try to catch on the live audio stream...");
+                        _logger.LogWarning($"high latency detected({provider.BufferedDuration.TotalMilliseconds}ms), try to catch on the live audio stream...");
                         provider.ClearBuffer();
                         i = 0;
                     }
