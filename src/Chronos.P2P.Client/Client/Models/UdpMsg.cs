@@ -14,6 +14,6 @@ namespace Chronos.P2P.Client
         public IPEndPoint Ep { get; init; }
 
         [Key(2)]
-        public TaskCompletionSource? SendTask { get; init; }
+        public TaskCompletionSource<bool>? SendTask { get; init; }
     }
 }

@@ -134,7 +134,7 @@ namespace Chronos.P2P.Server
             var method = mem.Slice(0, 4);
             var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
             var data = mem[20..];
-            var td = requestHandlers[BitConverter.ToInt32(method.ToArray())];
+            var mthd = BitConverter.ToInt32(method.ToArray());
             // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
             if (reqId != Guid.Empty)
             {
@@ -152,7 +152,11 @@ namespace Chronos.P2P.Server
                 }
                 guidDic[reqId] = DateTime.UtcNow;
             }
-            CallHandler(td, new UdpContext(data.ToArray(), peers, re.RemoteEndPoint, listener));
+            if (mthd != (int)CallMethods.Abort)
+            {
+                var td = requestHandlers[mthd];
+                CallHandler(td, new UdpContext(data.ToArray(), peers, re.RemoteEndPoint, listener));
+            }
             AfterDataHandled?.Invoke(this, new());
         }
 
@@ -160,10 +164,20 @@ namespace Chronos.P2P.Server
         {
             return Utils.StartQueuedTask(msgs, async msg =>
             {
-                await listener.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
-                if (msg.SendTask is not null)
+                try
                 {
-                    msg.SendTask.SetResult();
+                    await listener.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                    if (msg.SendTask is not null)
+                    {
+                        msg.SendTask.SetResult(true);
+                    }
+                }
+                catch (Exception)
+                {
+                    if (msg.SendTask is not null)
+                    {
+                        msg.SendTask.SetResult(false);
+                    }
                 }
             });
         }
@@ -198,17 +212,24 @@ namespace Chronos.P2P.Server
             for (int i = 0; i < retry; i++)
             {
                 token?.ThrowIfCancellationRequested();
-                var ts = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var ts = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 msgs.Enqueue(new UdpMsg
                 {
                     Data = bytes,
                     Ep = ep,
                     SendTask = ts
                 });
-                await ts.Task;
-                if (i == 0) timer.Start();
-                else timer.Restart();
-                success = await await Task.WhenAny(ackTasks[reqId].Task, waitAsync(timeoutData.SendTimeOut));
+                var sent = await ts.Task;
+                if (!sent)
+                {
+                    success = false;
+                }
+                else
+                {
+                    if (i == 0) timer.Start();
+                    else timer.Restart();
+                    success = await await Task.WhenAny(ackTasks[reqId].Task, waitAsync(timeoutData.SendTimeOut));
+                }
                 if (success)
                 {
                     var sampleRtt = timer.Elapsed.TotalMilliseconds;
@@ -231,7 +252,7 @@ namespace Chronos.P2P.Server
                 }
             }
 
-            ackTasks.TryRemove(reqId, out var completionSource);
+            ackTasks.TryRemove(reqId, out _);
             timer.Reset();
             timerPool.Return(timer);
             return success;
