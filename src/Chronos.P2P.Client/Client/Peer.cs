@@ -318,14 +318,14 @@ namespace Chronos.P2P.Client
                 slices.Clear();
                 currentHead = -1;
                 _logger.LogInformation("Waiting for io to complete...");
-                try
-                {
-                    await FileRecvDic[dataSlice.SessionId].IOTask;
-                }
-                catch (Exception)
-                {
-                }
-                await fs!.DisposeAsync();
+                //try
+                //{
+                //    await FileRecvDic[dataSlice.SessionId].IOTask;
+                //}
+                //catch (Exception)
+                //{
+                //}
+                await FileRecvDic[dataSlice.SessionId].FS.DisposeAsync();
                 fs = null;
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
                 val.Semaphore.Dispose();
@@ -350,7 +350,7 @@ namespace Chronos.P2P.Client
             async Task ProcessSliceAsync(DataSlice slice)
             {
                 currentHead = slice.No;
-                FileRecvDic[dataSlice.SessionId].MsgQueue.Enqueue(slice);
+                await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice, 0, slice.Len);
                 if (slice.No % 100000 == 0)
                 {
                     _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString("0.00"),5}%");
@@ -387,25 +387,25 @@ namespace Chronos.P2P.Client
             var sessionId = data.SessionId;
             if (recv)
             {
-                MsgQueue<DataSlice> queue = new();
                 if (data.Length > 0)
                 {
-                    fs = File.Create(savepath);
+                    var fileStream = File.Create(savepath, 10485760);
                     FileRecvDic[sessionId] = new FileRecvDicData
                     {
                         SavePath = savepath,
                         Semaphore = new SemaphoreSlim(1),
                         Length = data.Length,
                         Watch = new Stopwatch(),
-                        MsgQueue = queue,
-                        IOTask = StartQueuedTask(queue, async fm =>
-                        {
-                            await fs.WriteAsync(fm.Slice.AsMemory(0, fm.Len));
-                            if (fm.Last)
-                            {
-                                throw new OperationCanceledException();
-                            }
-                        })
+                        FS = fileStream
+                        //MsgQueue = queue,
+                        //IOTask = StartQueuedTask(queue, async fm =>
+                        //{
+                        //    await fs.WriteAsync(fm.Slice.AsMemory(0, fm.Len));
+                        //    if (fm.Last)
+                        //    {
+                        //        throw new OperationCanceledException();
+                        //    }
+                        //})
                     };
                 }
             }
@@ -459,11 +459,11 @@ namespace Chronos.P2P.Client
             var cancelSource = new CancellationTokenSource();
             var total = fs.Length / bufferLen;
             _logger.LogInformation($"Slice count: {total}");
-            Memory<byte> fileReadBuffer = new byte[3640 * bufferLen];
+            Memory<byte> fileReadBuffer = new byte[(10485760/bufferLen*bufferLen)];
             int readLen = 0;
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                int n = (int)(j % 3640);
+                int n = (int)(j % 10485760 / bufferLen);
                 if (n == 0)
                 {
                     var rt = fs.ReadAsync(fileReadBuffer);
