@@ -351,7 +351,9 @@ namespace Chronos.P2P.Client
             {
                 currentHead = slice.No;
                 await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice, 0, slice.Len);
-                if (slice.No % (FileRecvDic[dataSlice.SessionId].Total/100) == 0)
+                if (slice.No % 
+                    ((FileRecvDic[dataSlice.SessionId].Total/100)==0?1: (FileRecvDic[dataSlice.SessionId].Total / 100))
+                    == 0)
                 {
                     _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString("0.00"),5}%");
                 }
