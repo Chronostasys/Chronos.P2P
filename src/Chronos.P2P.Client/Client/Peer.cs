@@ -390,6 +390,7 @@ namespace Chronos.P2P.Client
                 if (data.Length > 0)
                 {
                     var fileStream = File.Create(savepath, 10485760);
+                    fileStream.SetLength(data.Length);
                     FileRecvDic[sessionId] = new FileRecvDicData
                     {
                         SavePath = savepath,

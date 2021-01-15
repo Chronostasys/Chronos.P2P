@@ -95,6 +95,7 @@ namespace Chronos.P2P.Server
         {
             return CreateUdpRequestBuffer(callMethod, reqId, data is byte[]? data as byte[] : MessagePackSerializer.Serialize(data));
         }
+        Type handlerActionType = typeof(Action<UdpContext>);
 
         /// <summary>
         /// 调用请求对应的处理函数
@@ -104,9 +105,10 @@ namespace Chronos.P2P.Server
         internal void CallHandler(TypeData data, UdpContext param)
         {
             var handler = GetInstance(data);
+            var handlerAction = (Delegate.CreateDelegate(handlerActionType, handler, data.Method!) as Action<UdpContext>)!;
             Task.Run(() =>
             {
-                data.Method!.Invoke(handler, new[] { param });
+                handlerAction(param);
             });
         }
 
