@@ -350,7 +350,7 @@ namespace Chronos.P2P.Client
             async Task ProcessSliceAsync(DataSlice slice)
             {
                 currentHead = slice.No;
-                await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice, 0, slice.Len);
+                await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice.AsMemory(0, slice.Len));
                 if (slice.No % 
                     ((FileRecvDic[dataSlice.SessionId].Total/100)==0?1: (FileRecvDic[dataSlice.SessionId].Total / 100))
                     == 0)
@@ -392,7 +392,7 @@ namespace Chronos.P2P.Client
                 if (data.Length > 0)
                 {
                     var fileStream = File.Create(savepath, 10485760);
-                    fileStream.SetLength(data.Length);
+                    //fileStream.SetLength(data.Length);
                     FileRecvDic[sessionId] = new FileRecvDicData
                     {
                         SavePath = savepath,
@@ -458,7 +458,7 @@ namespace Chronos.P2P.Client
             int readLen = 0;
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                int n = (int)(j % 10485760 / bufferLen);
+                int n = (int)(j % (10485760 / bufferLen));
                 if (n == 0)
                 {
                     var rt = fs.ReadAsync(fileReadBuffer);

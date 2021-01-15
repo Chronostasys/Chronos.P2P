@@ -135,6 +135,10 @@ namespace Chronos.P2P.Test
             using var md5 = MD5.Create();
             using var fs1 = File.OpenRead(src);
             using var fs2 = File.OpenRead(dst);
+            byte[] data = new byte[20];
+            byte[] data1 = new byte[20];
+            //fs2.Read(data);
+            //fs1.Read(data1);
             var hash1 = await md5.ComputeHashAsync(fs1);
             var hash2 = await md5.ComputeHashAsync(fs2);
             Assert.True(hash1.SequenceEqual(hash2));
