@@ -19,6 +19,10 @@
         ConnectionHandShakeReply,
         ConnectionRequestCallback,
         PeerConnectionRequest,
-        StartPunching
+        StartPunching,
+        /// <summary>
+        /// A spectial kind of call, which will return an ack but not handled
+        /// </summary>
+        Abort
     }
 }

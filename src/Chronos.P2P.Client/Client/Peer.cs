@@ -42,7 +42,7 @@ namespace Chronos.P2P.Client
         private DateTime lastPunchDataSentTime;
         private int pingCount = 10;
         private ILogger<Peer> _logger;
-        internal const int bufferLen = 1400;
+        internal static int bufferLen = 1400;
         internal volatile bool epConfirmed = false;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
@@ -84,6 +84,7 @@ namespace Chronos.P2P.Client
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
             udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
+            udpClient.DontFragment = true;// disable ip fragment for better transfer reliability
             this.Port = port;
             LocalEP = GetEps();
             server = new P2PServer(udpClient);
@@ -595,11 +596,43 @@ namespace Chronos.P2P.Client
                 return;
             }
             _logger.LogInformation("Peer connected");
-            IsPeerConnected = true;
-            _ = Task.Run(() =>
+            if (!IsPeerConnected)
             {
-                PeerConnected?.Invoke(this, new EventArgs());
-            });
+                IsPeerConnected = true;
+                try
+                {
+                    await TestMTUAsync();
+                }
+                catch (Exception e)
+                {
+
+                    _logger.LogError($"{e}");
+                }
+                Console.WriteLine("*********************************");
+                _ = Task.Run(() =>
+                {
+                    PeerConnected?.Invoke(this, new EventArgs());
+                });
+            }
+        }
+        internal async Task TestMTUAsync()
+        {
+            _logger.LogInformation("Start testing MTU value");
+            Memory<byte> data = new byte[65535];
+            int len = 1000;
+            while (true)
+            {
+                var b = data[0..len].ToArray();
+                var canRecv = await SendDataToPeerReliableAsync((int)CallMethods.Abort,
+                    b);
+                if (!canRecv)
+                {
+                    bufferLen = len - 100;
+                    break;
+                }
+                len = len + 10;
+            }
+            _logger.LogInformation($"MTU value: {bufferLen}");
         }
 
         internal async void PunchDataReceived(UdpContext context)
@@ -680,9 +713,9 @@ namespace Chronos.P2P.Client
 
         #region Send Data
 
-        public Task SendDataAsync<T>(int method, T data, IPEndPoint ep)
+        public Task<bool> SendDataAsync<T>(int method, T data, IPEndPoint ep)
         {
-            var t = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var t = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var bytes = P2PServer.CreateUdpRequestBuffer(method, Guid.Empty, data);
             Msgs.Enqueue(new UdpMsg
             {
