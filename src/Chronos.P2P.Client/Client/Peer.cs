@@ -608,7 +608,6 @@ namespace Chronos.P2P.Client
 
                     _logger.LogError($"{e}");
                 }
-                Console.WriteLine("*********************************");
                 _ = Task.Run(() =>
                 {
                     PeerConnected?.Invoke(this, new EventArgs());
@@ -619,18 +618,24 @@ namespace Chronos.P2P.Client
         {
             _logger.LogInformation("Start testing MTU value");
             Memory<byte> data = new byte[65535];
-            int len = 1000;
+            int min = 0;
+            int max = 65535;
+            int len = max / 2;
             while (true)
             {
                 var b = data[0..len].ToArray();
                 var canRecv = await SendDataToPeerReliableAsync((int)CallMethods.Abort,
                     b);
                 if (!canRecv)
+                    max = len;
+                else
+                    min = len;
+                len = (min + max) / 2;
+                if (min == len)
                 {
                     bufferLen = len - 100;
                     break;
                 }
-                len = len + 10;
             }
             _logger.LogInformation($"MTU value: {bufferLen}");
         }
