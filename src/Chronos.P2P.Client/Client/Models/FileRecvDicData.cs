@@ -12,5 +12,6 @@ namespace Chronos.P2P.Client
         public SemaphoreSlim Semaphore { get; init; }
         public Stopwatch Watch { get; init; }
         public FileStream FS { get; init; }
+        public long Total { get; init; }
     }
 }

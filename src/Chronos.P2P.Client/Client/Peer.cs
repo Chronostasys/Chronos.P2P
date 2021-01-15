@@ -351,7 +351,7 @@ namespace Chronos.P2P.Client
             {
                 currentHead = slice.No;
                 await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice, 0, slice.Len);
-                if (slice.No % 100000 == 0)
+                if (slice.No % (FileRecvDic[dataSlice.SessionId].Total/100) == 0)
                 {
                     _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString("0.00"),5}%");
                 }
@@ -397,16 +397,8 @@ namespace Chronos.P2P.Client
                         Semaphore = new SemaphoreSlim(1),
                         Length = data.Length,
                         Watch = new Stopwatch(),
-                        FS = fileStream
-                        //MsgQueue = queue,
-                        //IOTask = StartQueuedTask(queue, async fm =>
-                        //{
-                        //    await fs.WriteAsync(fm.Slice.AsMemory(0, fm.Len));
-                        //    if (fm.Last)
-                        //    {
-                        //        throw new OperationCanceledException();
-                        //    }
-                        //})
+                        FS = fileStream,
+                        Total = (data.Length/bufferLen==0)?1: data.Length / bufferLen
                     };
                 }
             }
