@@ -189,7 +189,7 @@ namespace Chronos.P2P.Server
         public static P2PServer BuildWithStartUp<T>(int port = 5000)
                                     where T : IStartUp, new()
         {
-            return BuildWithStartUp<T>(new Socket(SocketType.Dgram, ProtocolType.Udp));
+            return BuildWithStartUp<T>(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp));
         }
 
         public static P2PServer BuildWithStartUp<T>(Socket client)
