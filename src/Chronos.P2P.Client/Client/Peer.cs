@@ -22,6 +22,25 @@ using Microsoft.Extensions.Logging;
 
 namespace Chronos.P2P.Client
 {
+    public class FixedLengthBufferPool : ObjectPool<byte[]>
+    {
+        int len;
+        ConcurrentQueue<byte[]> queue = new();
+        public FixedLengthBufferPool(int length)
+            => len = length;
+        public override byte[] Get()
+        {
+            if (queue.TryDequeue(out var buffer))
+                return buffer;
+            else
+                return new byte[len];
+        }
+
+        public override void Return(byte[] obj)
+        {
+            queue.Enqueue(obj);
+        }
+    }
     public class Peer : IRequestHandlerCollection, IDisposable
     {
         #region Fields
@@ -415,6 +434,15 @@ namespace Chronos.P2P.Client
                 SessionId = data.SessionId
             });
         }
+        public static void DecorateSlice(bool last, int offset, int len, long no, Guid sessionId, byte[] slice)
+        {
+            Span<byte> dataSpan = slice;
+            dataSpan = dataSpan[offset..];
+            MemoryMarshal.Write(dataSpan, ref last);
+            MemoryMarshal.Write(dataSpan[1..], ref len);
+            MemoryMarshal.Write(dataSpan[5..], ref no);
+            MemoryMarshal.Write(dataSpan[13..], ref sessionId);
+        }
 
         public static byte[] SliceToBytes(bool last, int len, long no, Guid sessionId, Memory<byte> slice)
         {
@@ -429,6 +457,8 @@ namespace Chronos.P2P.Client
             return bytes;
         }
 
+        ObjectPool<byte[]>? sendPool;
+
         /// <summary>
         /// Send file to a peer.
         /// This method is capable to handle large files
@@ -441,6 +471,7 @@ namespace Chronos.P2P.Client
         /// <returns></returns>
         public async ValueTask SendFileAsync(string location, int concurrentLevel = 3)
         {
+            sendPool ??= new FixedLengthBufferPool(49 + bufferLen);
             using SemaphoreSlim semaphore = new(concurrentLevel);
             using var fs = File.OpenRead(location);
             var sessionId = Guid.NewGuid();
@@ -474,36 +505,41 @@ namespace Chronos.P2P.Client
                 {
                     await semaphore.WaitAsync();
                 }
-                var buffer = fileReadBuffer[(n * bufferLen)..((n + 1) * bufferLen)];
+                var buffer = sendPool.Get();
+                Memory<byte> bm = buffer;
+                fileReadBuffer[(n * bufferLen)..((n + 1) * bufferLen)].CopyTo(bm[49..]);
 
                 var l = i >= fs.Length - bufferLen;
                 var len = l ? (readLen - n * bufferLen) : bufferLen;
                 cancelSource.Token.ThrowIfCancellationRequested();
                 var j1 = j;
-
-                if (l)
+                DecorateSlice(l, 20, len, j1, sessionId, buffer);
+                var reqId = Guid.NewGuid();
+                P2PServer.DecorateRequestBuffer((int)CallMethods.DataSlice, reqId, buffer);
+                void sendCleanUp(bool excr)
                 {
-                    var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                        SliceToBytes(l, len, j1, sessionId, buffer),
-                        30, cancelSource.Token);
                     semaphore.Release();
                     if (!excr)
                     {
-                        cancelSource.Cancel();
+                        cancelSource!.Cancel();
                     }
+                    sendPool.Return(buffer);
+                }
+                if (l)
+                {
+                    var excr = await server.SendDirectDataReliableAsync(reqId, (int)CallMethods.DataSlice,
+                        buffer, peer!.OuterEP.ToIPEP(),
+                        30, cancelSource.Token);
+                    sendCleanUp(excr);
                 }
                 else
                 {
                     _ = Task.Run(async () =>
                     {
-                        var excr = await SendDataToPeerReliableAsync((int)CallMethods.DataSlice,
-                            SliceToBytes(l, len, j1, sessionId, buffer),
+                        var excr = await server.SendDirectDataReliableAsync(reqId, (int)CallMethods.DataSlice,
+                            buffer, peer!.OuterEP.ToIPEP(),
                             30, cancelSource.Token);
-                        semaphore.Release();
-                        if (!excr)
-                        {
-                            cancelSource.Cancel();
-                        }
+                        sendCleanUp(excr);
                     });
                 }
             }

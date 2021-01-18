@@ -12,6 +12,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -90,6 +91,12 @@ namespace Chronos.P2P.Server
             MemoryMarshal.Write(reqSpan[4..20], ref reqId);
             Buffer.BlockCopy(data, 0, req, 20, data.Length);
             return req;
+        }
+        public static void DecorateRequestBuffer(int callMethod, Guid reqId, byte[] data)
+        {
+            Span<byte> reqSpan = data;
+            MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
+            MemoryMarshal.Write(reqSpan[4..20], ref reqId);
         }
 
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
@@ -201,17 +208,32 @@ namespace Chronos.P2P.Server
             server.ConfigureServices(startUp.ConfigureServices);
             return server;
         }
-
         public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
             IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
             MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData,
             int retry = 10, CancellationToken? token = null)
         {
+            return await SendDataReliableAsync(Guid.NewGuid(), method, data, ep, ackTasks,
+                msgs, timeoutData, CreateUdpRequestBuffer, retry, token);
+        }
+        public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
+            IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
+            MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData, Func<int, Guid, byte[]?, byte[]> createRequestBuffer,
+            int retry = 10, CancellationToken? token = null)
+        {
+            return await SendDataReliableAsync(Guid.NewGuid(), method, data, ep, ackTasks,
+                msgs, timeoutData, createRequestBuffer, retry, token);
+        }
+
+        public static async ValueTask<bool> SendDataReliableAsync<T>(Guid reqId, int method, T data,
+            IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
+            MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData, Func<int, Guid, byte[]?, byte[]> createRequestBuffer,
+            int retry = 10, CancellationToken? token = null)
+        {
             var timer = timerPool.Get();
-            var reqId = Guid.NewGuid();
             ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var dbytes = (data is byte[]) ? (data as byte[]) : MessagePackSerializer.Serialize(data);
-            var bytes = CreateUdpRequestBuffer(method, reqId, dbytes);
+            var bytes = createRequestBuffer(method, reqId, dbytes);
             bool success = false;
             for (int i = 0; i < retry; i++)
             {
@@ -311,7 +333,12 @@ namespace Chronos.P2P.Server
         public ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
             IPEndPoint ep, int retry = 10, CancellationToken? token = null)
         {
-            return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, retry, token);
+            return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, CreateUdpRequestBuffer, retry, token);
+        }
+        public ValueTask<bool> SendDirectDataReliableAsync(Guid reqId, int method, byte[] data,
+            IPEndPoint ep, int retry = 10, CancellationToken? token = null)
+        {
+            return SendDataReliableAsync(reqId, method, data, ep, ackTasks, msgs, timeoutData, (a,b,c)=>c, retry, token);
         }
 
         ArrayPool<byte> receivePool = ArrayPool<byte>.Shared;
