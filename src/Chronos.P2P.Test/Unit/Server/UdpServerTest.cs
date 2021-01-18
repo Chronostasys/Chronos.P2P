@@ -50,7 +50,7 @@ namespace Chronos.P2P.Test
             SetUpTest();
             var hello = new Hello { HelloString = s };
             server.CallHandler(server.requestHandlers[1], new UdpContext(
-                callBytes, new(), new(1000, 1000), new()));
+                callBytes, new(), new(1000, 1000), new(SocketType.Dgram, ProtocolType.Udp)));
             server.Dispose();
         }
 

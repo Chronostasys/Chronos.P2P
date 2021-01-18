@@ -35,14 +35,14 @@ namespace Chronos.P2P.Client
         private readonly P2PServer server;
         private readonly IPEndPoint serverEP;
         private readonly CancellationTokenSource tokenSource = new();
-        private readonly UdpClient udpClient;
+        private readonly Socket udpClient;
         private long currentHead = -1;
         private volatile bool isInSameSubNet = false;
         private DateTime lastConnectDataSentTime;
         private DateTime lastPunchDataSentTime;
         private int pingCount = 10;
         private ILogger<Peer> _logger;
-        internal static int bufferLen = 1400;
+        internal static int bufferLen = 65535;
         internal volatile bool epConfirmed = false;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
@@ -83,7 +83,8 @@ namespace Chronos.P2P.Client
             Name = name;
             this.serverEP = serverEP;
             ID = Guid.NewGuid();
-            udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, port));
+            udpClient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            udpClient.Bind(new IPEndPoint(IPAddress.Any, port));
             udpClient.DontFragment = true;// disable ip fragment for better transfer reliability
             this.Port = port;
             LocalEP = GetEps();
@@ -164,15 +165,18 @@ namespace Chronos.P2P.Client
         private Task StartReceiveData()
             => Task.Run(async () =>
             {
+                byte[] dgram = ArrayPool<byte>.Shared.Rent(bufferLen);
+                var memOwner = new ReceiveBufferOwner(dgram);
                 while (true)
                 {
-                    var re = await udpClient.ReceiveAsync();
+                    var re = await udpClient.ReceiveFromAsync(dgram, SocketFlags.None, P2PServer.allEp);
+                    var sege = new ArraySegment<byte>(dgram, 0, re.ReceivedBytes);
                     if (peer is null)
                     {
                         try
                         {
                             Peers = MessagePackSerializer
-                                .Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(re.Buffer);
+                                .Deserialize<ConcurrentDictionary<Guid, PeerInfo>>(sege.Array);
                             foreach (var item in Peers)
                             {
                                 if (item.Key == ID)
@@ -189,7 +193,7 @@ namespace Chronos.P2P.Client
                         }
                         catch (Exception)
                         {
-                            await server.ProcessRequestAsync(new UdpReceiveResult(re.Buffer, re.RemoteEndPoint));
+                            await server.ProcessRequestAsync(memOwner, re);
                         }
                     }
                     else
@@ -350,7 +354,8 @@ namespace Chronos.P2P.Client
             async Task ProcessSliceAsync(DataSlice slice)
             {
                 currentHead = slice.No;
-                await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice.AsMemory(0, slice.Len));
+                await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice.Slice(0, slice.Len));
+                slice.Context.Dispose();
                 if (slice.No % 
                     ((FileRecvDic[dataSlice.SessionId].Total/100)==0?1: (FileRecvDic[dataSlice.SessionId].Total / 100))
                     == 0)
@@ -635,9 +640,9 @@ namespace Chronos.P2P.Client
             _logger.LogInformation($"MTU value: {bufferLen}");
         }
 
-        internal async void PunchDataReceived(UdpContext context)
+        internal async void PunchDataReceived(IPEndPoint rep)
         {
-            var ep = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
+            var ep = PeerEP.ParsePeerEPFromIPEP(rep);
             lock (epKey)
             {
                 peer!.OuterEP = ep;

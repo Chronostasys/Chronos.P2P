@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -27,7 +28,7 @@ namespace Chronos.P2P.Server
         private static readonly object rttLock = new();
         private static readonly ObjectPool<Stopwatch> timerPool = ObjectPool.Create<Stopwatch>();
         private readonly Type attribute = typeof(HandlerAttribute);
-        private readonly UdpClient listener;
+        private readonly Socket listener;
         private readonly ConcurrentDictionary<Guid, PeerInfo> peers;
         internal ServiceProvider? serviceProvider;
         internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks = new();
@@ -51,11 +52,11 @@ namespace Chronos.P2P.Server
 
         public event EventHandler<byte[]>? OnError;
 
-        public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port)))
+        public P2PServer(int port = 5000) : this(new Socket(SocketType.Dgram, ProtocolType.Udp))
         {
         }
 
-        public P2PServer(UdpClient client)
+        public P2PServer(Socket client)
         {
             MessagePackSerializer.DefaultOptions.WithSecurity(MessagePackSecurity.UntrustedData);
             services = new ServiceCollection();
@@ -83,7 +84,7 @@ namespace Chronos.P2P.Server
             {
                 data = Array.Empty<byte>();
             }
-            byte[] req = new byte[20 + data.Length];
+            byte[] req = ArrayPool<byte>.Shared.Rent(20 + data.Length);
             Span<byte> reqSpan = req;
             MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
             MemoryMarshal.Write(reqSpan[4..20], ref reqId);
@@ -128,10 +129,10 @@ namespace Chronos.P2P.Server
             return Activator.CreateInstance(data.GenericType, args.ToArray())!;
         }
 
-        internal async Task ProcessRequestAsync(UdpReceiveResult re)
+        internal async Task ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
         {
             await Task.Yield();
-            var mem = new Memory<byte>(re.Buffer);
+            var mem = bufferOwner.Memory[0..result.ReceivedBytes];
 
             var method = mem.Slice(0, 4);
             var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
@@ -144,7 +145,7 @@ namespace Chronos.P2P.Server
                 msgs.Enqueue(new UdpMsg
                 {
                     Data = bytes,
-                    Ep = re.RemoteEndPoint
+                    Ep = (result.RemoteEndPoint as IPEndPoint)!
                 });
                 if (guidDic.ContainsKey(reqId))
                 {
@@ -157,7 +158,8 @@ namespace Chronos.P2P.Server
             if (mthd != (int)CallMethods.Abort)
             {
                 var td = requestHandlers[mthd];
-                CallHandler(td, new UdpContext(data.ToArray(), peers, re.RemoteEndPoint, listener));
+                CallHandler(td, new UdpContext(data, peers,
+                    (result.RemoteEndPoint as IPEndPoint)!, listener, bufferOwner));
             }
             AfterDataHandled?.Invoke(this, new());
         }
@@ -168,7 +170,7 @@ namespace Chronos.P2P.Server
             {
                 try
                 {
-                    await listener.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                    await listener.SendToAsync(msg.Data, SocketFlags.None, msg.Ep);
                     if (msg.SendTask is not null)
                     {
                         msg.SendTask.SetResult(true);
@@ -187,10 +189,10 @@ namespace Chronos.P2P.Server
         public static P2PServer BuildWithStartUp<T>(int port = 5000)
                                     where T : IStartUp, new()
         {
-            return BuildWithStartUp<T>(new UdpClient(new IPEndPoint(IPAddress.Any, port)));
+            return BuildWithStartUp<T>(new Socket(SocketType.Dgram, ProtocolType.Udp));
         }
 
-        public static P2PServer BuildWithStartUp<T>(UdpClient client)
+        public static P2PServer BuildWithStartUp<T>(Socket client)
             where T : IStartUp, new()
         {
             var server = new P2PServer(client);
@@ -312,6 +314,8 @@ namespace Chronos.P2P.Server
             return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, retry, token);
         }
 
+        ArrayPool<byte> receivePool = ArrayPool<byte>.Shared;
+        internal static IPEndPoint allEp = new IPEndPoint(IPAddress.Any, 0);
         /// <summary>
         /// 启动消息接收的循环
         /// </summary>
@@ -346,17 +350,34 @@ namespace Chronos.P2P.Server
             }));
             while (true)
             {
-                var re = await listener.ReceiveAsync();
-
+                byte[] receiveMem = receivePool.Rent(Peer.bufferLen)!;
+                
+                var re = await listener.ReceiveFromAsync(receiveMem, SocketFlags.None, allEp);
+                var owner = new ReceiveBufferOwner(receiveMem);
                 try
                 {
-                    _ = ProcessRequestAsync(re);
+                    _ = ProcessRequestAsync(owner, re);
                 }
                 catch (Exception)
                 {
-                    OnError?.Invoke(this, re.Buffer);
+                    //OnError?.Invoke(this, re.Buffer);
                 }
             }
+        }
+    }
+    public class ReceiveBufferOwner : IMemoryOwner<byte>
+    {
+        public ReceiveBufferOwner(byte[] buffer)
+        {
+            Buffer = buffer;
+            Memory = buffer;
+        }
+        public byte[] Buffer { get; }
+        public Memory<byte> Memory { get; }
+
+        public void Dispose()
+        {
+            ArrayPool<byte>.Shared.Return(Buffer);
         }
     }
 }

@@ -51,18 +51,20 @@ namespace Chronos.P2P.Client.Audio
         [Handler((int)CallMethods.AudioDataSlice)]
         public void OnAudioDataSliceGet(UdpContext context)
         {
-            var slice = DataSlice.FromBytes(context.data);
+            var slice = DataSlice.FromBytes(context.Data, context);
             provider.DiscardOnBufferOverflow = true;
 
             lock (key)
             {
                 if (slice.No == current)
                 {
-                    provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
+                    provider.AddSamples(slice.Slice.ToArray(), 0, slice.Slice.Length);
+                    slice.Context.Dispose();
                     current++;
                     while (audioSlices.Remove(current, out slice))
                     {
-                        provider.AddSamples(slice.Slice, 0, slice.Slice.Length);
+                        provider.AddSamples(slice.Slice.ToArray(), 0, slice.Slice.Length);
+                        slice.Context.Dispose();
                         current++;
                     }
                 }
