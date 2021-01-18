@@ -129,7 +129,7 @@ namespace Chronos.P2P.Server
             return Activator.CreateInstance(data.GenericType, args.ToArray())!;
         }
 
-        internal async Task ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
+        internal async ValueTask ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
         {
             await Task.Yield();
             var mem = bufferOwner.Memory[0..result.ReceivedBytes];

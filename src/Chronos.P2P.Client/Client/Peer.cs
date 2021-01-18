@@ -303,7 +303,7 @@ namespace Chronos.P2P.Client
 
         #region File Transfer
 
-        internal async Task FileDataReceived(DataSlice dataSlice)
+        internal async ValueTask FileDataReceived(DataSlice dataSlice)
         {
             if (!FileRecvDic.ContainsKey(dataSlice.SessionId))
             {
@@ -317,7 +317,7 @@ namespace Chronos.P2P.Client
                 currentHead = -1;
             }
 
-            async Task CleanUpAsync()
+            async ValueTask CleanUpAsync()
             {
                 slices.Clear();
                 currentHead = -1;
@@ -348,10 +348,10 @@ namespace Chronos.P2P.Client
             FileAcceptTasks[data.SessionId].SetResult(data.Accept);
         }
 
-        internal async Task ProcessDataSliceAsync(DataSlice dataSlice, Func<Task> cleanUpAsync)
+        internal async ValueTask ProcessDataSliceAsync(DataSlice dataSlice, Func<ValueTask> cleanUpAsync)
         {
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
-            async Task ProcessSliceAsync(DataSlice slice)
+            async ValueTask ProcessSliceAsync(DataSlice slice)
             {
                 currentHead = slice.No;
                 await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice.Slice(0, slice.Len));
@@ -387,7 +387,7 @@ namespace Chronos.P2P.Client
             semaphoreSlim.Release();
         }
 
-        internal async Task StreamTransferRequested(BasicFileInfo data)
+        internal async ValueTask StreamTransferRequested(BasicFileInfo data)
         {
             var (recv, savepath) = await (OnInitFileTransfer ??
                 (async (info) => await Task.FromResult((true, info.Name)))).Invoke(data);
@@ -439,7 +439,7 @@ namespace Chronos.P2P.Client
         /// And a higher concurrent level may result in higher packet loss rate.
         /// So adjust it carefully to fit your need.</param>
         /// <returns></returns>
-        public async Task SendFileAsync(string location, int concurrentLevel = 3)
+        public async ValueTask SendFileAsync(string location, int concurrentLevel = 3)
         {
             using SemaphoreSlim semaphore = new(concurrentLevel);
             using var fs = File.OpenRead(location);
@@ -514,7 +514,7 @@ namespace Chronos.P2P.Client
             }
         }
 
-        public async Task SendLiveStreamAsync(MsgQueue<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
+        public async ValueTask SendLiveStreamAsync(MsgQueue<(byte[], int)> channel, string name, int callMethod, CancellationToken token = default)
         {
             var sessionId = Guid.NewGuid();
             FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -562,7 +562,7 @@ namespace Chronos.P2P.Client
             connectionHandshakeTask.TrySetResult(acc);
         }
 
-        internal async Task OnConnectionRequested(PeerInfo requester)
+        internal async ValueTask OnConnectionRequested(PeerInfo requester)
         {
             var re = OnPeerInvited?.Invoke(requester);
             if (!re.HasValue || re.Value)
@@ -614,7 +614,7 @@ namespace Chronos.P2P.Client
                 });
             }
         }
-        internal async Task TestMTUAsync()
+        internal async ValueTask TestMTUAsync()
         {
             _logger.LogInformation("Start testing MTU value");
             Memory<byte> data = new byte[65535];
@@ -736,12 +736,12 @@ namespace Chronos.P2P.Client
             return server.SendDataReliableAsync(method, data, ep, retry, token);
         }
 
-        public Task SendDataToPeerAsync<T>(T data) where T : class
+        public Task<bool> SendDataToPeerAsync<T>(T data) where T : class
         {
             return SendDataToPeerAsync((int)CallMethods.P2PDataTransfer, data);
         }
 
-        public Task SendDataToPeerAsync<T>(int method, T data)
+        public Task<bool> SendDataToPeerAsync<T>(int method, T data)
         {
             return SendDataAsync(method, data, peer!.OuterEP.ToIPEP());
         }

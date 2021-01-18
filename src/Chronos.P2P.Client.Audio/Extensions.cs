@@ -24,7 +24,7 @@ namespace Chronos.P2P.Client.Audio
                 channel.Enqueue((e.Buffer, e.BytesRecorded));
             };
             capture.StartRecording();
-            return t;
+            return t.AsTask();
         }
     }
 

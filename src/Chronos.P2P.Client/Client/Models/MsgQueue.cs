@@ -12,7 +12,7 @@ namespace Chronos.P2P.Client
 
         public int Count => queue.Count;
 
-        public async Task<T> DequeueAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<T> DequeueAsync(CancellationToken cancellationToken = default)
         {
             await semaphore.WaitAsync(cancellationToken);
             while (true)
