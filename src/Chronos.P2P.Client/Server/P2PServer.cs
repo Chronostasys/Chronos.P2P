@@ -84,7 +84,7 @@ namespace Chronos.P2P.Server
             {
                 data = Array.Empty<byte>();
             }
-            byte[] req = ArrayPool<byte>.Shared.Rent(20 + data.Length);
+            byte[] req = new byte[20 + data.Length];
             Span<byte> reqSpan = req;
             MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
             MemoryMarshal.Write(reqSpan[4..20], ref reqId);
