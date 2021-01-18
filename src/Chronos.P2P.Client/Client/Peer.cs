@@ -330,14 +330,14 @@ namespace Chronos.P2P.Client
                 //{
                 //}
                 await FileRecvDic[dataSlice.SessionId].FS.DisposeAsync();
-                fs = null;
                 FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
-                val.Semaphore.Dispose();
-                semaphoreSlim = null;
                 _logger.LogInformation("transfer done!");
                 val.Watch.Stop();
                 _logger.LogInformation($"Time eplased: {val.Watch.Elapsed.TotalSeconds}s");
                 _logger.LogInformation($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
+                fs = null;
+                val.Semaphore.Dispose();
+                semaphoreSlim = null;
             }
             await ProcessDataSliceAsync(dataSlice, CleanUpAsync);
         }
@@ -633,7 +633,7 @@ namespace Chronos.P2P.Client
                 len = (min + max) / 2;
                 if (min == len)
                 {
-                    bufferLen = len - 100;
+                    bufferLen = len - 30;
                     break;
                 }
             }
