@@ -9,6 +9,9 @@ namespace Chronos.P2P.Client
     {
         public bool Last;
         public int Len;
+        /// <summary>
+        /// Zero based
+        /// </summary>
         public long No;
         public Guid SessionId;
         public Memory<byte> Slice;

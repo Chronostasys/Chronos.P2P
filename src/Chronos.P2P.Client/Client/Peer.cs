@@ -369,20 +369,37 @@ namespace Chronos.P2P.Client
 
         internal async ValueTask ProcessDataSliceAsync(DataSlice dataSlice, Func<ValueTask> cleanUpAsync)
         {
-            var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
+            var recvData = FileRecvDic[dataSlice.SessionId];
+            var semaphoreSlim = recvData.Semaphore;
             async ValueTask ProcessSliceAsync(DataSlice slice)
             {
                 currentHead = slice.No;
-                await FileRecvDic[dataSlice.SessionId].FS.WriteAsync(slice.Slice.Slice(0, slice.Len));
+                if (currentHead%nSlices is 0)
+                {
+                    if (currentHead is not 0)
+                    {
+                        await recvData.LastWriteTask;
+                        var temp = recvData.FSWriteBuffer;
+                        recvData.FSWriteBuffer = recvData.WriteBuffer;
+                        recvData.WriteBuffer = recvData.FSWriteBuffer;
+                        recvData.LastWriteTask = recvData.FS.WriteAsync(recvData.FSWriteBuffer);
+                    }
+                }
+                slice.Slice.CopyTo(
+                    recvData.WriteBuffer[((int)(currentHead % nSlices) * bufferLen)..
+                        ((int)(currentHead % nSlices) * bufferLen + bufferLen)]);
+                //await recvData.FS.WriteAsync(slice.Slice.Slice(0, slice.Len));
                 slice.Context.Dispose();
                 if (slice.No % 
-                    ((FileRecvDic[dataSlice.SessionId].Total/100)==0?1: (FileRecvDic[dataSlice.SessionId].Total / 100))
+                    ((recvData.Total/100)==0?1: (recvData.Total / 100))
                     == 0)
                 {
-                    _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)FileRecvDic[dataSlice.SessionId].Length * 100).ToString("0.00"),5}%");
+                    _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)recvData.Length * 100).ToString("0.00"),5}%");
                 }
                 if (slice.Last)
                 {
+                    await recvData.LastWriteTask;
+                    await recvData.FS.WriteAsync(recvData.WriteBuffer[0..((int)(currentHead % nSlices) * bufferLen + slice.Len)]);
                     await cleanUpAsync();
                 }
             }
@@ -405,7 +422,7 @@ namespace Chronos.P2P.Client
             }
             semaphoreSlim.Release();
         }
-
+        int nSlices = 10485760 / bufferLen;
         internal async ValueTask StreamTransferRequested(BasicFileInfo data)
         {
             var (recv, savepath) = await (OnInitFileTransfer ??
@@ -415,7 +432,7 @@ namespace Chronos.P2P.Client
             {
                 if (data.Length > 0)
                 {
-                    var fileStream = File.Create(savepath, 10485760);
+                    var fileStream = File.Create(savepath, nSlices * bufferLen);
                     //fileStream.SetLength(data.Length);
                     FileRecvDic[sessionId] = new FileRecvDicData
                     {
@@ -424,7 +441,9 @@ namespace Chronos.P2P.Client
                         Length = data.Length,
                         Watch = new Stopwatch(),
                         FS = fileStream,
-                        Total = (data.Length/bufferLen==0)?1: data.Length / bufferLen
+                        Total = (data.Length/bufferLen==0)?1: data.Length / bufferLen,
+                        WriteBuffer = new byte[(nSlices * bufferLen)],
+                        FSWriteBuffer = new byte[(nSlices * bufferLen)],
                     };
                 }
             }
@@ -490,11 +509,11 @@ namespace Chronos.P2P.Client
             var cancelSource = new CancellationTokenSource();
             var total = fs.Length / bufferLen;
             _logger.LogInformation($"Slice count: {total}");
-            Memory<byte> fileReadBuffer = new byte[(10485760/bufferLen*bufferLen)];
+            Memory<byte> fileReadBuffer = new byte[(nSlices*bufferLen)];
             int readLen = 0;
             for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
             {
-                int n = (int)(j % (10485760 / bufferLen));
+                int n = (int)(j % nSlices);
                 if (n == 0)
                 {
                     var rt = fs.ReadAsync(fileReadBuffer);
@@ -673,6 +692,7 @@ namespace Chronos.P2P.Client
                     break;
                 }
             }
+            nSlices = 10485760 / bufferLen;
             _logger.LogInformation($"MTU value: {bufferLen}");
         }
 
