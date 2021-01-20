@@ -50,7 +50,7 @@ namespace Chronos.P2P.Test
             SetUpTest();
             var hello = new Hello { HelloString = s };
             server.CallHandler(server.requestHandlers[1], new UdpContext(
-                callBytes, new(), new(1000, 1000), new(SocketType.Dgram, ProtocolType.Udp)));
+                callBytes, new(), new(1000, 1000), new(SocketType.Dgram, ProtocolType.Udp), new ReceiveBufferOwner(callBytes)));
             server.Dispose();
         }
 
@@ -58,7 +58,7 @@ namespace Chronos.P2P.Test
         public void TestProcessRequestCreateNewThread()
         {
             SetUpTest();
-            _ = server.ProcessRequestAsync(new UdpReceiveResult());
+            _ = server.ProcessRequestAsync(null, new SocketReceiveFromResult());
         }
 
         [Fact]
@@ -68,11 +68,16 @@ namespace Chronos.P2P.Test
             ackNums = 0;
             Assert.Equal(0, ackNums);
             Assert.False(server.guidDic.ContainsKey(id));
-            await server.ProcessRequestAsync(new UdpReceiveResult(callBytes, ep));
+            var from = new SocketReceiveFromResult
+            {
+                ReceivedBytes = callBytes.Length,
+                RemoteEndPoint = ep
+            };
+            await server.ProcessRequestAsync(new ReceiveBufferOwner(callBytes), from);
             await Task.Delay(100);
             Assert.Equal(1, ackNums);
             Assert.True(server.guidDic.ContainsKey(id));
-            await server.ProcessRequestAsync(new UdpReceiveResult(callBytes, ep));
+            await server.ProcessRequestAsync(new ReceiveBufferOwner(callBytes), from);
             await Task.Delay(100);
             Assert.Equal(1, ackNums);
             Assert.True(server.guidDic.ContainsKey(id));

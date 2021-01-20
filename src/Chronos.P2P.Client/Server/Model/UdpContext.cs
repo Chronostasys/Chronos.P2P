@@ -20,6 +20,10 @@ namespace Chronos.P2P.Server
 
         public Socket UdpClient { get; init; }
         public IMemoryOwner<byte>? MemOwner { get; private set; }
+        /// <summary>
+        /// for mock
+        /// </summary>
+        internal UdpContext() { }
         public UdpContext(Memory<byte> buffer, ConcurrentDictionary<Guid, PeerInfo> peers,
             IPEndPoint remoteEp, Socket client, IMemoryOwner<byte> owner)
         {
@@ -46,7 +50,7 @@ namespace Chronos.P2P.Server
             return t;
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             MemOwner?.Dispose();
             MemOwner = null;

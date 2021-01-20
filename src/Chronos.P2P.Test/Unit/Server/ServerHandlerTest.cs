@@ -26,7 +26,7 @@ namespace Chronos.P2P.Test
             });
 
             handler.HolePunchRequest(new UdpContext(bytes.AsMemory()[20..].ToArray(), new(),
-                new System.Net.IPEndPoint(100, 100), null));
+                new System.Net.IPEndPoint(100, 100), null, new ReceiveBufferOwner(bytes)));
             Assert.Equal(0, msgs.Count);
         }
 
@@ -47,7 +47,7 @@ namespace Chronos.P2P.Test
                 Ep = pep
             });
             handler.HolePunchRequest(new UdpContext(bytes.AsMemory()[20..].ToArray(), new(),
-                ep, null));
+                ep, null, new ReceiveBufferOwner(bytes)));
             Assert.Equal(3, msgs.Count);
         }
     }

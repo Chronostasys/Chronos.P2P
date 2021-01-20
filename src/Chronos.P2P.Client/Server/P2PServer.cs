@@ -53,12 +53,16 @@ namespace Chronos.P2P.Server
 
         public event EventHandler<byte[]>? OnError;
 
-        public P2PServer(int port = 5000) : this(new Socket(SocketType.Dgram, ProtocolType.Udp))
+        public P2PServer(int port = 5000) : this(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp), port)
         {
         }
 
-        public P2PServer(Socket client)
+        public P2PServer(Socket client, int port = -1)
         {
+            if (port != -1)
+            {
+                client.Bind(new IPEndPoint(IPAddress.Any, port));
+            }
             MessagePackSerializer.DefaultOptions.WithSecurity(MessagePackSecurity.UntrustedData);
             services = new ServiceCollection();
             services.AddSingleton(this);
@@ -402,9 +406,15 @@ namespace Chronos.P2P.Server
         public byte[] Buffer { get; }
         public Memory<byte> Memory { get; }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
-            ArrayPool<byte>.Shared.Return(Buffer);
+            try
+            {
+                ArrayPool<byte>.Shared.Return(Buffer);
+            }
+            catch (Exception)
+            {
+            }
         }
     }
 }
