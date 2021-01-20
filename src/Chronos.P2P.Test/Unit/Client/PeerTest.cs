@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Client;
+using Chronos.P2P.Server;
 using Moq;
 using System;
 using System.Net;
@@ -37,8 +38,7 @@ namespace Chronos.P2P.Test
             peer.peer = new PeerInfo();
             try
             {
-                peer.PunchDataReceived(new Server.UdpContext(
-                    null, null, new IPEndPoint(IPAddress.Parse(ip), 999), null));
+                peer.PunchDataReceived(new IPEndPoint(IPAddress.Parse(ip), 999));
             }
             catch (System.Exception)
             {
@@ -55,6 +55,8 @@ namespace Chronos.P2P.Test
         public async Task TestProcessDataSlice()
         {
             await TestTransferRequested();
+            var moq = new Mock<UdpContext>();
+            moq.Setup(u => u.Dispose());
             const int testlen = 10;
             for (int i = 0; i < testlen; i++)
             {
@@ -64,8 +66,9 @@ namespace Chronos.P2P.Test
                     Len = Peer.bufferLen,
                     SessionId = id,
                     Last = i == 0,
-                    Slice = new byte[Peer.bufferLen]
-                }, () => Task.CompletedTask);
+                    Slice = new byte[Peer.bufferLen],
+                    Context = moq.Object
+                }, () => ValueTask.CompletedTask);
             }
             await Task.Delay(100);
             Assert.Empty(peer.slices);

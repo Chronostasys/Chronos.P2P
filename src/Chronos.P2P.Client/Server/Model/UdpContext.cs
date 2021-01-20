@@ -1,6 +1,7 @@
 ﻿using Chronos.P2P.Client;
 using MessagePack;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
@@ -10,21 +11,27 @@ namespace Chronos.P2P.Server
     /// <summary>
     /// udp请求上下文，是handler的参数。
     /// </summary>
-    public class UdpContext
+    public class UdpContext: IDisposable
     {
-        public byte[] data { get; }
+        public Memory<byte> Data { get; }
         public ConcurrentDictionary<Guid, PeerInfo> Peers { get; init; }
 
         public IPEndPoint RemoteEndPoint { get; init; }
 
-        public UdpClient UdpClient { get; init; }
-
-        public UdpContext(byte[] buffer, ConcurrentDictionary<Guid, PeerInfo> peers, IPEndPoint remoteEp, UdpClient client)
+        public Socket UdpClient { get; init; }
+        public IMemoryOwner<byte>? MemOwner { get; private set; }
+        /// <summary>
+        /// for mock
+        /// </summary>
+        internal UdpContext() { }
+        public UdpContext(Memory<byte> buffer, ConcurrentDictionary<Guid, PeerInfo> peers,
+            IPEndPoint remoteEp, Socket client, IMemoryOwner<byte> owner)
         {
-            data = buffer;
+            Data = buffer;
             Peers = peers;
             RemoteEndPoint = remoteEp;
             UdpClient = client;
+            MemOwner = owner;
         }
 
         /// <summary>
@@ -34,11 +41,19 @@ namespace Chronos.P2P.Server
         /// <returns></returns>
         public T? GetData<T>()
         {
-            if (data.Length == 0)
+            if (Data.Length == 0)
             {
                 return default;
             }
-            return MessagePackSerializer.Deserialize<T>(data)!;
+            T t = MessagePackSerializer.Deserialize<T>(Data)!;
+            Dispose();
+            return t;
+        }
+
+        public virtual void Dispose()
+        {
+            MemOwner?.Dispose();
+            MemOwner = null;
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,6 +12,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,7 +29,7 @@ namespace Chronos.P2P.Server
         private static readonly object rttLock = new();
         private static readonly ObjectPool<Stopwatch> timerPool = ObjectPool.Create<Stopwatch>();
         private readonly Type attribute = typeof(HandlerAttribute);
-        private readonly UdpClient listener;
+        private readonly Socket listener;
         private readonly ConcurrentDictionary<Guid, PeerInfo> peers;
         internal ServiceProvider? serviceProvider;
         internal readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks = new();
@@ -51,12 +53,16 @@ namespace Chronos.P2P.Server
 
         public event EventHandler<byte[]>? OnError;
 
-        public P2PServer(int port = 5000) : this(new UdpClient(new IPEndPoint(IPAddress.Any, port)))
+        public P2PServer(int port = 5000) : this(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp), port)
         {
         }
 
-        public P2PServer(UdpClient client)
+        public P2PServer(Socket client, int port = -1)
         {
+            if (port != -1)
+            {
+                client.Bind(new IPEndPoint(IPAddress.Any, port));
+            }
             MessagePackSerializer.DefaultOptions.WithSecurity(MessagePackSecurity.UntrustedData);
             services = new ServiceCollection();
             services.AddSingleton(this);
@@ -89,6 +95,12 @@ namespace Chronos.P2P.Server
             MemoryMarshal.Write(reqSpan[4..20], ref reqId);
             Buffer.BlockCopy(data, 0, req, 20, data.Length);
             return req;
+        }
+        public static void DecorateRequestBuffer(int callMethod, Guid reqId, byte[] data)
+        {
+            Span<byte> reqSpan = data;
+            MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
+            MemoryMarshal.Write(reqSpan[4..20], ref reqId);
         }
 
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
@@ -128,10 +140,10 @@ namespace Chronos.P2P.Server
             return Activator.CreateInstance(data.GenericType, args.ToArray())!;
         }
 
-        internal async Task ProcessRequestAsync(UdpReceiveResult re)
+        internal async ValueTask ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
         {
             await Task.Yield();
-            var mem = new Memory<byte>(re.Buffer);
+            var mem = bufferOwner.Memory[0..result.ReceivedBytes];
 
             var method = mem.Slice(0, 4);
             var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
@@ -144,7 +156,7 @@ namespace Chronos.P2P.Server
                 msgs.Enqueue(new UdpMsg
                 {
                     Data = bytes,
-                    Ep = re.RemoteEndPoint
+                    Ep = (result.RemoteEndPoint as IPEndPoint)!
                 });
                 if (guidDic.ContainsKey(reqId))
                 {
@@ -157,7 +169,8 @@ namespace Chronos.P2P.Server
             if (mthd != (int)CallMethods.Abort)
             {
                 var td = requestHandlers[mthd];
-                CallHandler(td, new UdpContext(data.ToArray(), peers, re.RemoteEndPoint, listener));
+                CallHandler(td, new UdpContext(data, peers,
+                    (result.RemoteEndPoint as IPEndPoint)!, listener, bufferOwner));
             }
             AfterDataHandled?.Invoke(this, new());
         }
@@ -168,7 +181,7 @@ namespace Chronos.P2P.Server
             {
                 try
                 {
-                    await listener.SendAsync(msg.Data, msg.Data.Length, msg.Ep);
+                    await listener.SendToAsync(msg.Data, SocketFlags.None, msg.Ep);
                     if (msg.SendTask is not null)
                     {
                         msg.SendTask.SetResult(true);
@@ -187,10 +200,10 @@ namespace Chronos.P2P.Server
         public static P2PServer BuildWithStartUp<T>(int port = 5000)
                                     where T : IStartUp, new()
         {
-            return BuildWithStartUp<T>(new UdpClient(new IPEndPoint(IPAddress.Any, port)));
+            return BuildWithStartUp<T>(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp));
         }
 
-        public static P2PServer BuildWithStartUp<T>(UdpClient client)
+        public static P2PServer BuildWithStartUp<T>(Socket client)
             where T : IStartUp, new()
         {
             var server = new P2PServer(client);
@@ -199,17 +212,32 @@ namespace Chronos.P2P.Server
             server.ConfigureServices(startUp.ConfigureServices);
             return server;
         }
-
         public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
             IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
             MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData,
             int retry = 10, CancellationToken? token = null)
         {
+            return await SendDataReliableAsync(Guid.NewGuid(), method, data, ep, ackTasks,
+                msgs, timeoutData, CreateUdpRequestBuffer, retry, token);
+        }
+        public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
+            IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
+            MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData, Func<int, Guid, byte[]?, byte[]> createRequestBuffer,
+            int retry = 10, CancellationToken? token = null)
+        {
+            return await SendDataReliableAsync(Guid.NewGuid(), method, data, ep, ackTasks,
+                msgs, timeoutData, createRequestBuffer, retry, token);
+        }
+
+        public static async ValueTask<bool> SendDataReliableAsync<T>(Guid reqId, int method, T data,
+            IPEndPoint ep, ConcurrentDictionary<Guid, TaskCompletionSource<bool>> ackTasks,
+            MsgQueue<UdpMsg> msgs, AutoTimeoutData timeoutData, Func<int, Guid, byte[]?, byte[]> createRequestBuffer,
+            int retry = 10, CancellationToken? token = null)
+        {
             var timer = timerPool.Get();
-            var reqId = Guid.NewGuid();
             ackTasks[reqId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var dbytes = (data is byte[]) ? (data as byte[]) : MessagePackSerializer.Serialize(data);
-            var bytes = CreateUdpRequestBuffer(method, reqId, dbytes);
+            var bytes = createRequestBuffer(method, reqId, dbytes);
             bool success = false;
             for (int i = 0; i < retry; i++)
             {
@@ -309,9 +337,16 @@ namespace Chronos.P2P.Server
         public ValueTask<bool> SendDataReliableAsync<T>(int method, T data,
             IPEndPoint ep, int retry = 10, CancellationToken? token = null)
         {
-            return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, retry, token);
+            return SendDataReliableAsync(method, data, ep, ackTasks, msgs, timeoutData, CreateUdpRequestBuffer, retry, token);
+        }
+        public ValueTask<bool> SendDirectDataReliableAsync(Guid reqId, int method, byte[] data,
+            IPEndPoint ep, int retry = 10, CancellationToken? token = null)
+        {
+            return SendDataReliableAsync(reqId, method, data, ep, ackTasks, msgs, timeoutData, (a,b,c)=>c, retry, token);
         }
 
+        ArrayPool<byte> receivePool = ArrayPool<byte>.Shared;
+        internal static IPEndPoint allEp = new IPEndPoint(IPAddress.Any, 0);
         /// <summary>
         /// 启动消息接收的循环
         /// </summary>
@@ -346,16 +381,39 @@ namespace Chronos.P2P.Server
             }));
             while (true)
             {
-                var re = await listener.ReceiveAsync();
-
+                byte[] receiveMem = receivePool.Rent(Peer.bufferLen)!;
+                
+                var re = await listener.ReceiveFromAsync(receiveMem, SocketFlags.None, allEp);
+                var owner = new ReceiveBufferOwner(receiveMem);
                 try
                 {
-                    _ = ProcessRequestAsync(re);
+                    _ = ProcessRequestAsync(owner, re);
                 }
                 catch (Exception)
                 {
-                    OnError?.Invoke(this, re.Buffer);
+                    //OnError?.Invoke(this, re.Buffer);
                 }
+            }
+        }
+    }
+    public class ReceiveBufferOwner : IMemoryOwner<byte>
+    {
+        public ReceiveBufferOwner(byte[] buffer)
+        {
+            Buffer = buffer;
+            Memory = buffer;
+        }
+        public byte[] Buffer { get; }
+        public Memory<byte> Memory { get; }
+
+        public virtual void Dispose()
+        {
+            try
+            {
+                ArrayPool<byte>.Shared.Return(Buffer);
+            }
+            catch (Exception)
+            {
             }
         }
     }

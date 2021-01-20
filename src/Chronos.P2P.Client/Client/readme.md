@@ -10,11 +10,11 @@
 
 ### SendDataToPeerReliableAsync()
 向peer发送method对应类型的消息data
-`public async Task<bool> SendDataToPeerReliableAsync<T>(int method, T data, CancellationToken? token = null)`
+`public async ValueTask<bool> SendDataToPeerReliableAsync<T>(int method, T data, CancellationToken? token = null)`
 
 ### SendFileAsync()
 异步传输文件
-`public async Task SendFileAsync(string location)`
+`public async ValueTask SendFileAsync(string location)`
 
 
 ## 通讯部分
