@@ -342,7 +342,7 @@ namespace Chronos.P2P.Server
         public ValueTask<bool> SendDirectDataReliableAsync(Guid reqId, int method, byte[] data,
             IPEndPoint ep, int retry = 10, CancellationToken? token = null)
         {
-            return SendDataReliableAsync(reqId, method, data, ep, ackTasks, msgs, timeoutData, (a,b,c)=>c, retry, token);
+            return SendDataReliableAsync(reqId, method, data, ep, ackTasks, msgs, timeoutData, (a,b,c)=>c!, retry, token);
         }
 
         ArrayPool<byte> receivePool = ArrayPool<byte>.Shared;
