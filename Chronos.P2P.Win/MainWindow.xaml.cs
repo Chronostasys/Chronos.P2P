@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Client;
+using Chronos.P2P.Client.Audio;
 using Chronos.P2P.Server;
 using System;
 using System.Collections.Generic;
@@ -37,7 +38,8 @@ namespace Chronos.P2P.Win
                 peer?.Dispose();
                 var port = int.Parse((FindName("Port") as TextBox).Text);
                 peer = new Peer(port, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
-                Content = new ConnectPage();
+                peer.AddLiveAudioChatHandler();
+                Content = new ConnectPage(peer, this);
             }
             catch (Exception)
             {
