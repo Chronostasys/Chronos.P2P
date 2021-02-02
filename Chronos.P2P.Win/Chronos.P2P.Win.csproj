@@ -6,4 +6,8 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\src\Chronos.P2P.Client\Chronos.P2P.Client.csproj" />
+  </ItemGroup>
+
 </Project>
