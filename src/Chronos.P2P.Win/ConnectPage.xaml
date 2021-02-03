@@ -1,0 +1,29 @@
+﻿<Page x:Class="Chronos.P2P.Win.ConnectPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Chronos.P2P.Win"
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="ConnectPage">
+
+    <Grid Background="White">
+        <TextBlock HorizontalAlignment="Center" Margin="0,87,0,0" Text="Setup Connection(db click)" TextWrapping="Wrap" VerticalAlignment="Top" FontSize="24"/>
+        <ListBox Margin="145,124,145,0" Name="peerList" SelectionChanged="peerList_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="0,2" ScrollViewer.CanContentScroll="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Id}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+
+    </Grid>
+</Page>

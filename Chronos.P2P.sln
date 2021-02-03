@@ -11,6 +11,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Server.Sample",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Test", "src\Chronos.P2P.Test\Chronos.P2P.Test.csproj", "{61322357-5FA6-49D4-AD65-3C505CC34C19}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F2F3D250-5106-4D39-9364-03316A866B48}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\dotnet-core.yml = .github\workflows\dotnet-core.yml
+		.github\workflows\greetings.yml = .github\workflows\greetings.yml
+		.github\workflows\label.yml = .github\workflows\label.yml
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Win", "src\Chronos.P2P.Win\Chronos.P2P.Win.csproj", "{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +42,10 @@ Global
 		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{61322357-5FA6-49D4-AD65-3C505CC34C19}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,4 +1,5 @@
 ﻿using Chronos.P2P.Server;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 using System;
@@ -25,6 +26,10 @@ namespace Chronos.P2P.Client.Audio
             };
             capture.StartRecording();
             return t.AsTask();
+        }
+        public static void AddLiveAudioChatHandler(this Peer peer)
+        {
+            peer.AddHandler<AudioLiveStreamHandler>();
         }
     }
 

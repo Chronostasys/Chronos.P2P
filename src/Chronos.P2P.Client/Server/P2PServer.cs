@@ -200,16 +200,22 @@ namespace Chronos.P2P.Server
         public static P2PServer BuildWithStartUp<T>(int port = 5000)
                                     where T : IStartUp, new()
         {
-            return BuildWithStartUp<T>(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp));
+            return BuildWithStartUp<T>(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp), port);
         }
 
-        public static P2PServer BuildWithStartUp<T>(Socket client)
+        public static P2PServer BuildWithStartUp<T>(Socket client, int port)
             where T : IStartUp, new()
         {
-            var server = new P2PServer(client);
+            var server = new P2PServer(client, port);
             var startUp = new T();
             startUp.Configure(server);
             server.ConfigureServices(startUp.ConfigureServices);
+            return server;
+        }
+        public static P2PServer Build(int port = 5000)
+        {
+            var server = new P2PServer(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp), port);
+            server.ConfigureServices(e=> { });
             return server;
         }
         public static async ValueTask<bool> SendDataReliableAsync<T>(int method, T data,

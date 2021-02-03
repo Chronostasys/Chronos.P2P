@@ -580,7 +580,11 @@ namespace Chronos.P2P.Client
                 SessionId = sessionId
             });
             long no = 0;
-            await FileAcceptTasks[sessionId].Task;
+            var acc = await FileAcceptTasks[sessionId].Task;
+            if (!acc)
+            {
+                throw new OperationCanceledException("Remote refused!");
+            }
             await foreach (var (buffer, len) in channel)
             {
                 token.ThrowIfCancellationRequested();
@@ -815,6 +819,10 @@ namespace Chronos.P2P.Client
         #endregion Send Data
 
         #region User Interface
+        public static Peer Build(int port, IPEndPoint serverEP, string? name = null)
+        {
+            return BuildWithStartUp<EmptyStartup>(port, serverEP, name);
+        }
 
         public static Peer BuildWithStartUp<T>(int port, IPEndPoint serverEP, string? name = null)
                     where T : IStartUp, new()
@@ -874,5 +882,15 @@ namespace Chronos.P2P.Client
         }
 
         #endregion User Interface
+    }
+    public class EmptyStartup : IStartUp
+    {
+        public void Configure(IRequestHandlerCollection handlers)
+        {
+        }
+
+        public void ConfigureServices(IServiceCollection services)
+        {
+        }
     }
 }
