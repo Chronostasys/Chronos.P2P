@@ -87,9 +87,10 @@ namespace Chronos.P2P.Win
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
+            var txt = chatBox.Text;
             chatBox.Text = "";
-            chatList.Items.Add($"you: {chatBox.Text}");
-            peer.SendDataToPeerReliableAsync(1, chatBox.Text);
+            chatList.Items.Add($"you: {txt}");
+            peer.SendDataToPeerReliableAsync(1, txt);
         }
 
         private async void Button_Click_2(object sender, RoutedEventArgs e)
