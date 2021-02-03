@@ -6,13 +6,16 @@
       xmlns:local="clr-namespace:Chronos.P2P.Win"
       mc:Ignorable="d" 
       d:DesignHeight="450" d:DesignWidth="800"
+      Height="450"
+      Width="800"
       Title="ConnectedPage">
 
     <Grid Background="White">
         <Button Content="Start Live Chat" HorizontalAlignment="Left" Margin="556,74,0,0" VerticalAlignment="Top" Click="Button_Click"/>
-        <ListBox Margin="10,0,390,120" Name="chatList" ScrollViewer.CanContentScroll="True"/>
-        <TextBox HorizontalAlignment="Left" Margin="10,335,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Width="400" Height="24" Name="chatBox"/>
-        <Button Content="Send" HorizontalAlignment="Left" Margin="10,364,0,0" VerticalAlignment="Top" Height="22" Width="400" Click="Button_Click_1"/>
+        <ListBox Margin="10,0,400,120" Name="chatList" ScrollViewer.CanContentScroll="True"/>
+        <TextBox HorizontalAlignment="Left" Margin="10,330,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Width="390" Height="24" Name="chatBox"/>
+        <Button Content="Send" HorizontalAlignment="Left" Margin="10,354,0,0" VerticalAlignment="Top" Height="22" Width="390" Click="Button_Click_1"/>
+        <Button Content="Send File" HorizontalAlignment="Left" Margin="570,225,0,0" VerticalAlignment="Top" Click="Button_Click_2"/>
 
     </Grid>
 </Page>

@@ -580,7 +580,11 @@ namespace Chronos.P2P.Client
                 SessionId = sessionId
             });
             long no = 0;
-            await FileAcceptTasks[sessionId].Task;
+            var acc = await FileAcceptTasks[sessionId].Task;
+            if (!acc)
+            {
+                throw new OperationCanceledException("Remote refused!");
+            }
             await foreach (var (buffer, len) in channel)
             {
                 token.ThrowIfCancellationRequested();

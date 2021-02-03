@@ -1,5 +1,6 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Client.Audio;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +25,6 @@ namespace Chronos.P2P.Win
     {
         Peer peer;
         bool invitor = false;
-        List<string> chats = new();
         public ConnectedPage(Peer _peer)
         {
             peer = _peer;
@@ -35,12 +35,25 @@ namespace Chronos.P2P.Win
                     return Task.FromResult((true, ""));
                 }
                 var re = MessageBox.Show($"Remote peer request to transfer a stream of len {info.Length}"
-                    + ", do you want to accept?",
-                    $"Peer request: {info.Name}", MessageBoxButton.YesNo);
+                    + $", named {info.Name}, do you want to accept?",
+                    $"Peer request", MessageBoxButton.YesNo);
                 if (re is MessageBoxResult.Yes)
                 {
-                    peer.StartSendLiveAudio("Live audio chat");
-                    return Task.FromResult((true, ""));
+                    if (info.Length==-1)
+                    {
+                        peer.StartSendLiveAudio("Live audio chat");
+                        return Task.FromResult((true, ""));
+                    }
+                    else
+                    {
+                        var sd = new SaveFileDialog();
+                        sd.FileName = info.Name;
+                        var red = sd.ShowDialog();
+                        if (red is not null&&red.Value)
+                        {
+                            return Task.FromResult((true, sd.FileName));
+                        }
+                    }
                 }
                 return Task.FromResult((false, ""));
             };
@@ -57,16 +70,46 @@ namespace Chronos.P2P.Win
             
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private async void Button_Click(object sender, RoutedEventArgs e)
         {
-            peer.StartSendLiveAudio("Live audio chat");
             invitor = true;
+            try
+            {
+                await peer.StartSendLiveAudio("Live audio chat");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "ERROR",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
+            chatBox.Text = "";
             chatList.Items.Add($"you: {chatBox.Text}");
             peer.SendDataToPeerReliableAsync(1, chatBox.Text);
+        }
+
+        private async void Button_Click_2(object sender, RoutedEventArgs e)
+        {
+            var d = new OpenFileDialog();
+            d.CheckFileExists = true;
+            d.InitialDirectory = Environment.CurrentDirectory;
+            d.Title = "选择发送的文件";
+            d.ShowDialog();
+            try
+            {
+                await peer.SendFileAsync(d.FileName, 10);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "ERROR",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            MessageBox.Show("Transfer complete!");
+            
         }
     }
 }
