@@ -39,12 +39,22 @@ namespace Chronos.P2P.Win
                 var port = int.Parse((FindName("Port") as TextBox).Text);
                 peer = new Peer(port, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));
                 peer.AddLiveAudioChatHandler();
+                peer.AddHandler<ChatHandler>();
                 Content = new ConnectPage(peer, this);
             }
             catch (Exception)
             {
                 MessageBox.Show("请输入合法的端口值！");
             }
+        }
+    }
+    public class ChatHandler
+    {
+        public static event EventHandler<string> OnChatMsgReceived;
+        [Handler(1)]
+        public void ChatMsgHandler(UdpContext udpContext)
+        {
+            OnChatMsgReceived?.Invoke(this, udpContext.GetData<string>());
         }
     }
 }

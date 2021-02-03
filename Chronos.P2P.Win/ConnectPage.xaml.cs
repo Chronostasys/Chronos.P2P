@@ -62,7 +62,8 @@ namespace Chronos.P2P.Win
             var item = ItemsControl.ContainerFromElement(peerList, e.OriginalSource as DependencyObject) as ListBoxItem;
             if (item != null)
             {
-                peer.SetPeer((item.DataContext as PeerInfo).Id);
+                _ = peer.SetPeer((item.DataContext as PeerInfo).Id);
+                peerList.IsEnabled = false;
                 // ListBox item clicked - do some cool things here
             }
         }

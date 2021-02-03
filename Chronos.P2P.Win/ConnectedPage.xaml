@@ -9,7 +9,10 @@
       Title="ConnectedPage">
 
     <Grid Background="White">
-        <Button Content="Start Live Chat" HorizontalAlignment="Center" Margin="0,188,0,0" VerticalAlignment="Top" Click="Button_Click"/>
+        <Button Content="Start Live Chat" HorizontalAlignment="Left" Margin="556,74,0,0" VerticalAlignment="Top" Click="Button_Click"/>
+        <ListBox Margin="10,0,390,120" Name="chatList" ScrollViewer.CanContentScroll="True"/>
+        <TextBox HorizontalAlignment="Left" Margin="10,335,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Width="400" Height="24" Name="chatBox"/>
+        <Button Content="Send" HorizontalAlignment="Left" Margin="10,364,0,0" VerticalAlignment="Top" Height="22" Width="400" Click="Button_Click_1"/>
 
     </Grid>
 </Page>

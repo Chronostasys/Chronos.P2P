@@ -24,6 +24,7 @@ namespace Chronos.P2P.Win
     {
         Peer peer;
         bool invitor = false;
+        List<string> chats = new();
         public ConnectedPage(Peer _peer)
         {
             peer = _peer;
@@ -44,12 +45,28 @@ namespace Chronos.P2P.Win
                 return Task.FromResult((false, ""));
             };
             InitializeComponent();
+            ChatHandler.OnChatMsgReceived += ChatHandler_OnChatMsgReceived;
+        }
+
+        private void ChatHandler_OnChatMsgReceived(object sender, string e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                chatList.Items.Add($"remote: {e}");
+            });
+            
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             peer.StartSendLiveAudio("Live audio chat");
             invitor = true;
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            chatList.Items.Add($"you: {chatBox.Text}");
+            peer.SendDataToPeerReliableAsync(1, chatBox.Text);
         }
     }
 }
