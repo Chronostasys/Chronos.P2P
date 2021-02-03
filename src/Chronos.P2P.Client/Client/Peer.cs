@@ -356,7 +356,6 @@ namespace Chronos.P2P.Client
                 _logger.LogInformation($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
                 fs = null;
                 val.Semaphore.Dispose();
-                semaphoreSlim = null;
             }
             await ProcessDataSliceAsync(dataSlice, CleanUpAsync);
         }
@@ -420,7 +419,13 @@ namespace Chronos.P2P.Client
             {
                 slices[new DataSliceInfo { No = dataSlice.No, SessionId = dataSlice.SessionId }] = dataSlice;
             }
-            semaphoreSlim.Release();
+            try
+            {
+                semaphoreSlim.Release();
+            }
+            catch (Exception)
+            {
+            }
         }
         int nSlices = 10485760 / bufferLen;
         internal async ValueTask StreamTransferRequested(BasicFileInfo data)

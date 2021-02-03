@@ -30,7 +30,7 @@ namespace Chronos.P2P.Win
             peer = _peer;
             peer.OnInitFileTransfer = info =>
             {
-                if (invitor)
+                if (invitor&&info.Length==-1)
                 {
                     return Task.FromResult((true, ""));
                 }
@@ -46,8 +46,10 @@ namespace Chronos.P2P.Win
                     }
                     else
                     {
-                        var sd = new SaveFileDialog();
-                        sd.FileName = info.Name;
+                        var sd = new SaveFileDialog
+                        {
+                            FileName = info.Name
+                        };
                         var red = sd.ShowDialog();
                         if (red is not null&&red.Value)
                         {

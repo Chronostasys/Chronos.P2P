@@ -29,13 +29,13 @@ namespace Chronos.P2P.Server
         }
 
         [Handler((int)CallMethods.ConnectionHandShake)]
-        public void ConnectHandShake(UdpContext context)
+        public async void ConnectHandShake(UdpContext context)
         {
             var data = context.GetData<ConnectHandshakeDto>();
             var ep = data.Ep;
             data.Info.OuterEP = PeerEP.ParsePeerEPFromIPEP(context.RemoteEndPoint);
             server.connectionDic[data.Info.OuterEP] = (ep, DateTime.UtcNow);
-            _ = P2PServer.SendDataReliableAsync((int)CallMethods.PeerConnectionRequest, data.Info,
+            await P2PServer.SendDataReliableAsync((int)CallMethods.PeerConnectionRequest, data.Info,
                 ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
             _logger.LogInformation("send handshake data");
         }
@@ -68,7 +68,7 @@ namespace Chronos.P2P.Server
         }
 
         [Handler((int)CallMethods.ConnectionHandShakeReply)]
-        public void HolePunchRequest(UdpContext context)
+        public async void HolePunchRequest(UdpContext context)
         {
             var reply = context.GetData<ConnectionReplyDto>()!;
             var ep = reply.Ep;
@@ -77,15 +77,18 @@ namespace Chronos.P2P.Server
             var c = server.connectionDic.TryRemove(ep, out var t);
             if (c && t.Item1 == rep)
             {
-                _ = P2PServer.SendDataReliableAsync((int)CallMethods.ConnectionRequestCallback, reply.Acc,
+                var v1 = P2PServer.SendDataReliableAsync((int)CallMethods.ConnectionRequestCallback, reply.Acc,
                     ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
                 if (reply.Acc)
                 {
-                    _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
+                    var v2 = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
                         ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
-                    _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
+                    var v3 = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
                         rep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
+                    await v2;
+                    await v3;
                 }
+                await v1;
             }
         }
     }

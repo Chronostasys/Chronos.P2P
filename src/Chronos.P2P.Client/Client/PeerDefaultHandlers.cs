@@ -31,16 +31,16 @@ namespace Chronos.P2P.Client
         }
 
         [Handler((int)CallMethods.PeerConnectionRequest)]
-        public void ConnectionRequestedHandler(UdpContext context)
+        public async void ConnectionRequestedHandler(UdpContext context)
         {
             _logger.LogInformation("received connection request!");
-            _ = peer.OnConnectionRequested(context.GetData<PeerInfo>()!);
+            await peer.OnConnectionRequested(context.GetData<PeerInfo>()!);
         }
 
         [Handler((int)CallMethods.DataSlice)]
-        public void FileDataHandler(UdpContext context)
+        public async void FileDataHandler(UdpContext context)
         {
-            _ = peer.FileDataReceived(DataSlice.FromBytes(context.Data, context));
+            await peer.FileDataReceived(DataSlice.FromBytes(context.Data, context));
         }
 
         [Handler((int)CallMethods.P2PPing)]
@@ -73,9 +73,9 @@ namespace Chronos.P2P.Client
         }
 
         [Handler((int)CallMethods.StreamHandShake)]
-        public void StreamHandShakeHandler(UdpContext context)
+        public async void StreamHandShakeHandler(UdpContext context)
         {
-            _ = peer.StreamTransferRequested(context.GetData<BasicFileInfo>());
+            await peer.StreamTransferRequested(context.GetData<BasicFileInfo>());
         }
     }
 }
