@@ -12,6 +12,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -28,6 +29,19 @@ namespace Chronos.P2P.Win
         public ConnectedPage(Peer _peer)
         {
             peer = _peer;
+            peer.OnFileTransferDone += Peer_OnFileTransferDone;
+            peer.FileReceiveProgressInvoker = p =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (p.Percent > 0.001)
+                    {
+                        progress.IsIndeterminate = false;
+                        progress.Value = p.Percent;
+                    }
+                    progressText.Text = p.WorkProgress + $" {p.Percent:00.00}%";
+                });
+            };
             peer.OnInitFileTransfer = info =>
             {
                 if (invitor&&info.Length==-1)
@@ -41,11 +55,23 @@ namespace Chronos.P2P.Win
                 {
                     if (info.Length==-1)
                     {
+                        Dispatcher.Invoke(() =>
+                        {
+                            liveChat.IsEnabled = false;
+                        });
                         peer.StartSendLiveAudio("Live audio chat");
                         return Task.FromResult((true, ""));
                     }
                     else
                     {
+                        Dispatcher.Invoke(() =>
+                        {
+                            sendFile.IsEnabled = false;
+                            progressText.Text = "";
+                            progress.IsIndeterminate = true;
+                            progressText.Visibility = Visibility.Visible;
+                            progress.Visibility = Visibility.Visible;
+                        });
                         var sd = new SaveFileDialog
                         {
                             FileName = info.Name
@@ -55,12 +81,38 @@ namespace Chronos.P2P.Win
                         {
                             return Task.FromResult((true, sd.FileName));
                         }
+                        Dispatcher.Invoke(() =>
+                        {
+                            sendFile.IsEnabled = true;
+                            progressText.Visibility = Visibility.Hidden;
+                            progress.Visibility = Visibility.Hidden;
+                        });
                     }
                 }
                 return Task.FromResult((false, ""));
             };
             InitializeComponent();
             ChatHandler.OnChatMsgReceived += ChatHandler_OnChatMsgReceived;
+            chatBox.KeyDown += ChatBox_KeyDown;
+        }
+
+        private void ChatBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Return)
+            {
+                Button_Click_1(null, null);
+            }
+        }
+
+        private void Peer_OnFileTransferDone(object sender, (double speed, TimeSpan time) e)
+        {
+            MessageBox.Show($"Transfer complete! Speed: {e.speed}MBps, time: {e.time}");
+            Dispatcher.Invoke(() =>
+            {
+                sendFile.IsEnabled = true;
+                progressText.Visibility = Visibility.Hidden;
+                progress.Visibility = Visibility.Hidden;
+            });
         }
 
         private void ChatHandler_OnChatMsgReceived(object sender, string e)
@@ -74,6 +126,7 @@ namespace Chronos.P2P.Win
 
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
+            liveChat.IsEnabled = false;
             invitor = true;
             try
             {
@@ -83,6 +136,10 @@ namespace Chronos.P2P.Win
             {
                 MessageBox.Show(ex.Message, "ERROR",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() =>
+                {
+                    liveChat.IsEnabled = true;
+                });
             }
             
         }
@@ -102,17 +159,45 @@ namespace Chronos.P2P.Win
             d.InitialDirectory = Environment.CurrentDirectory;
             d.Title = "选择发送的文件";
             d.ShowDialog();
+            sendFile.IsEnabled = false;
+            progressText.Text = "";
+            progress.IsIndeterminate = true;
+            progressText.Visibility = Visibility.Visible;
+            progress.Visibility = Visibility.Visible;
             try
             {
-                await peer.SendFileAsync(d.FileName, 10);
+                await peer.SendFileAsync(d.FileName, 10, p=>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (p.Percent > 0.001)
+                        {
+                            progress.IsIndeterminate = false;
+                            progress.Value = p.Percent;
+                        }
+                        progressText.Text = p.WorkProgress + $" {p.Percent:00.00}%";
+                    });
+                });
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "ERROR",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            finally
+            {
+                sendFile.IsEnabled = true;
+                progressText.Visibility = Visibility.Hidden;
+                progress.Visibility = Visibility.Hidden;
+            }
             MessageBox.Show("Transfer complete!");
             
+        }
+
+        private void chatBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
         }
     }
 }
