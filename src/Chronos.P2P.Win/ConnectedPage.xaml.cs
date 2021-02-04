@@ -48,6 +48,17 @@ namespace Chronos.P2P.Win
                 {
                     return Task.FromResult((true, ""));
                 }
+                Dispatcher.Invoke(() =>
+                {
+                    if (info.Length==-1)
+                    {
+                        liveChat.IsEnabled = false;
+                    }
+                    else
+                    {
+                        sendFile.IsEnabled = false;
+                    }
+                });
                 var re = MessageBox.Show($"Remote peer request to transfer a stream of len {info.Length}"
                     + $", named {info.Name}, do you want to accept?",
                     $"Peer request", MessageBoxButton.YesNo);
@@ -55,10 +66,6 @@ namespace Chronos.P2P.Win
                 {
                     if (info.Length==-1)
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            liveChat.IsEnabled = false;
-                        });
                         peer.StartSendLiveAudio("Live audio chat");
                         return Task.FromResult((true, ""));
                     }
@@ -66,7 +73,6 @@ namespace Chronos.P2P.Win
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            sendFile.IsEnabled = false;
                             progressText.Text = "";
                             progress.IsIndeterminate = true;
                             progressText.Visibility = Visibility.Visible;
