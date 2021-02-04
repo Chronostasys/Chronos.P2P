@@ -13,7 +13,7 @@
     <Grid Background="White">
         <Button Content="Start Live Chat" HorizontalAlignment="Left" Margin="556,74,0,0" VerticalAlignment="Top" Click="Button_Click"/>
         <ListBox Margin="10,0,400,120" Name="chatList" ScrollViewer.CanContentScroll="True"/>
-        <TextBox HorizontalAlignment="Left" Margin="10,330,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Width="390" Height="24" Name="chatBox"/>
+        <TextBox Margin="10,330,400,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Height="24" Name="chatBox" TextChanged="chatBox_TextChanged"/>
         <Button Content="Send" HorizontalAlignment="Left" Margin="10,354,0,0" VerticalAlignment="Top" Height="22" Width="390" Click="Button_Click_1"/>
         <Button Content="Send File" HorizontalAlignment="Left" Margin="570,225,0,0" VerticalAlignment="Top" Click="Button_Click_2"/>
         <ProgressBar Name="progress" HorizontalAlignment="Left" Height="11" Margin="486,272,0,0" VerticalAlignment="Top" Width="219" Visibility="Hidden"/>

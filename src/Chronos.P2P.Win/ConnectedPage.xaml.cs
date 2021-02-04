@@ -87,6 +87,15 @@ namespace Chronos.P2P.Win
             };
             InitializeComponent();
             ChatHandler.OnChatMsgReceived += ChatHandler_OnChatMsgReceived;
+            chatBox.KeyDown += ChatBox_KeyDown;
+        }
+
+        private void ChatBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Return)
+            {
+                Button_Click_1(null, null);
+            }
         }
 
         private void Peer_OnFileTransferDone(object sender, (double speed, TimeSpan time) e)
@@ -170,6 +179,11 @@ namespace Chronos.P2P.Win
             }
             MessageBox.Show("Transfer complete!");
             
+        }
+
+        private void chatBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
         }
     }
 }
