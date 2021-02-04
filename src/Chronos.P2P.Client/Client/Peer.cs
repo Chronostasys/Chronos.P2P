@@ -87,7 +87,8 @@ namespace Chronos.P2P.Client
 
         public Func<BasicFileInfo, Task<(bool receive, string savePath)>>? OnInitFileTransfer;
         public Func<PeerInfo, bool>? OnPeerInvited;
-
+        public Action<Progress>? FileReceiveProgressInvoker;
+        public event EventHandler<(double speed, TimeSpan time)>? OnFileTransferDone;
         public event EventHandler? PeerConnected;
 
         public event EventHandler? PeerConnectionLost;
@@ -346,7 +347,20 @@ namespace Chronos.P2P.Client
             if (dataSlice.No == 0)
             {
                 FileRecvDic[dataSlice.SessionId].Watch.Start();
+                FileRecvDic[dataSlice.SessionId].SendProgress.Report(0, "Receiving");
                 currentHead = -1;
+                if (FileReceiveProgressInvoker is not null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        while (true)
+                        {
+                            FileRecvDic[dataSlice.SessionId].SendProgress.Report(((double)FileRecvDic[dataSlice.SessionId].FS.Position) / FileRecvDic[dataSlice.SessionId].Length * 100);
+                            FileReceiveProgressInvoker(FileRecvDic[dataSlice.SessionId].SendProgress);
+                            await Task.Delay(100);
+                        }
+                    });
+                }
             }
 
             async ValueTask CleanUpAsync()
@@ -366,7 +380,9 @@ namespace Chronos.P2P.Client
                 _logger.LogInformation("transfer done!");
                 val.Watch.Stop();
                 _logger.LogInformation($"Time eplased: {val.Watch.Elapsed.TotalSeconds}s");
-                _logger.LogInformation($"Speed: {val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024}MB/s");
+                var speed = val.Length / val.Watch.Elapsed.TotalSeconds / 1024 / 1024;
+                _logger.LogInformation($"Speed: {speed}MB/s");
+                OnFileTransferDone?.Invoke(this, (speed, val.Watch.Elapsed));
                 fs = null;
                 val.Semaphore.Dispose();
             }
@@ -462,6 +478,7 @@ namespace Chronos.P2P.Client
                         Total = (data.Length/bufferLen==0)?1: data.Length / bufferLen,
                         WriteBuffer = new byte[(nSlices * bufferLen)],
                         FSWriteBuffer = new byte[(nSlices * bufferLen)],
+                        SendProgress = new Progress()
                     };
                 }
             }
@@ -509,25 +526,27 @@ namespace Chronos.P2P.Client
         public async ValueTask SendFileAsync(string location, int concurrentLevel = 3,
             Action<Progress>? progressInvoker = null)
         {
+            long i = 0;
             sendPool ??= new FixedLengthBufferPool(49 + bufferLen);
             CancellationTokenSource progressCancel = new();
             var progress = new Progress();
-            if (progressInvoker is not null)
-            {
-                _ = Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        progressCancel.Token.ThrowIfCancellationRequested();
-                        progressInvoker(progress);
-                        await Task.Delay(100, progressCancel.Token);
-                    }
-                }, progressCancel.Token);
-            }
             try
             {
                 using SemaphoreSlim semaphore = new(concurrentLevel);
                 using var fs = File.OpenRead(location);
+                if (progressInvoker is not null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        while (true)
+                        {
+                            progressCancel.Token.ThrowIfCancellationRequested();
+                            progress.Report(((((double)i) / ((double)fs.Length)) * 100.0));
+                            progressInvoker(progress);
+                            await Task.Delay(100, progressCancel.Token);
+                        }
+                    }, progressCancel.Token);
+                }
                 var sessionId = Guid.NewGuid();
                 FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 progress.Report(0f, "waiting for remote agreement...");
@@ -549,7 +568,7 @@ namespace Chronos.P2P.Client
                 Memory<byte> fileReadBuffer = new byte[(nSlices * bufferLen)];
                 int readLen = 0;
                 progress.Report(0f, "start file sending");
-                for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
+                for (long j = 0; i < fs.Length; i += bufferLen, j++)
                 {
                     int n = (int)(j % nSlices);
                     if (n == 0)
@@ -573,7 +592,6 @@ namespace Chronos.P2P.Client
                     DecorateSlice(l, 20, len, j1, sessionId, buffer);
                     var reqId = Guid.NewGuid();
                     P2PServer.DecorateRequestBuffer((int)CallMethods.DataSlice, reqId, buffer);
-                    progress.Report(((((double)i) / ((double)fs.Length)) * 100.0));
                     void sendCleanUp(bool excr)
                     {
                         semaphore.Release();

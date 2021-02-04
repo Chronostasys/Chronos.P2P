@@ -10,6 +10,7 @@ namespace Chronos.P2P.Client
     {
         public long Length { get; init; }
         public string SavePath { get; init; }
+        public Progress SendProgress { get; init; }
         public SemaphoreSlim Semaphore { get; init; }
         public ValueTask LastWriteTask { get; set; }
         public Memory<byte> WriteBuffer { get; set; }
