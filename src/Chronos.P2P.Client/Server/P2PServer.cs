@@ -140,39 +140,41 @@ namespace Chronos.P2P.Server
             return Activator.CreateInstance(data.GenericType, args.ToArray())!;
         }
 
-        internal async ValueTask ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
+        internal Task ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
         {
-            await Task.Yield();
-            var mem = bufferOwner.Memory[0..result.ReceivedBytes];
+            return Task.Run(() =>
+            {
+                var mem = bufferOwner.Memory[0..result.ReceivedBytes];
 
-            var method = mem.Slice(0, 4);
-            var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
-            var data = mem[20..];
-            var mthd = BitConverter.ToInt32(method.ToArray());
-            // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
-            if (reqId != Guid.Empty)
-            {
-                var bytes = CreateUdpRequestBuffer((int)CallMethods.Ack, Guid.Empty, reqId);
-                msgs.Enqueue(new UdpMsg
+                var method = mem.Slice(0, 4);
+                var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
+                var data = mem[20..];
+                var mthd = BitConverter.ToInt32(method.ToArray());
+                // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
+                if (reqId != Guid.Empty)
                 {
-                    Data = bytes,
-                    Ep = (result.RemoteEndPoint as IPEndPoint)!
-                });
-                if (guidDic.ContainsKey(reqId))
-                {
-                    // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
-                    // 所以这里直接返回ack而不处理
-                    return;
+                    var bytes = CreateUdpRequestBuffer((int)CallMethods.Ack, Guid.Empty, reqId);
+                    msgs.Enqueue(new UdpMsg
+                    {
+                        Data = bytes,
+                        Ep = (result.RemoteEndPoint as IPEndPoint)!
+                    });
+                    if (guidDic.ContainsKey(reqId))
+                    {
+                        // 如果guids里边包含此次的请求id，则说明之前已经处理过这个请求，但是我们返回的ack丢包了。
+                        // 所以这里直接返回ack而不处理
+                        return;
+                    }
+                    guidDic[reqId] = DateTime.UtcNow;
                 }
-                guidDic[reqId] = DateTime.UtcNow;
-            }
-            if (mthd != (int)CallMethods.Abort)
-            {
-                var td = requestHandlers[mthd];
-                CallHandler(td, new UdpContext(data, peers,
-                    (result.RemoteEndPoint as IPEndPoint)!, listener, bufferOwner));
-            }
-            AfterDataHandled?.Invoke(this, new());
+                if (mthd != (int)CallMethods.Abort)
+                {
+                    var td = requestHandlers[mthd];
+                    CallHandler(td, new UdpContext(data, peers,
+                        (result.RemoteEndPoint as IPEndPoint)!, listener, bufferOwner));
+                }
+                AfterDataHandled?.Invoke(this, new());
+            });
         }
 
         internal virtual Task StartSendTask()
