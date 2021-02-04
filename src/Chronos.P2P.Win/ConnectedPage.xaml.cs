@@ -102,14 +102,35 @@ namespace Chronos.P2P.Win
             d.InitialDirectory = Environment.CurrentDirectory;
             d.Title = "选择发送的文件";
             d.ShowDialog();
+            progressText.Text = "";
+            progress.IsIndeterminate = true;
+            progressText.Visibility = Visibility.Visible;
+            progress.Visibility = Visibility.Visible;
             try
             {
-                await peer.SendFileAsync(d.FileName, 10);
+                await peer.SendFileAsync(d.FileName, 10, p=>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (p.Percent > 0.001)
+                        {
+                            progress.IsIndeterminate = false;
+                            progress.Value = p.Percent;
+                        }
+                        progressText.Text = p.WorkProgress;
+                    });
+                });
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "ERROR",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                progressText.Visibility = Visibility.Hidden;
+                progress.Visibility = Visibility.Hidden;
             }
             MessageBox.Show("Transfer complete!");
             

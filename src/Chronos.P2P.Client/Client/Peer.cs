@@ -22,6 +22,19 @@ using Microsoft.Extensions.Logging;
 
 namespace Chronos.P2P.Client
 {
+    public class Progress
+    {
+        public string WorkProgress { get; set; } = "Startup";
+        public double Percent { get; set; }
+        public void Report(double percent, string? progress = null)
+        {
+            Percent = percent;
+            if (progress is not null)
+            {
+                WorkProgress = progress;
+            }
+        }
+    }
     public class FixedLengthBufferPool : ObjectPool<byte[]>
     {
         int len;
@@ -493,84 +506,110 @@ namespace Chronos.P2P.Client
         /// And a higher concurrent level may result in higher packet loss rate.
         /// So adjust it carefully to fit your need.</param>
         /// <returns></returns>
-        public async ValueTask SendFileAsync(string location, int concurrentLevel = 3)
+        public async ValueTask SendFileAsync(string location, int concurrentLevel = 3,
+            Action<Progress>? progressInvoker = null)
         {
             sendPool ??= new FixedLengthBufferPool(49 + bufferLen);
-            using SemaphoreSlim semaphore = new(concurrentLevel);
-            using var fs = File.OpenRead(location);
-            var sessionId = Guid.NewGuid();
-            FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
+            CancellationTokenSource progressCancel = new();
+            var progress = new Progress();
+            if (progressInvoker is not null)
             {
-                Length = fs.Length,
-                Name = Path.GetFileName(fs.Name),
-                SessionId = sessionId
-            });
-            var acc = await FileAcceptTasks[sessionId].Task;
-            if (!acc)
-            {
-                throw new OperationCanceledException("Remote refused!");
-            }
-            var cancelSource = new CancellationTokenSource();
-            var total = fs.Length / bufferLen;
-            _logger.LogInformation($"Slice count: {total}");
-            Memory<byte> fileReadBuffer = new byte[(nSlices*bufferLen)];
-            int readLen = 0;
-            for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
-            {
-                int n = (int)(j % nSlices);
-                if (n == 0)
+                _ = Task.Run(async () =>
                 {
-                    var rt = fs.ReadAsync(fileReadBuffer);
-                    await semaphore.WaitAsync();
-                    readLen = await rt;
-                }
-                else
-                {
-                    await semaphore.WaitAsync();
-                }
-                var buffer = sendPool.Get();
-                Memory<byte> bm = buffer;
-                fileReadBuffer[(n * bufferLen)..((n + 1) * bufferLen)].CopyTo(bm[49..]);
-
-                var l = i >= fs.Length - bufferLen;
-                var len = l ? (readLen - n * bufferLen) : bufferLen;
-                cancelSource.Token.ThrowIfCancellationRequested();
-                var j1 = j;
-                DecorateSlice(l, 20, len, j1, sessionId, buffer);
-                var reqId = Guid.NewGuid();
-                P2PServer.DecorateRequestBuffer((int)CallMethods.DataSlice, reqId, buffer);
-                void sendCleanUp(bool excr)
-                {
-                    semaphore.Release();
-                    if (!excr)
+                    while (true)
                     {
-                        cancelSource!.Cancel();
+                        progressCancel.Token.ThrowIfCancellationRequested();
+                        progressInvoker(progress);
+                        await Task.Delay(100, progressCancel.Token);
                     }
-                    sendPool.Return(buffer);
-                }
-                if (l)
+                }, progressCancel.Token);
+            }
+            try
+            {
+                using SemaphoreSlim semaphore = new(concurrentLevel);
+                using var fs = File.OpenRead(location);
+                var sessionId = Guid.NewGuid();
+                FileAcceptTasks[sessionId] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                progress.Report(0f, "waiting for remote agreement...");
+                await SendDataToPeerReliableAsync((int)CallMethods.StreamHandShake, new BasicFileInfo
                 {
-                    var excr = await server.SendDirectDataReliableAsync(reqId, (int)CallMethods.DataSlice,
-                        buffer, peer!.OuterEP.ToIPEP(),
-                        30, cancelSource.Token);
-                    sendCleanUp(excr);
-                }
-                else
+                    Length = fs.Length,
+                    Name = Path.GetFileName(fs.Name),
+                    SessionId = sessionId
+                });
+                var acc = await FileAcceptTasks[sessionId].Task;
+                if (!acc)
                 {
-                    _ = Task.Run(async () =>
+                    throw new OperationCanceledException("Remote refused!");
+                }
+                progress.Report(0f, "remote accept");
+                var cancelSource = new CancellationTokenSource();
+                var total = fs.Length / bufferLen;
+                _logger.LogInformation($"Slice count: {total}");
+                Memory<byte> fileReadBuffer = new byte[(nSlices * bufferLen)];
+                int readLen = 0;
+                progress.Report(0f, "start file sending");
+                for (long i = 0, j = 0; i < fs.Length; i += bufferLen, j++)
+                {
+                    int n = (int)(j % nSlices);
+                    if (n == 0)
+                    {
+                        var rt = fs.ReadAsync(fileReadBuffer);
+                        await semaphore.WaitAsync();
+                        readLen = await rt;
+                    }
+                    else
+                    {
+                        await semaphore.WaitAsync();
+                    }
+                    var buffer = sendPool.Get();
+                    Memory<byte> bm = buffer;
+                    fileReadBuffer[(n * bufferLen)..((n + 1) * bufferLen)].CopyTo(bm[49..]);
+
+                    var l = i >= fs.Length - bufferLen;
+                    var len = l ? (readLen - n * bufferLen) : bufferLen;
+                    cancelSource.Token.ThrowIfCancellationRequested();
+                    var j1 = j;
+                    DecorateSlice(l, 20, len, j1, sessionId, buffer);
+                    var reqId = Guid.NewGuid();
+                    P2PServer.DecorateRequestBuffer((int)CallMethods.DataSlice, reqId, buffer);
+                    progress.Report(((((double)i) / ((double)fs.Length)) * 100.0));
+                    void sendCleanUp(bool excr)
+                    {
+                        semaphore.Release();
+                        if (!excr)
+                        {
+                            cancelSource!.Cancel();
+                        }
+                        sendPool.Return(buffer);
+                    }
+                    if (l)
                     {
                         var excr = await server.SendDirectDataReliableAsync(reqId, (int)CallMethods.DataSlice,
                             buffer, peer!.OuterEP.ToIPEP(),
                             30, cancelSource.Token);
                         sendCleanUp(excr);
-                    });
+                    }
+                    else
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            var excr = await server.SendDirectDataReliableAsync(reqId, (int)CallMethods.DataSlice,
+                                buffer, peer!.OuterEP.ToIPEP(),
+                                30, cancelSource.Token);
+                            sendCleanUp(excr);
+                        });
+                    }
+                }
+                _logger.LogInformation($"Auto adjusted timeout: {server.timeoutData.SendTimeOut}ms");
+                if (semaphore.CurrentCount == concurrentLevel)
+                {
+                    semaphore.Release();
                 }
             }
-            _logger.LogInformation($"Auto adjusted timeout: {server.timeoutData.SendTimeOut}ms");
-            if (semaphore.CurrentCount == concurrentLevel)
+            finally
             {
-                semaphore.Release();
+                progressCancel.Cancel();
             }
         }
 
@@ -599,7 +638,7 @@ namespace Chronos.P2P.Client
                     var left = len - i * bufferLen;
                     var sendLen = ((left < bufferLen) ? left : bufferLen);
                     _ = SendDataReliableAsync(callMethod, SliceToBytes(false, sendLen,
-                        no++, sessionId, mem[(i * bufferLen)..(i * bufferLen + sendLen)]), peer!.OuterEP.ToIPEP());
+                        no++, sessionId, mem[(i * bufferLen)..(i * bufferLen + sendLen)]), peer!.OuterEP.ToIPEP()).AsTask();
                 }
             }
         }

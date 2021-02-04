@@ -16,6 +16,8 @@
         <TextBox HorizontalAlignment="Left" Margin="10,330,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Width="390" Height="24" Name="chatBox"/>
         <Button Content="Send" HorizontalAlignment="Left" Margin="10,354,0,0" VerticalAlignment="Top" Height="22" Width="390" Click="Button_Click_1"/>
         <Button Content="Send File" HorizontalAlignment="Left" Margin="570,225,0,0" VerticalAlignment="Top" Click="Button_Click_2"/>
+        <ProgressBar Name="progress" HorizontalAlignment="Left" Height="11" Margin="486,272,0,0" VerticalAlignment="Top" Width="219" Visibility="Hidden"/>
+        <TextBlock Name="progressText" HorizontalAlignment="Left" Margin="486,288,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top"/>
 
     </Grid>
 </Page>
