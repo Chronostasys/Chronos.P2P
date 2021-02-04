@@ -2,6 +2,7 @@
 using MessagePack;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace Chronos.P2P.Server
 {
@@ -68,7 +69,7 @@ namespace Chronos.P2P.Server
         }
 
         [Handler((int)CallMethods.ConnectionHandShakeReply)]
-        public async void HolePunchRequest(UdpContext context)
+        public void HolePunchRequest(UdpContext context)
         {
             var reply = context.GetData<ConnectionReplyDto>()!;
             var ep = reply.Ep;
@@ -77,18 +78,15 @@ namespace Chronos.P2P.Server
             var c = server.connectionDic.TryRemove(ep, out var t);
             if (c && t.Item1 == rep)
             {
-                var v1 = P2PServer.SendDataReliableAsync((int)CallMethods.ConnectionRequestCallback, reply.Acc,
-                    ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
+                _ = P2PServer.SendDataReliableAsync((int)CallMethods.ConnectionRequestCallback, reply.Acc,
+                    ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData).AsTask();
                 if (reply.Acc)
                 {
-                    var v2 = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
-                        ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
-                    var v3 = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
-                        rep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData);
-                    await v2;
-                    await v3;
+                    _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
+                        ep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData).AsTask();
+                    _ = P2PServer.SendDataReliableAsync((int)CallMethods.StartPunching, "",
+                        rep.ToIPEP(), server.ackTasks, server.msgs, server.timeoutData).AsTask();
                 }
-                await v1;
             }
         }
     }
