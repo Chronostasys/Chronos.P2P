@@ -355,7 +355,7 @@ namespace Chronos.P2P.Client
                     {
                         while (true)
                         {
-                            FileRecvDic[dataSlice.SessionId].SendProgress.Report(((double)(currentHead + 1) * bufferLen)
+                            FileRecvDic[dataSlice.SessionId].SendProgress.Report(((double)(currentHead + 1) * remoteBufferLen)
                                 / FileRecvDic[dataSlice.SessionId].Length * 100);
                             FileReceiveProgressInvoker(FileRecvDic[dataSlice.SessionId].SendProgress);
                             await Task.Delay(100);
@@ -377,7 +377,8 @@ namespace Chronos.P2P.Client
                 //{
                 //}
                 await FileRecvDic[dataSlice.SessionId].FS.DisposeAsync();
-                FileRecvDic.TryRemove(dataSlice.SessionId, out var val);
+                FileRecvDic.TryRemove(dataSlice.SessionId, out 
+                    var val);
                 _logger.LogInformation("transfer done!");
                 val.Watch.Stop();
                 _logger.LogInformation($"Time eplased: {val.Watch.Elapsed.TotalSeconds}s");
@@ -415,20 +416,20 @@ namespace Chronos.P2P.Client
                     }
                 }
                 slice.Slice.CopyTo(
-                    recvData.WriteBuffer[((int)(currentHead % nSlices) * bufferLen)..
-                        ((int)(currentHead % nSlices) * bufferLen + bufferLen)]);
+                    recvData.WriteBuffer[((int)(currentHead % nSlices) * remoteBufferLen)..
+                        ((int)(currentHead % nSlices) * remoteBufferLen + remoteBufferLen)]);
                 //await recvData.FS.WriteAsync(slice.Slice.Slice(0, slice.Len));
                 slice.Context.Dispose();
                 if (slice.No % 
                     ((recvData.Total/100)==0?1: (recvData.Total / 100))
                     == 0)
                 {
-                    _logger.LogInformation($"data transfered:{((slice.No + 1) * bufferLen / (double)recvData.Length * 100).ToString("0.00"),5}%");
+                    _logger.LogInformation($"data transfered:{((slice.No + 1) * remoteBufferLen / (double)recvData.Length * 100).ToString("0.00"),5}%");
                 }
                 if (slice.Last)
                 {
                     await recvData.LastWriteTask;
-                    await recvData.FS.WriteAsync(recvData.WriteBuffer[0..((int)(currentHead % nSlices) * bufferLen + slice.Len)]);
+                    await recvData.FS.WriteAsync(recvData.WriteBuffer[0..((int)(currentHead % nSlices) * remoteBufferLen + slice.Len)]);
                     await cleanUpAsync();
                 }
             }
@@ -457,7 +458,8 @@ namespace Chronos.P2P.Client
             {
             }
         }
-        int nSlices = 10485760 / bufferLen;
+        internal int nSlices = 0;
+        internal int remoteBufferLen = 0;
         internal async ValueTask StreamTransferRequested(BasicFileInfo data)
         {
             var (recv, savepath) = await (OnInitFileTransfer ??
@@ -467,7 +469,7 @@ namespace Chronos.P2P.Client
             {
                 if (data.Length > 0)
                 {
-                    var fileStream = File.Create(savepath, nSlices * bufferLen);
+                    var fileStream = File.Create(savepath, nSlices * remoteBufferLen);
                     //fileStream.SetLength(data.Length);
                     FileRecvDic[sessionId] = new FileRecvDicData
                     {
@@ -476,9 +478,9 @@ namespace Chronos.P2P.Client
                         Length = data.Length,
                         Watch = new Stopwatch(),
                         FS = fileStream,
-                        Total = (data.Length/bufferLen==0)?1: data.Length / bufferLen,
-                        WriteBuffer = new byte[(nSlices * bufferLen)],
-                        FSWriteBuffer = new byte[(nSlices * bufferLen)],
+                        Total = (data.Length/remoteBufferLen==0)?1: data.Length / remoteBufferLen,
+                        WriteBuffer = new byte[(nSlices * remoteBufferLen)],
+                        FSWriteBuffer = new byte[(nSlices * remoteBufferLen)],
                         SendProgress = new Progress()
                     };
                 }
@@ -759,7 +761,7 @@ namespace Chronos.P2P.Client
                     break;
                 }
             }
-            nSlices = 10485760 / bufferLen;
+            await SendDataToPeerReliableAsync((int)CallMethods.MTU, bufferLen);
             _logger.LogInformation($"MTU value: {bufferLen}");
         }
 

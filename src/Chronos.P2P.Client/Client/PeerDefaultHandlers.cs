@@ -49,6 +49,12 @@ namespace Chronos.P2P.Client
             peer.ResetPingCount();
             context.Dispose();
         }
+        [Handler((int)CallMethods.MTU)]
+        public void MTUHandler(UdpContext udpContext)
+        {
+            peer.remoteBufferLen = udpContext.GetData<int>();
+            peer.nSlices = 10485760 / peer.remoteBufferLen;
+        }
 
         [Handler((int)CallMethods.PunchHole)]
         public void PunchingDataHandler(UdpContext context)
