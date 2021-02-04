@@ -76,6 +76,8 @@ namespace Chronos.P2P.Client
         private ILogger<Peer> _logger;
         internal static int bufferLen = 65535;
         internal volatile bool epConfirmed = false;
+        volatile internal int nSlices = 0;
+        volatile internal int remoteBufferLen = 0;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal PeerInfo? peer;
@@ -458,8 +460,6 @@ namespace Chronos.P2P.Client
             {
             }
         }
-        internal int nSlices = 0;
-        internal int remoteBufferLen = 0;
         internal async ValueTask StreamTransferRequested(BasicFileInfo data)
         {
             var (recv, savepath) = await (OnInitFileTransfer ??
