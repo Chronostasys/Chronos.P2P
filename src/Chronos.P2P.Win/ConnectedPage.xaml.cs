@@ -55,6 +55,10 @@ namespace Chronos.P2P.Win
                 {
                     if (info.Length==-1)
                     {
+                        Dispatcher.Invoke(() =>
+                        {
+                            liveChat.IsEnabled = false;
+                        });
                         peer.StartSendLiveAudio("Live audio chat");
                         return Task.FromResult((true, ""));
                     }
@@ -62,6 +66,7 @@ namespace Chronos.P2P.Win
                     {
                         Dispatcher.Invoke(() =>
                         {
+                            sendFile.IsEnabled = false;
                             progressText.Text = "";
                             progress.IsIndeterminate = true;
                             progressText.Visibility = Visibility.Visible;
@@ -78,6 +83,7 @@ namespace Chronos.P2P.Win
                         }
                         Dispatcher.Invoke(() =>
                         {
+                            sendFile.IsEnabled = true;
                             progressText.Visibility = Visibility.Hidden;
                             progress.Visibility = Visibility.Hidden;
                         });
@@ -103,6 +109,7 @@ namespace Chronos.P2P.Win
             MessageBox.Show($"Transfer complete! Speed: {e.speed}MBps, time: {e.time}");
             Dispatcher.Invoke(() =>
             {
+                sendFile.IsEnabled = true;
                 progressText.Visibility = Visibility.Hidden;
                 progress.Visibility = Visibility.Hidden;
             });
@@ -119,6 +126,7 @@ namespace Chronos.P2P.Win
 
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
+            liveChat.IsEnabled = false;
             invitor = true;
             try
             {
@@ -128,6 +136,10 @@ namespace Chronos.P2P.Win
             {
                 MessageBox.Show(ex.Message, "ERROR",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() =>
+                {
+                    liveChat.IsEnabled = true;
+                });
             }
             
         }
@@ -147,6 +159,7 @@ namespace Chronos.P2P.Win
             d.InitialDirectory = Environment.CurrentDirectory;
             d.Title = "选择发送的文件";
             d.ShowDialog();
+            sendFile.IsEnabled = false;
             progressText.Text = "";
             progress.IsIndeterminate = true;
             progressText.Visibility = Visibility.Visible;
@@ -174,6 +187,7 @@ namespace Chronos.P2P.Win
             }
             finally
             {
+                sendFile.IsEnabled = true;
                 progressText.Visibility = Visibility.Hidden;
                 progress.Visibility = Visibility.Hidden;
             }
