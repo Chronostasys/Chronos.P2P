@@ -172,7 +172,7 @@ namespace Chronos.P2P.Win
             progress.Visibility = Visibility.Visible;
             try
             {
-                await peer.SendFileAsync(d.FileName, 10, p=>
+                await peer.SendFileAsync(d.FileName, 150, p=>
                 {
                     Dispatcher.Invoke(() =>
                     {

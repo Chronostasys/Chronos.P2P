@@ -355,7 +355,8 @@ namespace Chronos.P2P.Client
                     {
                         while (true)
                         {
-                            FileRecvDic[dataSlice.SessionId].SendProgress.Report(((double)FileRecvDic[dataSlice.SessionId].FS.Position) / FileRecvDic[dataSlice.SessionId].Length * 100);
+                            FileRecvDic[dataSlice.SessionId].SendProgress.Report(((double)(currentHead + 1) * bufferLen)
+                                / FileRecvDic[dataSlice.SessionId].Length * 100);
                             FileReceiveProgressInvoker(FileRecvDic[dataSlice.SessionId].SendProgress);
                             await Task.Delay(100);
                         }
