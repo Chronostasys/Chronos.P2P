@@ -8,8 +8,10 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -135,12 +137,12 @@ namespace Chronos.P2P.Server
         internal object GetInstance(TypeData data)
         {
             serviceProvider ??= services.BuildServiceProvider();
-            List<object> args = new();
-            foreach (var item in data.Parameters)
+            object?[] args = new object?[data.Parameters.Length];
+            for (int i = 0; i < data.Parameters.Length; i++)
             {
-                args.Add(serviceProvider!.GetRequiredService(item.ParameterType));
+                args[i] = serviceProvider!.GetService(data.Parameters[i].ParameterType);
             }
-            return Activator.CreateInstance(data.GenericType, args.ToArray())!;
+            return data.Ctor(args);
         }
 
         internal Task ProcessRequestAsync(IMemoryOwner<byte> bufferOwner, SocketReceiveFromResult result)
@@ -322,17 +324,56 @@ namespace Chronos.P2P.Server
         {
             var type = typeof(T);
             var ctor = type.GetConstructors()[0]!;
-            var cstParams = ctor.GetParameters()!;
-            var td = new TypeData(type, cstParams, null);
+            var paramsInfo = ctor.GetParameters()!;
+  
+            var parametersExpression = Expression.Parameter(typeof(object[]), "args");
+            var argumentsExpression = new Expression[paramsInfo.Length];
 
+            for (int paramIndex = 0; paramIndex < paramsInfo.Length; paramIndex++)
+            {
+                var indexExpression = Expression.Constant(paramIndex);
+                var parameterType = paramsInfo[paramIndex].ParameterType;
+
+                var parameterIndexExpression = Expression.ArrayIndex(parametersExpression, indexExpression);
+
+                var convertExpression = parameterType.IsPrimitive
+                    ? Expression.Convert(ConvertPrimitiveType(parameterIndexExpression, parameterType), parameterType)
+                    : Expression.Convert(parameterIndexExpression, parameterType);
+
+                if (!parameterType.IsValueType)
+                {
+                    argumentsExpression[paramIndex] = convertExpression;
+                    continue;
+                }
+
+                var nullConditionExpression = Expression.Equal(
+                    parameterIndexExpression, Expression.Constant(null));
+                argumentsExpression[paramIndex] = Expression.Condition(
+                    nullConditionExpression, Expression.Default(parameterType), convertExpression);
+            }
+            var newExpression = Expression.New(ctor, argumentsExpression);
+            var ctorFunc = Expression.Lambda<Func<object?[], object>>(newExpression, parametersExpression).Compile();
             var methods = type.GetMethods();
             foreach (var item in methods)
             {
                 if (Attribute.GetCustomAttribute(item, attribute) is HandlerAttribute attr)
                 {
-                    requestHandlers[attr.Method] = td with { Method = item };
+                    requestHandlers[attr.Method] = new TypeData(ctorFunc, paramsInfo, item);
                 }
             }
+        }
+        /// <summary>
+        /// from autofac https://github.com/autofac/Autofac
+        /// </summary>
+        /// <param name="valueExpression"></param>
+        /// <param name="conversionType"></param>
+        /// <returns></returns>
+        private static MethodCallExpression ConvertPrimitiveType(Expression valueExpression, Type conversionType)
+        {
+            var changeTypeMethod = typeof(Convert).GetRuntimeMethod(nameof(Convert.ChangeType), new[] { typeof(object), typeof(Type) });
+
+            // changeTypeMethod will always be non-null; Convert.ChangeType definitely exists.
+            return Expression.Call(changeTypeMethod!, valueExpression, Expression.Constant(conversionType));
         }
 
         /// <summary>
