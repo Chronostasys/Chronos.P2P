@@ -26,6 +26,7 @@ namespace Chronos.P2P.Test
                     It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns(ValueTask.FromResult(true));
             peer = mock.Object;
+            peer.RemoteBufferLen = 1500;
         }
 
         [Theory]
@@ -63,10 +64,10 @@ namespace Chronos.P2P.Test
                 await peer.ProcessDataSliceAsync(new DataSlice
                 {
                     No = testlen - i - 1,
-                    Len = Peer.bufferLen,
+                    Len = peer.RemoteBufferLen,
                     SessionId = id,
                     Last = i == 0,
-                    Slice = new byte[Peer.bufferLen],
+                    Slice = new byte[peer.RemoteBufferLen],
                     Context = moq.Object
                 }, () => ValueTask.CompletedTask);
             }
@@ -80,7 +81,7 @@ namespace Chronos.P2P.Test
         {
             await peer.StreamTransferRequested(new BasicFileInfo
             {
-                Length = 10 * Peer.bufferLen,
+                Length = 10 * peer.RemoteBufferLen,
                 Name = $"{Guid.NewGuid()}.test",
                 SessionId = id
             });

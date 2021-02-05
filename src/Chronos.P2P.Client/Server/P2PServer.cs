@@ -39,6 +39,7 @@ namespace Chronos.P2P.Server
         internal MsgQueue<UdpMsg> msgs = new();
         internal Dictionary<int, TypeData> requestHandlers;
         internal ServiceCollection services;
+        internal int receiveBufferLen = 65535;
         ILogger<P2PServer> _logger { get
             {
                 if (logger is null)
@@ -389,7 +390,7 @@ namespace Chronos.P2P.Server
             }));
             while (true)
             {
-                byte[] receiveMem = receivePool.Rent(Peer.bufferLen)!;
+                byte[] receiveMem = receivePool.Rent(receiveBufferLen)!;
                 
                 var re = await listener.ReceiveFromAsync(receiveMem, SocketFlags.None, allEp);
                 var owner = new ReceiveBufferOwner(receiveMem);
