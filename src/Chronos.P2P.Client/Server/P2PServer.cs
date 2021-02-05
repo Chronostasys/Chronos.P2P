@@ -90,11 +90,12 @@ namespace Chronos.P2P.Server
             {
                 data = Array.Empty<byte>();
             }
-            byte[] req = new byte[20 + data.Length];
+            byte[] req = new byte[20 + data.Length + 16];
             Span<byte> reqSpan = req;
             MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
             MemoryMarshal.Write(reqSpan[4..20], ref reqId);
             Buffer.BlockCopy(data, 0, req, 20, data.Length);
+            MD5.HashData(reqSpan[..(20 + data.Length)], reqSpan[(20 + data.Length)..]);
             return req;
         }
         public static void DecorateRequestBuffer(int callMethod, Guid reqId, byte[] data)
@@ -102,6 +103,7 @@ namespace Chronos.P2P.Server
             Span<byte> reqSpan = data;
             MemoryMarshal.Write(reqSpan[0..4], ref callMethod);
             MemoryMarshal.Write(reqSpan[4..20], ref reqId);
+            MD5.HashData(reqSpan[..(data.Length - 16)], reqSpan[(data.Length - 16)..]);
         }
 
         internal static byte[] CreateUdpRequestBuffer<T>(int callMethod, Guid reqId, T data)
@@ -146,10 +148,16 @@ namespace Chronos.P2P.Server
             return Task.Run(() =>
             {
                 var mem = bufferOwner.Memory[0..result.ReceivedBytes];
-
+                Span<byte> ret = receivePool.Rent(16)!;
+                MD5.HashData(mem[..(mem.Length - 16)].Span, ret);
+                var md5Match = ret[..16].SequenceEqual(mem[(mem.Length - 16)..].Span);
+                if (!md5Match)
+                {
+                    return;
+                }
                 var method = mem.Slice(0, 4);
                 var reqId = MemoryMarshal.Read<Guid>(mem[4..20].Span);
-                var data = mem[20..];
+                var data = mem[20..(mem.Length - 16)];
                 var mthd = BitConverter.ToInt32(method.ToArray());
                 // 带有reqid的请求是reliable 的请求，需要在处理请求前返回ack消息
                 if (reqId != Guid.Empty)
@@ -296,7 +304,6 @@ namespace Chronos.P2P.Server
             timerPool.Return(timer);
             return success;
         }
-
         /// <summary>
         /// 注册p2p服务器所需的默认服务
         /// </summary>
