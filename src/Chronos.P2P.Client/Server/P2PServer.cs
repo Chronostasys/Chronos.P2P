@@ -148,9 +148,11 @@ namespace Chronos.P2P.Server
             return Task.Run(() =>
             {
                 var mem = bufferOwner.Memory[0..result.ReceivedBytes];
-                Span<byte> ret = receivePool.Rent(16)!;
+                var retb = receivePool.Rent(16)!;
+                Span<byte> ret = retb;
                 MD5.HashData(mem[..(mem.Length - 16)].Span, ret);
                 var md5Match = ret[..16].SequenceEqual(mem[(mem.Length - 16)..].Span);
+                receivePool.Return(retb);
                 if (!md5Match)
                 {
                     return;
