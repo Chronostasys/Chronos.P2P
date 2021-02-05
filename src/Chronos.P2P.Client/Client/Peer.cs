@@ -73,7 +73,7 @@ namespace Chronos.P2P.Client
         private DateTime lastPunchDataSentTime;
         private int pingCount = 10;
         private ILogger<Peer> _logger;
-        internal int bufferLen = 65535;
+        internal int bufferLen { get; set; } = 65535;
         internal volatile bool epConfirmed = false;
         internal int NSlices { get; private set; } = 0;
         internal readonly P2PServer server;
@@ -87,7 +87,7 @@ namespace Chronos.P2P.Client
                 server.receiveBufferLen = value;
             }
         }
-        internal volatile int rebufflen;
+        private volatile int rebufflen;
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal PeerInfo? peer;
@@ -356,7 +356,7 @@ namespace Chronos.P2P.Client
             }
             var semaphoreSlim = FileRecvDic[dataSlice.SessionId].Semaphore;
 
-            if (dataSlice.No == 0)
+            if (dataSlice.No == 0 && !FileRecvDic[dataSlice.SessionId].Watch.IsRunning)
             {
                 FileRecvDic[dataSlice.SessionId].Watch.Start();
                 FileRecvDic[dataSlice.SessionId].SendProgress.Report(0, "Receiving");
@@ -423,7 +423,7 @@ namespace Chronos.P2P.Client
                         await recvData.LastWriteTask;
                         var temp = recvData.FSWriteBuffer;
                         recvData.FSWriteBuffer = recvData.WriteBuffer;
-                        recvData.WriteBuffer = recvData.FSWriteBuffer;
+                        recvData.WriteBuffer = temp;
                         recvData.LastWriteTask = recvData.FS.WriteAsync(recvData.FSWriteBuffer);
                     }
                 }
@@ -432,12 +432,12 @@ namespace Chronos.P2P.Client
                         ((int)(currentHead % NSlices) * RemoteBufferLen + RemoteBufferLen)]);
                 //await recvData.FS.WriteAsync(slice.Slice.Slice(0, slice.Len));
                 slice.Context.Dispose();
-                if (slice.No % 
-                    ((recvData.Total/100)==0?1: (recvData.Total / 100))
-                    == 0)
-                {
-                    _logger.LogInformation($"data transfered:{((slice.No + 1) * RemoteBufferLen / (double)recvData.Length * 100).ToString("0.00"),5}%");
-                }
+                //if (slice.No % 
+                //    ((recvData.Total/100)==0?1: (recvData.Total / 100))
+                //    == 0)
+                //{
+                //    _logger.LogInformation($"data transfered:{((slice.No + 1) * RemoteBufferLen / (double)recvData.Length * 100).ToString("0.00"),5}%");
+                //}
                 if (slice.Last)
                 {
                     await recvData.LastWriteTask;
