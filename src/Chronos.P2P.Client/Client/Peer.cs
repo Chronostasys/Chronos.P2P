@@ -540,7 +540,7 @@ namespace Chronos.P2P.Client
             Action<Progress>? progressInvoker = null)
         {
             long i = 0;
-            sendPool ??= new FixedLengthBufferPool(49 + bufferLen);
+            sendPool ??= new FixedLengthBufferPool(49 + 16 + bufferLen);
             CancellationTokenSource progressCancel = new();
             var progress = new Progress();
             try
