@@ -113,8 +113,8 @@ namespace Chronos.P2P.Test
         [Fact(Timeout = 20000)]
         public async Task TestFileTransfer()
         {
-            var src = "Tommee Profitt,Jung Youth,Fleurie - In the End.mp3";
-            var dst = "transfered.mp3";
+            var src = "2.gif";
+            var dst = "3.gif";
             peer1 = new Peer(17999, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 15003));
             peer2 = new Peer(35901, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 15003));
             var server = new P2PServer(15003);
@@ -131,14 +131,10 @@ namespace Chronos.P2P.Test
             await SetUpPeers();
             await Task.Delay(1000);
             await peer1.SendFileAsync(src);
-            await Task.Delay(5000);
+            await Task.Delay(1000);
             using var md5 = MD5.Create();
             using var fs1 = File.OpenRead(src);
             using var fs2 = File.OpenRead(dst);
-            byte[] data = new byte[20];
-            byte[] data1 = new byte[20];
-            //fs2.Read(data);
-            //fs1.Read(data1);
             var hash1 = await md5.ComputeHashAsync(fs1);
             var hash2 = await md5.ComputeHashAsync(fs2);
             Assert.True(hash1.SequenceEqual(hash2));
