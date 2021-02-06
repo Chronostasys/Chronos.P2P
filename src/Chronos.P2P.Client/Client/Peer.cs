@@ -102,7 +102,7 @@ namespace Chronos.P2P.Client
         internal ConcurrentDictionary<Guid, FileRecvDicData> FileRecvDic = new();
         internal Stream? fs;
         internal PeerInfo? peer;
-        internal ConcurrentDictionary<DataSliceInfo, DataSlice> slices = new();
+        internal ConcurrentDictionary<long, DataSlice> slices = new();
 
         #endregion Fields
 
@@ -436,21 +436,22 @@ namespace Chronos.P2P.Client
                 }
             }
             await semaphoreSlim.WaitAsync();
-            var sliceInfo = new DataSliceInfo { SessionId = dataSlice.SessionId };
+            //var sliceInfo = new DataSliceInfo { SessionId = dataSlice.SessionId };
+            var no = 0L;
             if (currentHead == dataSlice.No - 1)
             {
                 await ProcessSliceAsync(dataSlice);
-                sliceInfo.No = ++dataSlice.No;
-                while (slices.TryRemove(sliceInfo,
+                no = ++dataSlice.No;
+                while (slices.TryRemove(no,
                     out var slice))
                 {
                     await ProcessSliceAsync(slice);
-                    sliceInfo.No++;
+                    no++;
                 }
             }
             else
             {
-                slices[new DataSliceInfo { No = dataSlice.No, SessionId = dataSlice.SessionId }] = dataSlice;
+                slices[dataSlice.No] = dataSlice;
             }
             try
             {
@@ -528,7 +529,7 @@ namespace Chronos.P2P.Client
             Action<Progress>? progressInvoker = null)
         {
             long i = 0;
-            sendPool ??= new FixedLengthBufferPool(49 + 16 + BufferLen);
+            sendPool ??= new FixedLengthBufferPool(49/* + 16*/ + BufferLen);
             CancellationTokenSource progressCancel = new();
             var progress = new Progress();
             try
