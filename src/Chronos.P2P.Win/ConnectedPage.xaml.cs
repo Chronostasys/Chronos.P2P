@@ -61,7 +61,7 @@ namespace Chronos.P2P.Win
                 });
                 var re = MessageBox.Show($"Remote peer request to transfer a stream of len {info.Length}"
                     + $", named {info.Name}, do you want to accept?",
-                    $"Peer request", MessageBoxButton.YesNo);
+                    $"Peer request", MessageBoxButton.YesNo,MessageBoxImage.Question, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
                 if (re is MessageBoxResult.Yes)
                 {
                     if (info.Length==-1)
@@ -112,7 +112,8 @@ namespace Chronos.P2P.Win
 
         private void Peer_OnFileTransferDone(object sender, (double speed, TimeSpan time) e)
         {
-            MessageBox.Show($"Transfer complete! Speed: {e.speed}MBps, time: {e.time}");
+            MessageBox.Show($"Transfer complete! Speed: {e.speed}MBps, time: {e.time}", "Transfer Done", MessageBoxButton.OK,
+                MessageBoxImage.Information, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
             Dispatcher.Invoke(() =>
             {
                 sendFile.IsEnabled = true;
@@ -141,7 +142,7 @@ namespace Chronos.P2P.Win
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "ERROR",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
                 Dispatcher.Invoke(() =>
                 {
                     liveChat.IsEnabled = true;
@@ -184,12 +185,13 @@ namespace Chronos.P2P.Win
                         progressText.Text = p.WorkProgress + $" {p.Percent:00.00}%";
                     });
                 });
-
+                MessageBox.Show("Transfer complete!", "Transfer Done", MessageBoxButton.OK,
+                    MessageBoxImage.Information, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "ERROR",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.Cancel,MessageBoxOptions.DefaultDesktopOnly);
             }
             finally
             {
@@ -197,7 +199,6 @@ namespace Chronos.P2P.Win
                 progressText.Visibility = Visibility.Hidden;
                 progress.Visibility = Visibility.Hidden;
             }
-            MessageBox.Show("Transfer complete!");
             
         }
 

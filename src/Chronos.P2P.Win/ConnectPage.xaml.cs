@@ -47,7 +47,8 @@ namespace Chronos.P2P.Win
                 bool confirm = false;
                 var re = MessageBox.Show($"Peer with id {info.Id} invite you to connect, "
                     + "would you like to accept the invitation?",
-                    "Connection confirm", MessageBoxButton.YesNo);
+                    "Connection confirm", MessageBoxButton.YesNo,
+                    MessageBoxImage.Question, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
                 if (re is MessageBoxResult.Yes)
                 {
                     confirm = true;
@@ -70,7 +71,8 @@ namespace Chronos.P2P.Win
 
         private void Peer_PeerConnected(object sender, EventArgs e)
         {
-            MessageBox.Show("Connection established!");
+            MessageBox.Show("Connection established!", "Info", MessageBoxButton.OK,
+                    MessageBoxImage.Information, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
             window.Dispatcher.Invoke(() =>
             {
                 window.Content = new ConnectedPage(peer);
@@ -80,7 +82,7 @@ namespace Chronos.P2P.Win
         private void Peer_PeerConnectionLost(object sender, EventArgs e)
         {
             MessageBox.Show("Connecion lost!", "ERROR",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.Cancel, MessageBoxOptions.DefaultDesktopOnly);
         }
 
         private void peerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
