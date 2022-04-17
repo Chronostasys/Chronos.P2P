@@ -6,11 +6,11 @@
 - 发送消息
 - 快速传送文件
 ## modules
-### [client](./Chronos.P2P.Client)
+### [client](./src/Chronos.P2P.Client)
 客户端与服务器实现
-### [sample](./Chronos.P2P.Server.Sample)
+### [sample](./src/Chronos.P2P.Server.Sample)
 示例
-### [test](./Chronos.P2P.Test)
+### [test](./src/Chronos.P2P.Test)
 测试
 ## Build From Source  
 
