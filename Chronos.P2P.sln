@@ -20,6 +20,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chronos.P2P.Win", "src\Chronos.P2P.Win\Chronos.P2P.Win.csproj", "{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "src\Server\Server.csproj", "{E635B310-AA9E-4A7F-88F2-109AFB9C5948}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileServer", "src\FileServer\FileServer.csproj", "{325346C4-3E6F-4E77-80E3-A41C6B9A81AA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,6 +50,14 @@ Global
 		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3BC3FE65-E5E9-404D-9332-28730CB5C4B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E635B310-AA9E-4A7F-88F2-109AFB9C5948}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E635B310-AA9E-4A7F-88F2-109AFB9C5948}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E635B310-AA9E-4A7F-88F2-109AFB9C5948}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E635B310-AA9E-4A7F-88F2-109AFB9C5948}.Release|Any CPU.Build.0 = Release|Any CPU
+		{325346C4-3E6F-4E77-80E3-A41C6B9A81AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{325346C4-3E6F-4E77-80E3-A41C6B9A81AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{325346C4-3E6F-4E77-80E3-A41C6B9A81AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{325346C4-3E6F-4E77-80E3-A41C6B9A81AA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

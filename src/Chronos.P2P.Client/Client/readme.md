@@ -58,7 +58,8 @@ peer自身信息
 ```
 ## DataSlicelnfo
 通过字典`slices`与数据分块信息对应
-```        public long No { get; set; }
+```   
+        public long No { get; set; }
         public Guid SessionId { get; set; }
 ```
 ## FileRecvDicData 
@@ -72,6 +73,6 @@ peer自身信息
 ## FileTransferHandShakeResult
 传输文件的握手过程结果
 ```
-         public bool Accept { get; set; }
+        public bool Accept { get; set; }
         public Guid SessionId { get; set; }
 ```

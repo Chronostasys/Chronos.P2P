@@ -56,10 +56,10 @@ namespace Chronos.P2P.Client
     }
     public class Peer : IRequestHandlerCollection, IDisposable
     {
+        private static readonly bool _sendIpHeader = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
         #region Fields
 
-        private readonly TaskCompletionSource<bool> connectionHandshakeTask
-            = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource<bool> connectionHandshakeTask;
 
         private readonly object epKey = new();
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> FileAcceptTasks = new();
@@ -128,7 +128,7 @@ namespace Chronos.P2P.Client
         public IEnumerable<PeerInnerEP> LocalEP { get; }
         public string? Name { get; }
         public PeerEP? OuterEp { get; private set; }
-        public ConcurrentDictionary<Guid, PeerInfo>? Peers { get; private set; }
+        public ConcurrentDictionary<Guid, PeerInfo> Peers { get; private set; } = new();
         public int Port { get; }
         public PeerInfo? RmotePeer => peer;
 
@@ -141,7 +141,11 @@ namespace Chronos.P2P.Client
             ID = Guid.NewGuid();
             udpClient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             udpClient.Bind(new IPEndPoint(IPAddress.Any, port));
-            udpClient.DontFragment = true;// disable ip fragment for better transfer reliability
+            if (!_sendIpHeader)
+            {
+                udpClient.DontFragment = true;// disable ip fragment for better transfer reliability
+            }
+            // udpClient.DontFragment = true;// disable ip fragment for better transfer reliability
             this.Port = port;
             LocalEP = GetEps();
             server = new P2PServer(udpClient);
@@ -198,27 +202,27 @@ namespace Chronos.P2P.Client
         private Task StartPingWaiting()
             => Task.Run(async () =>
             {
+                await Task.Delay(1000);
                 pingCount = 10;
                 while (true)
                 {
                     if (!IsPeerConnected)
                     {
+                        pingCount = 10;
                         await Task.Delay(1000);
                         continue;
                     }
                     await Task.Delay(1000);
                     pingCount--;
-#if !DEBUG
                     if (pingCount == 0)
                     {
                         _logger.LogWarning($"Connection lost!");
                         PeerConnectionLost?.Invoke(this, new());
                         peer = null;
                     }
-#endif
                 }
             });
-
+        bool started = false;
         private Task StartReceiveData()
             => Task.Run(async () =>
             {
@@ -258,7 +262,16 @@ namespace Chronos.P2P.Client
                         break;
                     }
                 }
-                await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
+                if (started)
+                {
+                    await server.StartServerAsync();
+                }
+                else
+                {
+                    started = true;
+                    await Task.WhenAll(server.StartServerAsync(), StartPing(), StartPingWaiting());
+                }
+
             });
 
         internal Task StartHolePunching()
@@ -682,12 +695,14 @@ namespace Chronos.P2P.Client
 
         internal void OnConnectionCallback(bool acc)
         {
+            Console.WriteLine($"Connection {acc}");
             connectionHandshakeTask.TrySetResult(acc);
         }
 
         internal async ValueTask OnConnectionRequested(PeerInfo requester)
         {
             var re = OnPeerInvited?.Invoke(requester);
+            Console.WriteLine($"{requester.OuterEP} invited {re.Value}");
             if (!re.HasValue || re.Value)
             {
                 _logger.LogInformation("accept!");
@@ -923,10 +938,11 @@ namespace Chronos.P2P.Client
         /// <see langword="false"/> when refused, <see langword="true"/> when accepted.</returns>
         public async ValueTask<bool> SetPeer(Guid id, bool isInSameNet = false)
         {
+            connectionHandshakeTask = new(TaskCreationOptions.RunContinuationsAsynchronously);
             isInSameSubNet = isInSameNet;
             if (peer is not null)
             {
-                return true;
+                return peer.Id == id;
             }
             peer = Peers![id];
             await SendDataReliableAsync((int)CallMethods.ConnectionHandShake, new ConnectHandshakeDto
@@ -935,6 +951,13 @@ namespace Chronos.P2P.Client
                 Info = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() }
             }, serverEP);
             var re = await connectionHandshakeTask.Task;
+            Console.WriteLine($"set peer {re}");
+            if (!re)
+            {
+                peer = null;
+                await Task.Delay(1000);
+                _ = StartPeer();
+            }
             return re;
         }
 

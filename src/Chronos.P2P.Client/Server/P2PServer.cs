@@ -180,7 +180,7 @@ namespace Chronos.P2P.Server
                     }
                     guidDic[reqId] = DateTime.UtcNow;
                 }
-                if (mthd != (int)CallMethods.Abort)
+                if (mthd != (int)CallMethods.Abort&&requestHandlers.ContainsKey(mthd))
                 {
                     var td = requestHandlers[mthd];
                     CallHandler(td, new UdpContext(data, peers,

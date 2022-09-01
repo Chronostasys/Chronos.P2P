@@ -14,6 +14,7 @@ namespace Chronos.P2P.Server.Sample
 
         private static async Task Main(string[] args)
         {
+            bool first = true;
             bool server = false;
             bool audio = false;
             if (server)
@@ -25,11 +26,21 @@ namespace Chronos.P2P.Server.Sample
                 Console.WriteLine("enter your port:");
 
                 var p = int.Parse(Console.ReadLine());
-                var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000)); /*new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));*/
+                var peer = new Peer(p, new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5000)); /*new Peer(p, new IPEndPoint(IPAddress.Parse("47.93.189.12"), 5000));*/
                 peer.PeersDataReceived += Peer1_PeersDataReceived;
                 peer.PeerConnected += Peer1_PeerConnected;
                 peer.AddHandler<ClientHandler>();
                 peer.AddHandler<AudioLiveStreamHandler>();
+                peer.OnPeerInvited = (p) =>
+                {
+                    if (first)
+                    {
+                        first = false;
+                        return true;
+                    }
+                    
+                    return false;
+                };
                 _ = peer.StartPeer();
 
                 //peer1.StartPeer();
