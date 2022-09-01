@@ -1,5 +1,6 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Server;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
@@ -23,6 +24,10 @@ while (true)
     }
     var p = new Peer(pt, new(IPAddress.Parse("127.0.0.1"), 5000));
     p.AddHandler<FSHandler>();
+    p.OnInitFileTransfer = (f) =>
+    {
+        return Task.FromResult((true,Path.GetFileName(f.Name)));
+    };
     p.PeerConnectionLost += P_PeerConnectionLost;
     _ = p.StartPeer();
     p.OnPeerInvited = (p) =>
@@ -66,7 +71,8 @@ void P_PeerConnectionLost(object? sender, EventArgs e)
 enum Command
 {
     LS = 3000,
-    LSRESP
+    LSRESP,
+    DOWNLOAD
 }
 
 
@@ -85,8 +91,28 @@ class FSHandler
     public async void LSHandler(UdpContext context)
     {
         var path = context.GetData<string>();
+        if (!Directory.Exists(path))
+        {
+            await peer.SendDataToPeerReliableAsync((int)Command.LSRESP, "Path not found");
+            context.Dispose();
+            return;
+        }
         var resp = string.Join("\n", Directory.EnumerateFileSystemEntries(path!).ToList());
         await peer.SendDataToPeerReliableAsync((int)Command.LSRESP, resp);
+        context.Dispose();
+    }
+    [Handler((int)Command.DOWNLOAD)]
+    public async void DownloadHandler(UdpContext context)
+    {
+        var path = context.GetData<string>();
+        if (!File.Exists(path))
+        {
+            await peer.SendDataToPeerReliableAsync((int)Command.LSRESP, "Path not found");
+            context.Dispose();
+            return;
+        }
+        await peer.SendFileAsync(path!);
+        await peer.SendDataToPeerReliableAsync((int)Command.LSRESP, "Done!");
         context.Dispose();
     }
 }

@@ -72,7 +72,16 @@ namespace Chronos.P2P.Client
         private DateTime lastConnectDataSentTime;
         private DateTime lastPunchDataSentTime;
         private int pingCount = 10;
-        private ILogger<Peer> _logger;
+        private ILogger<Peer> _logger {
+            get
+            {
+                if (server.serviceProvider is null)
+                {
+                    server.serviceProvider = server.services.BuildServiceProvider();
+                }
+                return server.serviceProvider!.GetRequiredService<ILogger<Peer>>();
+            }
+        }
         internal int BufferLen
         {
             get { return buffLen; }
@@ -154,8 +163,6 @@ namespace Chronos.P2P.Client
             server.services.AddSingleton(this);
             server.AfterDataHandled += (s, e) => ResetPingCount();
             server.OnError += Server_OnError;
-            using var p = server.services.BuildServiceProvider();
-            _logger = p.GetRequiredService<ILogger<Peer>>();
             lastPunchDataSentTime = DateTime.UtcNow;
             lastConnectDataSentTime = DateTime.UtcNow;
         }
@@ -695,14 +702,12 @@ namespace Chronos.P2P.Client
 
         internal void OnConnectionCallback(bool acc)
         {
-            Console.WriteLine($"Connection {acc}");
             connectionHandshakeTask.TrySetResult(acc);
         }
 
         internal async ValueTask OnConnectionRequested(PeerInfo requester)
         {
             var re = OnPeerInvited?.Invoke(requester);
-            Console.WriteLine($"{requester.OuterEP} invited {re.Value}");
             if (!re.HasValue || re.Value)
             {
                 _logger.LogInformation("accept!");
@@ -951,7 +956,6 @@ namespace Chronos.P2P.Client
                 Info = new PeerInfo { Id = ID, InnerEP = LocalEP.ToList() }
             }, serverEP);
             var re = await connectionHandshakeTask.Task;
-            Console.WriteLine($"set peer {re}");
             if (!re)
             {
                 peer = null;

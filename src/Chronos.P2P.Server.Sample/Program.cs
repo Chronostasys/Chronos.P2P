@@ -1,5 +1,6 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Client.Audio;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
@@ -33,6 +34,19 @@ namespace Chronos.P2P.Server.Sample
                 peer.AddHandler<ClientHandler>();
                 peer.AddHandler<AudioLiveStreamHandler>();
                 peer.AddHandler<FSHandler>();
+                peer.ConfigureServices(services =>
+                {
+                    services.AddLogging(logging =>
+                    {
+                        logging.ClearProviders();
+                    });
+                });
+                peer.FileReceiveProgressInvoker = (p) =>
+                {
+                    var empty = 20 - (int)(p.Percent / 5);
+                    var bar = "[" + new String('#', (int)(p.Percent / 5)) + new String(' ', empty) + "]";
+                    Console.Write($"\r {bar} {(int)p.Percent}%");
+                };
                 peer.OnPeerInvited = (p) =>
                 {
                     if (first)
@@ -84,7 +98,28 @@ namespace Chronos.P2P.Server.Sample
                         var cmd = Console.ReadLine();
                         if (cmd.StartsWith("ls"))
                         {
-                            await peer.SendDataToPeerReliableAsync((int)Command.LS,cmd.Split(' ')[1]);
+                            await peer.SendDataToPeerReliableAsync((int)Command.LS, cmd.Split(' ')[1]);
+                        }
+                        else if (cmd.StartsWith("download"))
+                        {
+                            var f = cmd.Split(' ')[2];
+                            peer.OnInitFileTransfer = (file) =>
+                            {
+                                return Task.FromResult((true, f));
+                            };
+                            await peer.SendDataToPeerReliableAsync((int)Command.DOWNLOAD, cmd.Split(' ')[1]);
+                        }
+                        else if (cmd.StartsWith("upload"))
+                        {
+                            var f = cmd.Split(' ')[1];
+                            await peer.SendFileAsync(f, progressInvoker: (p) =>
+                            {
+                                var empty = 20 - (int)(p.Percent / 5);
+                                var bar = "[" + new String('#', (int)(p.Percent / 5)) + new String(' ', empty) + "]";
+                                Console.Write($"\r {bar} {(int)p.Percent}%");
+                            });
+                            Console.WriteLine("\r [####################] 100%");
+                            Console.WriteLine("upload complete");
                         }
                     }
                 }
@@ -133,7 +168,8 @@ namespace Chronos.P2P.Server.Sample
     enum Command
     {
         LS = 3000,
-        LSRESP
+        LSRESP,
+        DOWNLOAD
     }
 
 
