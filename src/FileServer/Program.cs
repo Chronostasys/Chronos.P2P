@@ -1,4 +1,6 @@
 ﻿using Chronos.P2P.Client;
+using Chronos.P2P.Server;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
 using System.Threading.Tasks;
@@ -9,7 +11,7 @@ var port = 3000;
 while (true)
 {
     var pt = 0;
-    if (freePorts.Count>0)
+    if (freePorts.Count > 0)
     {
         pt = freePorts[0];
         freePorts.RemoveAt(0);
@@ -20,6 +22,7 @@ while (true)
         pt = port++;
     }
     var p = new Peer(pt, new(IPAddress.Parse("127.0.0.1"), 5000));
+    p.AddHandler<FSHandler>();
     p.PeerConnectionLost += P_PeerConnectionLost;
     _ = p.StartPeer();
     p.OnPeerInvited = (p) =>
@@ -58,4 +61,32 @@ void P_PeerConnectionLost(object? sender, EventArgs e)
         return;
     }
     throw new NotImplementedException();
+}
+
+enum Command
+{
+    LS = 3000,
+    LSRESP
+}
+
+
+class FSHandler
+{
+    private readonly Peer peer;
+    ILogger<PeerDefaultHandlers> _logger;
+
+    public FSHandler(Peer peer, ILogger<PeerDefaultHandlers> logger)
+    {
+        this.peer = peer;
+        _logger = logger;
+    }
+
+    [Handler((int)Command.LS)]
+    public async void LSHandler(UdpContext context)
+    {
+        var path = context.GetData<string>();
+        var resp = string.Join("\n", Directory.EnumerateFileSystemEntries(path!).ToList());
+        await peer.SendDataToPeerReliableAsync((int)Command.LSRESP, resp);
+        context.Dispose();
+    }
 }

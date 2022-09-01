@@ -1,5 +1,6 @@
 ﻿using Chronos.P2P.Client;
 using Chronos.P2P.Client.Audio;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
 using System.Threading.Tasks;
@@ -31,6 +32,7 @@ namespace Chronos.P2P.Server.Sample
                 peer.PeerConnected += Peer1_PeerConnected;
                 peer.AddHandler<ClientHandler>();
                 peer.AddHandler<AudioLiveStreamHandler>();
+                peer.AddHandler<FSHandler>();
                 peer.OnPeerInvited = (p) =>
                 {
                     if (first)
@@ -38,7 +40,7 @@ namespace Chronos.P2P.Server.Sample
                         first = false;
                         return true;
                     }
-                    
+
                     return false;
                 };
                 _ = peer.StartPeer();
@@ -79,7 +81,11 @@ namespace Chronos.P2P.Server.Sample
                 {
                     while (true)
                     {
-                        await peer.SendFileAsync(Console.ReadLine(), int.Parse(Console.ReadLine()));
+                        var cmd = Console.ReadLine();
+                        if (cmd.StartsWith("ls"))
+                        {
+                            await peer.SendDataToPeerReliableAsync((int)Command.LS,cmd.Split(' ')[1]);
+                        }
                     }
                 }
             }
@@ -122,6 +128,32 @@ namespace Chronos.P2P.Server.Sample
                 Program.nums++;
             }
             Console.WriteLine("peer:" + d);
+        }
+    }
+    enum Command
+    {
+        LS = 3000,
+        LSRESP
+    }
+
+
+    class FSHandler
+    {
+        private readonly Peer peer;
+        ILogger<PeerDefaultHandlers> _logger;
+
+        public FSHandler(Peer peer, ILogger<PeerDefaultHandlers> logger)
+        {
+            this.peer = peer;
+            _logger = logger;
+        }
+
+        [Handler((int)Command.LSRESP)]
+        public void LSRespHandler(UdpContext context)
+        {
+            var path = context.GetData<string>();
+            Console.WriteLine($"{path}");
+            context.Dispose();
         }
     }
 }
